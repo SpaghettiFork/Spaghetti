@@ -72,6 +72,20 @@ tbGetBuffer(unsigned size)
 
 /***====================================================================***/
 
+static inline char *
+tbGetBufferString(const char *str)
+{
+    size_t size = strlen(str) + 1;
+    char *rtrn = tbGetBuffer((unsigned) size);
+
+    if (rtrn != NULL)
+        memcpy(rtrn, str, size);
+
+    return rtrn;
+}
+
+/***====================================================================***/
+
 char *
 XkbAtomText(Atom atm, unsigned format)
 {
@@ -80,11 +94,7 @@ XkbAtomText(Atom atm, unsigned format)
 
     atmstr = NameForAtom(atm);
     if (atmstr != NULL) {
-        int len;
-
-        len = strlen(atmstr) + 1;
-        rtrn = tbGetBuffer(len);
-        strlcpy(rtrn, atmstr, len);
+        rtrn = tbGetBufferString(atmstr);
     }
     else {
         rtrn = tbGetBuffer(1);
@@ -234,7 +244,6 @@ static const char *modNames[XkbNumModifiers] = {
 char *
 XkbModIndexText(unsigned ndx, unsigned format)
 {
-    char *rtrn;
     char buf[100];
 
     if (format == XkbCFile) {
@@ -253,9 +262,7 @@ XkbModIndexText(unsigned ndx, unsigned format)
         else
             snprintf(buf, sizeof(buf), "ILLEGAL_%02x", ndx);
     }
-    rtrn = tbGetBuffer(strlen(buf) + 1);
-    strcpy(rtrn, buf);
-    return rtrn;
+    return tbGetBufferString(buf);
 }
 
 char *
@@ -297,8 +304,7 @@ XkbModMaskText(unsigned mask, unsigned format)
             }
         }
     }
-    rtrn = tbGetBuffer(strlen(buf) + 1);
-    strcpy(rtrn, buf);
+    rtrn = tbGetBufferString(buf);
     return rtrn;
 }
 
@@ -1230,7 +1236,7 @@ static actionCopy copyActionArgs[XkbSA_NumActions] = {
 char *
 XkbActionText(XkbDescPtr xkb, XkbAction *action, unsigned format)
 {
-    char buf[ACTION_SZ], *tmp;
+    char buf[ACTION_SZ];
     int sz;
 
     if (format == XkbCFile) {
@@ -1251,16 +1257,13 @@ XkbActionText(XkbDescPtr xkb, XkbAction *action, unsigned format)
             CopyOtherArgs(xkb, action, buf, &sz);
         TryCopyStr(buf, ")", &sz);
     }
-    tmp = tbGetBuffer(strlen(buf) + 1);
-    if (tmp != NULL)
-        strcpy(tmp, buf);
-    return tmp;
+    return tbGetBufferString(buf);
 }
 
 char *
 XkbBehaviorText(XkbDescPtr xkb, XkbBehavior * behavior, unsigned format)
 {
-    char buf[256], *tmp;
+    char buf[256];
 
     if (format == XkbCFile) {
         if (behavior->type == XkbKB_Default)
@@ -1281,6 +1284,7 @@ XkbBehaviorText(XkbDescPtr xkb, XkbBehavior * behavior, unsigned format)
         }
         else if (type == XkbKB_RadioGroup) {
             int g;
+            char *tmp;
             size_t tmpsize;
 
             g = ((behavior->data) & (~XkbKB_RGAllowNone)) + 1;
@@ -1316,10 +1320,7 @@ XkbBehaviorText(XkbDescPtr xkb, XkbBehavior * behavior, unsigned format)
                 snprintf(buf, sizeof(buf), "overlay%d= %s", ndx, kn);
         }
     }
-    tmp = tbGetBuffer(strlen(buf) + 1);
-    if (tmp != NULL)
-        strcpy(tmp, buf);
-    return tmp;
+    return tbGetBufferString(buf);
 }
 
 /***====================================================================***/
