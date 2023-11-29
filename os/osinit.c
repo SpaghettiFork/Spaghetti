@@ -59,7 +59,7 @@ SOFTWARE.
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
-#ifdef HAVE_BACKTRACE
+#if defined(HAVE_BACKTRACE) && defined(HAVE_EXECINFO_H)
 #include <execinfo.h>
 #endif
 
@@ -206,7 +206,7 @@ OsInit(void)
         if (!server_poll)
             FatalError("failed to allocate poll structure");
 
-#ifdef HAVE_BACKTRACE
+#if defined(HAVE_BACKTRACE) && defined(HAVE_EXECINFO_H)
         /*
          * initialize the backtracer, since the ctor calls dlopen(), which
          * calls malloc(), which isn't signal-safe.
