@@ -42,6 +42,7 @@
 
 #include "xwayland-dmabuf.h"
 #include "xwayland-glamor.h"
+#include "xwayland-glamor-gbm.h"
 #include "xwayland-screen.h"
 #include "xwayland-window.h"
 #include "xwayland-window-buffers.h"
