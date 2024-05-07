@@ -234,9 +234,9 @@ xwl_glamor_gbm_create_pixmap_for_bo(ScreenPtr screen, struct gbm_bo *bo,
     xwl_pixmap->bo = bo;
     xwl_pixmap->buffer = NULL;
     xwl_pixmap->implicit_modifier = implicit_modifier;
-#ifdef XWL_HAS_GLAMOR
+#if defined(XWL_HAS_GLAMOR) && defined(DRI3)
     xwl_pixmap->efd = -1;
-#endif /* XWL_HAS_GLAMOR */
+#endif /* defined(XWL_HAS_GLAMOR) && defined(DRI3) */
 
 #ifdef GBM_BO_FD_FOR_PLANE
     if (xwl_gbm->dmabuf_capable) {
@@ -679,6 +679,7 @@ xwl_auth_state_client_callback(CallbackListPtr *pcbl, void *unused, void *data)
     }
 }
 
+#ifdef DRI3
 static void
 sync_callback(void *data, struct wl_callback *callback, uint32_t serial)
 {
@@ -741,6 +742,7 @@ xwl_dri3_open_client(ClientPtr client,
 
     return Success;
 }
+#endif /* DRI3 */
 
 _X_EXPORT PixmapPtr
 glamor_pixmap_from_fds(ScreenPtr screen, CARD8 num_fds, const int *fds,
@@ -981,6 +983,7 @@ xwl_glamor_dmabuf_import_sync_file(PixmapPtr pixmap, int sync_file)
     close(sync_file);
 }
 
+#ifdef DRI3
 struct xwl_dri3_syncobj
 {
     struct dri3_syncobj base;
@@ -1239,6 +1242,7 @@ static dri3_screen_info_rec xwl_dri3_info = {
     .get_drawable_modifiers = xwl_glamor_get_drawable_modifiers,
     .import_syncobj = NULL, /* need to check for kernel support */
 };
+#endif /* DRI3 */
 
 static const char *
 get_render_node_path_for_device(const drmDevicePtr drm_device,
@@ -1768,7 +1772,7 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
     }
     /* NVIDIA driver does not support implicit sync */
     xwl_gbm->implicit_sync = !strstr(egl_vendor, "NVIDIA");
-
+#ifdef DRI3
     if (xwl_gbm_supports_syncobjs(xwl_screen) &&
         epoxy_has_egl_extension(xwl_screen->egl_display,
                                 "ANDROID_native_fence_sync"))
@@ -1779,7 +1783,7 @@ xwl_glamor_gbm_init_egl(struct xwl_screen *xwl_screen)
         wp_linux_drm_syncobj_manager_v1_destroy(xwl_screen->explicit_sync);
         xwl_screen->explicit_sync = NULL;
     }
-
+#endif /* DRI3 */
     return TRUE;
 error:
     if (xwl_screen->egl_display != EGL_NO_DISPLAY) {
@@ -1796,7 +1800,7 @@ Bool
 xwl_glamor_gbm_init_screen(struct xwl_screen *xwl_screen)
 {
     struct xwl_gbm_private *xwl_gbm = xwl_gbm_get(xwl_screen);
-
+#ifdef DRI3
     if (xwl_gbm->supports_syncobjs) {
         xwl_dri3_info.version = 4;
         xwl_dri3_info.import_syncobj = xwl_dri3_import_syncobj;
@@ -1806,7 +1810,7 @@ xwl_glamor_gbm_init_screen(struct xwl_screen *xwl_screen)
         ErrorF("Failed to initialize dri3\n");
         goto error;
     }
-
+#endif /* DRI3 */
     if (xwl_gbm->fd_render_node)
         goto skip_drm_auth;
 
