@@ -1213,6 +1213,10 @@ keyboard_handle_enter(void *data, struct wl_keyboard *keyboard,
     xwl_seat->xwl_screen->serial = serial;
     xwl_seat->keyboard_focus = surface;
 
+    /* If `leave` wasn't sent (for a destroyed surface), release keys here. */
+    wl_array_for_each(k, &xwl_seat->keys)
+        QueueKeyboardEvents(xwl_seat->keyboard, LeaveNotify, *k + 8);
+
     wl_array_copy(&xwl_seat->keys, keys);
     wl_array_for_each(k, &xwl_seat->keys)
         QueueKeyboardEvents(xwl_seat->keyboard, EnterNotify, *k + 8);
@@ -1227,6 +1231,7 @@ xwl_seat_leave_kbd(struct xwl_seat *xwl_seat)
 
     wl_array_for_each(k, &xwl_seat->keys)
         QueueKeyboardEvents(xwl_seat->keyboard, LeaveNotify, *k + 8);
+    xwl_seat->keys.size = 0;
 
     xwl_seat->keyboard_focus = NULL;
 
