@@ -1884,7 +1884,7 @@ siHostnameAddrMatch(int family, void *addr, int len,
         char hostname[SI_HOSTNAME_MAXLEN];
         int f, hostaddrlen;
         void *hostaddr;
-        const char **addrlist;
+        char **addrlist;
 
         if (siAddrLen >= sizeof(hostname))
             return FALSE;
