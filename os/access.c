@@ -1909,7 +1909,9 @@ siHostnameAddrMatch(int family, void *addr, int len,
                 if ((f == family) && (len == hostaddrlen) &&
                     (memcmp(addr, hostaddr, len) == 0)) {
                     res = TRUE;
+#ifdef h_addr
                     break;
+#endif
                 }
             }
         }
