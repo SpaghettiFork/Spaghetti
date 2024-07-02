@@ -1405,7 +1405,7 @@ xwl_window_update_surface_window(struct xwl_window *xwl_window)
     }
 
     if (surface_window->drawable.depth != xwl_window->surface_window->drawable.depth)
-        xwl_window_buffers_dispose(xwl_window);
+        xwl_window_buffers_dispose(xwl_window, FALSE);
 
     xwl_window->surface_window = surface_window;
     register_damage(xwl_window);
@@ -1689,7 +1689,7 @@ xwl_window_dispose(struct xwl_window *xwl_window)
     xorg_list_del(&xwl_window->link_damage);
     xorg_list_del(&xwl_window->link_window);
 
-    xwl_window_buffers_dispose(xwl_window);
+    xwl_window_buffers_dispose(xwl_window, FALSE);
 
     if (xwl_window->window_buffers_timer)
         TimerFree(xwl_window->window_buffers_timer);
@@ -1751,7 +1751,7 @@ xwl_window_set_window_pixmap(WindowPtr window,
          old_pixmap->drawable.height == pixmap->drawable.height))
        return;
 
-    xwl_window_buffers_dispose(xwl_window);
+    xwl_window_buffers_dispose(xwl_window, FALSE);
 }
 
 Bool
