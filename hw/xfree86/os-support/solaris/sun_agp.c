@@ -123,7 +123,7 @@ xf86GetAGPInfo(int screenNum)
         return NULL;
     }
 
-    if ((info = calloc(sizeof(AgpInfo), 1)) == NULL) {
+    if ((info = calloc(1, sizeof(AgpInfo))) == NULL) {
         xf86DrvMsg(screenNum, X_ERROR,
                    "xf86GetAGPInfo: Failed to allocate AgpInfo\n");
         return NULL;
