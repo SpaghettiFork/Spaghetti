@@ -5039,7 +5039,7 @@ XkbComputeGetGeometryReplySize(XkbGeometryPtr geom,
 }
 static int
 XkbSendGeometry(ClientPtr client,
-                XkbGeometryPtr geom, xkbGetGeometryReply * rep, Bool freeGeom)
+                XkbGeometryPtr geom, xkbGetGeometryReply *rep)
 {
     char *desc, *start;
     int len;
@@ -5091,8 +5091,6 @@ XkbSendGeometry(ClientPtr client,
         WriteToClient(client, len, start);
     if (start != NULL)
         free((char *) start);
-    if (freeGeom)
-        XkbFreeGeometry(geom, XkbGeomAllMask, TRUE);
     return Success;
 }
 
@@ -5123,9 +5121,15 @@ ProcXkbGetGeometry(ClientPtr client)
     };
     status = XkbComputeGetGeometryReplySize(geom, &rep, stuff->name);
     if (status != Success)
-        return status;
-    else
-        return XkbSendGeometry(client, geom, &rep, shouldFree);
+        goto free_out;
+
+    status = XkbSendGeometry(client, geom, &rep);
+
+free_out:
+    if (shouldFree)
+        XkbFreeGeometry(geom, XkbGeomAllMask, TRUE);
+
+    return status;
 }
 
 /***====================================================================***/
@@ -6200,7 +6204,7 @@ ProcXkbGetKbdByName(ClientPtr client)
     if (reported & (XkbGBN_KeyNamesMask | XkbGBN_OtherNamesMask))
         XkbSendNames(client, new, &nrep);
     if (reported & XkbGBN_GeometryMask)
-        XkbSendGeometry(client, new->geom, &grep, FALSE);
+        XkbSendGeometry(client, new->geom, &grep);
     if (rep.loaded) {
         XkbDescPtr old_xkb;
         xkbNewKeyboardNotify nkn;
