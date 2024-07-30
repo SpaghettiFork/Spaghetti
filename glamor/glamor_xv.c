@@ -141,24 +141,22 @@ static const glamor_facet glamor_facet_xv_uyvy = {
                 "in vec2 tcs;\n"
                 ),
     .fs_exec = (
-        "    vec3 uyv;\n"
-        "    vec4 frameOut = texture2D(sampler, tcs.st);\n"
-        "\n"
-        "    vec4 prevPixel = texture2D(sampler, vec2(tcs.s - texelSize.x, tcs.t));\n"
-        "    vec4 nextPixel = texture2D(sampler, vec2(tcs.s + texelSize.x, tcs.t));\n"
-        "\n"
-        "    float delta = 0.50;\n"
-        "\n"
-        "    int even = int(mod(tcs.x / texelSize.x, 2.0));\n"
-        "\n"
-        "    uyv.rgb = float(even)*vec3(frameOut.rg, nextPixel.r) + (1.0-float(even))*vec3(prevPixel.r, frameOut.gr);\n"
-        "\n"
-        "    frameOut.r = uyv.g + 1.403*(uyv.r - delta);\n"
-        "    frameOut.g = uyv.g - 0.714*(uyv.r - delta) - 0.344*(uyv.b - delta);\n"
-        "    frameOut.b = uyv.g + 1.773*(uyv.b - delta);\n"
-        "    frameOut.a = 1.0;\n"
-        "    frag_color = frameOut;\n"
-        ),
+                "        vec4 temp1;\n"
+                "        vec2 xy = texture(sampler, tcs.st).xy;\n"
+                "        vec2 prev_xy = texture(sampler, vec2(tcs.s - texelSize.x, tcs.t)).xy;\n"
+                "        vec2 next_xy = texture(sampler, vec2(tcs.s + texelSize.x, tcs.t)).xy;\n"
+                "\n"
+                "        vec3 sample_yuv;\n"
+                "        int odd = int(mod(tcs.x / texelSize.x, 2.0));\n"
+                "        int even = 1 - odd;\n"
+                "        sample_yuv.yxz = float(even)*vec3(xy, next_xy.x) + float(odd)*vec3(prev_xy.x, xy.yx);\n"
+                "\n"
+                "        temp1.xyz = offsetyco.www * vec3(sample_yuv.x) + offsetyco.xyz;\n"
+                "        temp1.xyz = ucogamma.xyz * vec3(sample_yuv.y) + temp1.xyz;\n"
+                "        temp1.xyz = clamp(vco.xyz * vec3(sample_yuv.z) + temp1.xyz, 0.0, 1.0);\n"
+                "        temp1.w = 1.0;\n"
+                "        frag_color = temp1;\n"
+                ),
 };
 
 static const glamor_facet glamor_facet_xv_rgb_raw = {
