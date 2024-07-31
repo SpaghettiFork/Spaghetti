@@ -379,9 +379,16 @@ glamor_xv_query_image_attributes(int id,
             offsets[0] = 0;
         size *= *h;
         break;
-    case FOURCC_RGB565:
     case FOURCC_UYVY:
         /* UYVU is single-plane really, all tranformation is processed inside a shader */
+        size = ALIGN(*w, 2) * 2;
+        if (pitches)
+            pitches[0] = size;
+        if (offsets)
+            offsets[0] = 0;
+        size *= *h;
+        break;
+    case FOURCC_RGB565:
         size = *w * 2;
         if (pitches)
             pitches[0] = size;
@@ -787,6 +794,15 @@ glamor_xv_put_image(glamor_port_private *port_priv,
                             buf + s2offset, srcPitch);
         break;
     case FOURCC_UYVY:
+        srcPitch = ALIGN(width, 2) * 2;
+        full_box.x1 = 0;
+        full_box.y1 = 0;
+        full_box.x2 = width;
+        full_box.y2 = height;
+        glamor_upload_boxes(&port_priv->src_pix[0]->drawable, &full_box, 1,
+                            0, 0, 0, 0,
+                            buf, srcPitch);
+        break;
     case FOURCC_RGB565:
         srcPitch = width * 2;
         full_box.x1 = 0;
