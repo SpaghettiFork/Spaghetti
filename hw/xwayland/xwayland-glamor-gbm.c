@@ -33,7 +33,9 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <poll.h>
+#ifdef DRI3
 #include <sys/eventfd.h>
+#endif /* DRI3 */
 #include <sys/stat.h>
 #include <xf86drm.h>
 #include <drm_fourcc.h>

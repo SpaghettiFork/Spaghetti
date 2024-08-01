@@ -39,7 +39,9 @@
 #include "dri3.h"
 
 #include <poll.h>
+#ifdef DRI3
 #include <sys/eventfd.h>
+#endif
 #include "linux-drm-syncobj-v1-client-protocol.h"
 
 #define BUFFER_TIMEOUT 1 * 1000 /* ms */

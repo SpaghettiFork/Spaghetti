@@ -31,7 +31,9 @@
 #endif
 #include <windowstr.h>
 #include <present.h>
+#ifdef DRI3
 #include <sys/eventfd.h>
+#endif /* DRI3 */
 
 #include "xwayland-present.h"
 #include "xwayland-screen.h"
