@@ -16,11 +16,15 @@
 # gcc/clang or other packages, which might break the build with older commits
 # using the same tag.
 variables:
-    FDO_UPSTREAM_REPO: xorg/xserver
-    FDO_DISTRIBUTION_VERSION: bullseye-slim
-    FDO_DISTRIBUTION_EXEC: 'env FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash .gitlab-ci/debian-install.sh'
-    FDO_DISTRIBUTION_TAG: "2024-08-23-fix-cross"
-    MESON_BUILDDIR: "build"
+    FDO_UPSTREAM_REPO:    'xorg/xserver'
+    MESON_BUILDDIR:       'build'
+    REPO_URL_XORGPROTO:   'https://gitlab.freedesktop.org/xorg/proto/xorgproto.git'
+    XORG_DEBIAN_VERSION:  'bullseye-slim'
+    XORG_DEBIAN_EXEC:     'env FDO_CI_CONCURRENT=${FDO_CI_CONCURRENT} bash .gitlab-ci/debian-install.sh'
+    XORG_DEBIAN_TAG:      '2024-09-07-fix-anongit'
+    XORG_FREEBSD_VERSION: '14.0'
+    XORG_FREEBSD_EXEC:    ''
+    XORG_FREEBSD_TAG:     '2024-06-10.0'
 
 include:
   - project: 'freedesktop/ci-templates'
