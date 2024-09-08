@@ -589,17 +589,20 @@ ProcListProperties(ClientPtr client)
     for (pProp = wUserProps(pWin); pProp; pProp = pProp->next)
         numProps++;
 
-    if (numProps && !(pAtoms = xallocarray(numProps, sizeof(Atom))))
-        return BadAlloc;
+    if (numProps) {
+        pAtoms = xallocarray(numProps, sizeof(Atom));
+        if (!pAtoms)
+            return BadAlloc;
 
-    numProps = 0;
-    temppAtoms = pAtoms;
-    for (pProp = wUserProps(pWin); pProp; pProp = pProp->next) {
-        realProp = pProp;
-        rc = XaceHookPropertyAccess(client, pWin, &realProp, DixGetAttrAccess);
-        if (rc == Success && realProp == pProp) {
-            *temppAtoms++ = pProp->propertyName;
-            numProps++;
+        numProps = 0;
+        temppAtoms = pAtoms;
+        for (pProp = wUserProps(pWin); pProp; pProp = pProp->next) {
+            realProp = pProp;
+            rc = XaceHookPropertyAccess(client, pWin, &realProp, DixGetAttrAccess);
+            if (rc == Success && realProp == pProp) {
+                *temppAtoms++ = pProp->propertyName;
+                numProps++;
+            }
         }
     }
 
@@ -613,8 +616,8 @@ ProcListProperties(ClientPtr client)
     if (numProps) {
         client->pSwapReplyFunc = (ReplySwapPtr) Swap32Write;
         WriteSwappedDataToClient(client, numProps * sizeof(Atom), pAtoms);
+        free(pAtoms);
     }
-    free(pAtoms);
     return Success;
 }
 
