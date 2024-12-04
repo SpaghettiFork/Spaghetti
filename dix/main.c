@@ -231,7 +231,9 @@ dix_main(int argc, char *argv[], char *envp[])
             FatalError("could not open default cursor font");
         }
 
-#ifdef PANORAMIX
+        rootCursor = RefCursor(rootCursor);
+
+#ifdef XINERAMA
         /*
          * Consolidate window and colourmap information for each screen
          */
@@ -270,6 +272,8 @@ dix_main(int argc, char *argv[], char *envp[])
         InputThreadInit();
 
         Dispatch();
+
+        UnrefCursor(rootCursor);
 
         UndisplayDevices();
         DisableAllDevices();
