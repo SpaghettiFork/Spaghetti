@@ -140,6 +140,7 @@ compRedirectWindow(ClientPtr pClient, WindowPtr pWin, int update)
     CompScreenPtr cs = GetCompScreen(pWin->drawable.pScreen);
     WindowPtr pLayerWin;
     Bool anyMarked = FALSE;
+    int status = Success;
 
     if (pWin == cs->pOverlayWin) {
         return Success;
@@ -217,14 +218,14 @@ compRedirectWindow(ClientPtr pClient, WindowPtr pWin, int update)
     }
 
     if (!compCheckRedirect(pWin)) {
-        FreeResource(ccw->id, RT_NONE);
-        return BadAlloc;
+        FreeResource(ccw->id, X11_RESTYPE_NONE);
+        status = BadAlloc;
     }
 
     if (anyMarked)
         compHandleMarkedWindows(pWin, pLayerWin);
 
-    return Success;
+    return status;
 }
 
 void
