@@ -3241,6 +3241,15 @@ sprite_check_lost_focus(SpritePtr sprite, WindowPtr window)
     if (master->lastSlave != get_pointer_device(xwl_seat))
         return FALSE;
 
+    /* If we left the surface with a button down, it means the wayland compositor
+     * has grabbed the pointer so we will not get button release events from the
+     * compositor, so leave the window processing untouched, so that we do not
+     * end up with the wrong cursor, for example, when processing events once
+     * the pointer enters the X11 surface again.
+     */
+    if (master->button->buttonsDown)
+        return FALSE;
+
     if (xwl_seat->focus_window != NULL &&
         xwl_seat->cursor_confinement_window != NULL &&
         xwl_seat->focus_window != xwl_seat->cursor_confinement_window)
