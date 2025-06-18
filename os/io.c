@@ -390,6 +390,8 @@ ReadRequestFromClient(ClientPtr client)
                     needed = get_big_req_len(request, client);
             }
             client->req_len = needed;
+            if (needed > MAXINT >> 2)
+                return -(BadLength);
             needed <<= 2;
         }
         if (gotnow < needed) {
