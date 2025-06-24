@@ -1218,6 +1218,8 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
                                                   "dmabuf_capable");
         else if (strstr((const char *)renderer, "Intel"))
             glamor_egl->dmabuf_capable = TRUE;
+        else if (strstr((const char *)renderer, "zink"))
+            glamor_egl->dmabuf_capable = TRUE;
         else
             glamor_egl->dmabuf_capable = FALSE;
     }
