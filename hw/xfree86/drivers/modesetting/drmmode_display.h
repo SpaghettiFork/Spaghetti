@@ -118,6 +118,7 @@ typedef struct {
     DevPrivateKeyRec pixmapPrivateKeyRec;
     DevScreenPrivateKeyRec spritePrivateKeyRec;
     DevPrivateKeyRec vrrPrivateKeyRec;
+    DevPrivateKeyRec asyncFlipPrivateKeyRec;
     /* Number of SW cursors currently visible on this screen */
     int sprites_visible;
 
