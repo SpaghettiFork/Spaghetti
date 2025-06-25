@@ -81,10 +81,9 @@
 #include <stddef.h>
 
 /**************************************************************************/
-/* SYSV386 (SVR3, SVR4), including Solaris                                */
+/* Solaris or illumos-based system                                        */
 /**************************************************************************/
-#if (defined(SYSV) || defined(SVR4)) && \
-    (defined(__sun) || defined(__i386__))
+#if defined(__SVR4) && defined(__sun)
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <termio.h>
@@ -93,45 +92,10 @@
 
 #include <errno.h>
 
-#if defined(_NEED_SYSI86)
-#if !(defined (__sun) && defined (SVR4))
-#include <sys/immu.h>
-#include <sys/region.h>
-#include <sys/proc.h>
-#endif
-#include <sys/tss.h>
-#include <sys/sysi86.h>
-#if defined(SVR4) && !defined(__sun)
-#include <sys/seg.h>
-#endif                          /* SVR4 && !__sun */
-/* V86SC_IOPL was moved to <sys/sysi86.h> on Solaris 7 and later */
-#if !defined(V86SC_IOPL)        /* Solaris 7 or later? */
-#include <sys/v86.h>            /* Nope */
-#endif
-#if defined(__sun) && (defined (__i386__) || defined(__i386) || defined(__x86))  && defined (SVR4)
-#include <sys/psw.h>
-#endif
-#endif                          /* _NEED_SYSI86 */
-
-#if defined(HAS_SVR3_MMAPDRV)
-#include <sys/sysmacros.h>
-#if !defined(_NEED_SYSI86)
-#include <sys/immu.h>
-#include <sys/region.h>
-#endif
-#include <sys/mmap.h>           /* MMAP driver header */
-#endif
-
-#if !defined(__sun) || defined(HAVE_SYS_VT_H)
+#ifdef HAVE_SYS_VT_H
 #define HAS_USL_VTS
 #endif
-#if !defined(__sun)
-#include <sys/emap.h>
-#endif
-#if   defined(HAS_USL_VTS)
-#if !defined(__sun)
-#include <sys/at_ansi.h>
-#endif
+#ifdef HAS_USL_VTS
 #include <sys/kd.h>
 #include <sys/vt.h>
 
@@ -139,39 +103,9 @@ extern _X_HIDDEN void xf86VTAcquire(int);
 extern _X_HIDDEN void xf86VTRelease(int);
 #endif
 
-#if defined(__sun)
-#include <sys/fbio.h>
-extern _X_HIDDEN char xf86SolarisFbDev[PATH_MAX];
-
-#include <sys/kbd.h>
-#include <sys/kbio.h>
-
-/* undefine symbols from <sys/kbd.h> we don't need that conflict with enum
-   definitions in parser/xf86tokens.h */
-#undef STRING
-#undef LEFTALT
-#undef RIGHTALT
-
-#define LED_CAP LED_CAPS_LOCK
-#define LED_NUM LED_NUM_LOCK
-#define LED_SCR LED_SCROLL_LOCK
-#define LED_COMP LED_COMPOSE
-#endif                          /* __sun */
-
-#if !defined(VT_ACKACQ)
-#define VT_ACKACQ 2
-#endif                          /* !VT_ACKACQ */
-
-#if defined(SVR4)
-#include <sys/mman.h>
-#if !(defined(__sun) && defined (SVR4))
-#define DEV_MEM "/dev/pmem"
-#endif
 #define CLEARDTR_SUPPORT
-#define POSIX_TTY
-#endif                          /* SVR4 */
 
-#endif                          /* (SYSV || SVR4) */
+#endif                          /* SVR4 && __sun */
 
 /**************************************************************************/
 /* Linux or Glibc-based system                                            */

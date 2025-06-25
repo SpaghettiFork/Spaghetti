@@ -1093,10 +1093,10 @@ XkbSizeKeySyms(XkbDescPtr xkb, xkbGetMapReply * rep)
     len = rep->nKeySyms * SIZEOF(xkbSymMapWireDesc);
     symMap = &xkb->map->key_sym_map[rep->firstKeySym];
     for (i = nSyms = 0; i < rep->nKeySyms; i++, symMap++) {
-        if (symMap->offset != 0) {
-            nSymsThisKey = XkbNumGroups(symMap->group_info) * symMap->width;
-            nSyms += nSymsThisKey;
-        }
+        nSymsThisKey = XkbNumGroups(symMap->group_info) * symMap->width;
+        if (nSymsThisKey == 0)
+            continue;
+        nSyms += nSymsThisKey;
     }
     len += nSyms * 4;
     rep->totalSyms = nSyms;
@@ -2992,13 +2992,13 @@ _XkbSetCompatMap(ClientPtr client, DeviceIntPtr dev,
         XkbSymInterpretPtr sym;
         unsigned int skipped = 0;
 
-        if ((unsigned) (req->firstSI + req->nSI) > compat->num_si) {
-            compat->num_si = req->firstSI + req->nSI;
+        if ((unsigned) (req->firstSI + req->nSI) > compat->size_si) {
+            compat->num_si = compat->size_si = req->firstSI + req->nSI;
             compat->sym_interpret = reallocarray(compat->sym_interpret,
-                                                 compat->num_si,
+                                                 compat->size_si,
                                                  sizeof(XkbSymInterpretRec));
             if (!compat->sym_interpret) {
-                compat->num_si = 0;
+                compat->num_si = compat->size_si = 0;
                 return BadAlloc;
             }
         }
@@ -5039,7 +5039,7 @@ XkbComputeGetGeometryReplySize(XkbGeometryPtr geom,
 }
 static int
 XkbSendGeometry(ClientPtr client,
-                XkbGeometryPtr geom, xkbGetGeometryReply * rep, Bool freeGeom)
+                XkbGeometryPtr geom, xkbGetGeometryReply *rep)
 {
     char *desc, *start;
     int len;
@@ -5091,8 +5091,6 @@ XkbSendGeometry(ClientPtr client,
         WriteToClient(client, len, start);
     if (start != NULL)
         free((char *) start);
-    if (freeGeom)
-        XkbFreeGeometry(geom, XkbGeomAllMask, TRUE);
     return Success;
 }
 
@@ -5123,9 +5121,15 @@ ProcXkbGetGeometry(ClientPtr client)
     };
     status = XkbComputeGetGeometryReplySize(geom, &rep, stuff->name);
     if (status != Success)
-        return status;
-    else
-        return XkbSendGeometry(client, geom, &rep, shouldFree);
+        goto free_out;
+
+    status = XkbSendGeometry(client, geom, &rep);
+
+free_out:
+    if (shouldFree)
+        XkbFreeGeometry(geom, XkbGeomAllMask, TRUE);
+
+    return status;
 }
 
 /***====================================================================***/
@@ -6200,7 +6204,7 @@ ProcXkbGetKbdByName(ClientPtr client)
     if (reported & (XkbGBN_KeyNamesMask | XkbGBN_OtherNamesMask))
         XkbSendNames(client, new, &nrep);
     if (reported & XkbGBN_GeometryMask)
-        XkbSendGeometry(client, new->geom, &grep, FALSE);
+        XkbSendGeometry(client, new->geom, &grep);
     if (rep.loaded) {
         XkbDescPtr old_xkb;
         xkbNewKeyboardNotify nkn;

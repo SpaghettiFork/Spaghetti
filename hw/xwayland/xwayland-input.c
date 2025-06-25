@@ -54,6 +54,7 @@
 #include "pointer-gestures-unstable-v1-client-protocol.h"
 #include "xwayland-keyboard-grab-unstable-v1-client-protocol.h"
 #include "keyboard-shortcuts-inhibit-unstable-v1-client-protocol.h"
+#include "xdg-system-bell-v1-client-protocol.h"
 
 #define SCROLL_AXIS_HORIZ 2
 #define SCROLL_AXIS_VERT 3
@@ -515,13 +516,13 @@ pointer_handle_enter(void *data, struct wl_pointer *pointer,
                      wl_fixed_t sx_w, wl_fixed_t sy_w)
 {
     struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     DeviceIntPtr dev = get_pointer_device(xwl_seat);
     DeviceIntPtr master;
     int i;
-    int sx = wl_fixed_to_int(sx_w);
-    int sy = wl_fixed_to_int(sy_w);
+    int sx, sy;
     int dx, dy;
-    ScreenPtr pScreen = xwl_seat->xwl_screen->screen;
+    ScreenPtr pScreen = xwl_screen->screen;
     ValuatorMask mask;
 
     /* There's a race here where if we create and then immediately
@@ -536,15 +537,18 @@ pointer_handle_enter(void *data, struct wl_pointer *pointer,
     if (!is_surface_from_xwl_window(surface))
         return;
 
+    sx = wl_fixed_to_int(sx_w) * xwl_screen->global_surface_scale;
+    sy = wl_fixed_to_int(sy_w) * xwl_screen->global_surface_scale;
+
     xwl_seat->xwl_screen->serial = serial;
     xwl_seat->pointer_enter_serial = serial;
 
     xwl_seat->focus_window = wl_surface_get_user_data(surface);
-    dx = xwl_seat->focus_window->window->drawable.x;
-    dy = xwl_seat->focus_window->window->drawable.y;
+    dx = xwl_seat->focus_window->toplevel->drawable.x;
+    dy = xwl_seat->focus_window->toplevel->drawable.y;
 
     /* We just entered a new xwindow, forget about the old last xwindow */
-    xwl_seat->last_xwindow = NullWindow;
+    xwl_seat->last_focus_window = NULL;
 
     master = GetMaster(dev, POINTER_OR_FLOAT);
     (*pScreen->SetCursorPosition) (dev, pScreen, dx + sx, dy + sy, TRUE);
@@ -587,30 +591,47 @@ pointer_handle_enter(void *data, struct wl_pointer *pointer,
     maybe_fake_grab_devices(xwl_seat);
 }
 
-static void
-pointer_handle_leave(void *data, struct wl_pointer *pointer,
-                     uint32_t serial, struct wl_surface *surface)
+void
+xwl_seat_leave_ptr(struct xwl_seat *xwl_seat, Bool focus_lost)
 {
-    struct xwl_seat *xwl_seat = data;
     DeviceIntPtr dev = get_pointer_device(xwl_seat);
 
-    xwl_seat->xwl_screen->serial = serial;
+    if (!dev)
+        return;
 
-    /* The pointer has left a known xwindow, save it for a possible match
-     * in sprite_check_lost_focus()
-     */
-    if (xwl_seat->focus_window) {
-        xwl_seat->last_xwindow = xwl_seat->focus_window->window;
-        xwl_seat->focus_window = NULL;
+    if (focus_lost)
         CheckMotion(NULL, GetMaster(dev, POINTER_OR_FLOAT));
-    }
 
     maybe_fake_ungrab_devices(xwl_seat);
 }
 
 static void
+pointer_handle_leave(void *data, struct wl_pointer *pointer,
+                     uint32_t serial, struct wl_surface *surface)
+{
+    struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
+    Bool focus_lost = FALSE;
+
+    xwl_screen->serial = serial;
+
+    /* The pointer has left a known xwindow, save it for a possible match
+     * in sprite_check_lost_focus()
+     */
+    if (xwl_seat->focus_window) {
+        xwl_seat->last_focus_window = xwl_seat->focus_window;
+        xwl_seat->focus_window = NULL;
+        focus_lost = TRUE;
+    }
+
+    if (xwl_screen->rootless)
+        xwl_seat_leave_ptr(xwl_seat, focus_lost);
+}
+
+static void
 dispatch_relative_motion_with_warp(struct xwl_seat *xwl_seat)
 {
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     double dx, dx_unaccel;
     double dy, dy_unaccel;
 
@@ -618,6 +639,16 @@ dispatch_relative_motion_with_warp(struct xwl_seat *xwl_seat)
     dy = xwl_seat->pending_pointer_event.dy;
     dx_unaccel = xwl_seat->pending_pointer_event.dx_unaccel;
     dy_unaccel = xwl_seat->pending_pointer_event.dy_unaccel;
+
+    dx *= xwl_screen->global_surface_scale;
+    dy *= xwl_screen->global_surface_scale;
+    dx_unaccel *= xwl_screen->global_surface_scale;
+    dy_unaccel *= xwl_screen->global_surface_scale;
+
+    dx *= xwl_seat->focus_window->viewport_scale_x;
+    dy *= xwl_seat->focus_window->viewport_scale_y;
+    dx_unaccel *= xwl_seat->focus_window->viewport_scale_x;
+    dy_unaccel *= xwl_seat->focus_window->viewport_scale_y;
 
     xwl_pointer_warp_emulator_handle_motion(xwl_seat->pointer_warp_emulator,
                                             dx, dy,
@@ -627,20 +658,22 @@ dispatch_relative_motion_with_warp(struct xwl_seat *xwl_seat)
 static void
 dispatch_absolute_motion(struct xwl_seat *xwl_seat)
 {
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     ValuatorMask mask;
     DeviceIntPtr device;
     int flags;
     int event_x = wl_fixed_to_int(xwl_seat->pending_pointer_event.x);
     int event_y = wl_fixed_to_int(xwl_seat->pending_pointer_event.y);
-    int drawable_x = xwl_seat->focus_window->window->drawable.x;
-    int drawable_y = xwl_seat->focus_window->window->drawable.y;
+    int drawable_x = xwl_seat->focus_window->toplevel->drawable.x;
+    int drawable_y = xwl_seat->focus_window->toplevel->drawable.y;
     int x;
     int y;
 
-    if (xwl_window_has_viewport_enabled(xwl_seat->focus_window)) {
-        event_x *= xwl_seat->focus_window->scale_x;
-        event_y *= xwl_seat->focus_window->scale_y;
-    }
+    event_x *= xwl_screen->global_surface_scale;
+    event_y *= xwl_screen->global_surface_scale;
+
+    event_x *= xwl_seat->focus_window->viewport_scale_x;
+    event_y *= xwl_seat->focus_window->viewport_scale_y;
 
     x = drawable_x + event_x;
     y = drawable_y + event_y;
@@ -663,11 +696,22 @@ dispatch_absolute_motion(struct xwl_seat *xwl_seat)
 static void
 dispatch_relative_motion(struct xwl_seat *xwl_seat)
 {
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     ValuatorMask mask;
     double event_dx = xwl_seat->pending_pointer_event.dx;
     double event_dy = xwl_seat->pending_pointer_event.dy;
     double event_dx_unaccel = xwl_seat->pending_pointer_event.dx_unaccel;
     double event_dy_unaccel = xwl_seat->pending_pointer_event.dy_unaccel;
+
+    event_dx *= xwl_screen->global_surface_scale;
+    event_dy *= xwl_screen->global_surface_scale;
+    event_dx_unaccel *= xwl_screen->global_surface_scale;
+    event_dy_unaccel *= xwl_screen->global_surface_scale;
+
+    event_dx *= xwl_seat->focus_window->viewport_scale_x;
+    event_dy *= xwl_seat->focus_window->viewport_scale_y;
+    event_dx_unaccel *= xwl_seat->focus_window->viewport_scale_x;
+    event_dy_unaccel *= xwl_seat->focus_window->viewport_scale_y;
 
     valuator_mask_zero(&mask);
     valuator_mask_set_unaccelerated(&mask, 0, event_dx, event_dx_unaccel);
@@ -1140,9 +1184,20 @@ keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
 
     XkbUpdateDescActions(xkb, xkb->min_key_code, XkbNumKeys(xkb), &changes);
 
-    if (xwl_seat->keyboard->key)
+    memcpy(
+        xwl_seat->keyboard->kbdfeed->ctrl.autoRepeats,
+        xkb->ctrls->per_key_repeat,
+        XkbPerKeyBitArraySize
+    );
+    if (xwl_seat->keyboard->key) {
         /* Keep the current controls */
         XkbCopyControls(xkb, xwl_seat->keyboard->key->xkbInfo->desc);
+        memcpy(
+            xkb->ctrls->per_key_repeat,
+            xwl_seat->keyboard->kbdfeed->ctrl.autoRepeats,
+            XkbPerKeyBitArraySize
+        );
+    }
 
     XkbDeviceApplyKeymap(xwl_seat->keyboard, xkb);
 
@@ -1170,6 +1225,10 @@ keyboard_handle_enter(void *data, struct wl_keyboard *keyboard,
     xwl_seat->xwl_screen->serial = serial;
     xwl_seat->keyboard_focus = surface;
 
+    /* If `leave` wasn't sent (for a destroyed surface), release keys here. */
+    wl_array_for_each(k, &xwl_seat->keys)
+        QueueKeyboardEvents(xwl_seat->keyboard, LeaveNotify, *k + 8);
+
     wl_array_copy(&xwl_seat->keys, keys);
     wl_array_for_each(k, &xwl_seat->keys)
         QueueKeyboardEvents(xwl_seat->keyboard, EnterNotify, *k + 8);
@@ -1177,21 +1236,31 @@ keyboard_handle_enter(void *data, struct wl_keyboard *keyboard,
     maybe_fake_grab_devices(xwl_seat);
 }
 
+void
+xwl_seat_leave_kbd(struct xwl_seat *xwl_seat)
+{
+    uint32_t *k;
+
+    wl_array_for_each(k, &xwl_seat->keys)
+        QueueKeyboardEvents(xwl_seat->keyboard, LeaveNotify, *k + 8);
+    xwl_seat->keys.size = 0;
+
+    xwl_seat->keyboard_focus = NULL;
+
+    maybe_fake_ungrab_devices(xwl_seat);
+}
+
 static void
 keyboard_handle_leave(void *data, struct wl_keyboard *keyboard,
                       uint32_t serial, struct wl_surface *surface)
 {
     struct xwl_seat *xwl_seat = data;
-    uint32_t *k;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
 
-    xwl_seat->xwl_screen->serial = serial;
+    xwl_screen->serial = serial;
 
-    wl_array_for_each(k, &xwl_seat->keys)
-        QueueKeyboardEvents(xwl_seat->keyboard, LeaveNotify, *k + 8);
-
-    xwl_seat->keyboard_focus = NULL;
-
-    maybe_fake_ungrab_devices(xwl_seat);
+    if (xwl_screen->rootless)
+        xwl_seat_leave_kbd(xwl_seat);
 }
 
 static void
@@ -1216,11 +1285,12 @@ keyboard_handle_modifiers(void *data, struct wl_keyboard *keyboard,
         old_state = dev->key->xkbInfo->state;
         new_state = &dev->key->xkbInfo->state;
 
+        new_state->base_group = 0;
+        new_state->latched_group = 0;
         new_state->locked_group = group & XkbAllGroupsMask;
         new_state->base_mods = mods_depressed & XkbAllModifiersMask;
+        new_state->latched_mods = mods_latched & XkbAllModifiersMask;
         new_state->locked_mods = mods_locked & XkbAllModifiersMask;
-        XkbLatchModifiers(dev, XkbAllModifiersMask,
-                          mods_latched & XkbAllModifiersMask);
 
         XkbComputeDerivedState(dev->key->xkbInfo);
 
@@ -1362,11 +1432,11 @@ xwl_touch_send_event(struct xwl_touch *xwl_touch,
     double dx, dy, x, y;
     ValuatorMask mask;
 
-    dx = xwl_touch->window->window->drawable.x;
-    dy = xwl_touch->window->window->drawable.y;
+    dx = xwl_touch->window->toplevel->drawable.x;
+    dy = xwl_touch->window->toplevel->drawable.y;
 
-    x = (dx + xwl_touch->x) * 0xFFFF / xwl_seat->xwl_screen->width;
-    y = (dy + xwl_touch->y) * 0xFFFF / xwl_seat->xwl_screen->height;
+    x = (dx + xwl_touch->x) * 0xFFFF / xwl_screen_get_width(xwl_seat->xwl_screen);
+    y = (dy + xwl_touch->y) * 0xFFFF / xwl_screen_get_height(xwl_seat->xwl_screen);
 
     valuator_mask_zero(&mask);
     valuator_mask_set_double(&mask, 0, x);
@@ -1381,6 +1451,7 @@ touch_handle_down(void *data, struct wl_touch *wl_touch,
                   int32_t id, wl_fixed_t sx_w, wl_fixed_t sy_w)
 {
     struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     struct xwl_touch *xwl_touch;
 
     if (surface == NULL)
@@ -1400,6 +1471,12 @@ touch_handle_down(void *data, struct wl_touch *wl_touch,
     xwl_touch->x = wl_fixed_to_int(sx_w);
     xwl_touch->y = wl_fixed_to_int(sy_w);
     xorg_list_add(&xwl_touch->link_touch, &xwl_seat->touches);
+
+    xwl_touch->x *= xwl_screen->global_surface_scale;
+    xwl_touch->y *= xwl_screen->global_surface_scale;
+
+    xwl_touch->x *= xwl_touch->window->viewport_scale_x;
+    xwl_touch->y *= xwl_touch->window->viewport_scale_y;
 
     xwl_touch_send_event(xwl_touch, xwl_seat, XI_TouchBegin);
 }
@@ -1427,6 +1504,7 @@ touch_handle_motion(void *data, struct wl_touch *wl_touch,
                     wl_fixed_t sx_w, wl_fixed_t sy_w)
 {
     struct xwl_seat *xwl_seat = data;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     struct xwl_touch *xwl_touch;
 
     xwl_touch = xwl_seat_lookup_touch(xwl_seat, id);
@@ -1436,6 +1514,13 @@ touch_handle_motion(void *data, struct wl_touch *wl_touch,
 
     xwl_touch->x = wl_fixed_to_int(sx_w);
     xwl_touch->y = wl_fixed_to_int(sy_w);
+
+    xwl_touch->x *= xwl_screen->global_surface_scale;
+    xwl_touch->y *= xwl_screen->global_surface_scale;
+
+    xwl_touch->x *= xwl_touch->window->viewport_scale_x;
+    xwl_touch->y *= xwl_touch->window->viewport_scale_y;
+
     xwl_touch_send_event(xwl_touch, xwl_seat, XI_TouchUpdate);
 }
 
@@ -1593,6 +1678,7 @@ add_device(struct xwl_seat *xwl_seat,
     dev->public.devicePrivate = xwl_seat;
     dev->type = SLAVE;
     dev->spriteInfo->spriteOwner = FALSE;
+    dev->ignoreXkbActionsBehaviors = TRUE;
 
     return dev;
 }
@@ -2124,6 +2210,7 @@ tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *tool,
 {
     struct xwl_tablet_tool *xwl_tablet_tool = data;
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     int32_t dx, dy;
     double sx = wl_fixed_to_double(x);
     double sy = wl_fixed_to_double(y);
@@ -2131,8 +2218,14 @@ tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *tool,
     if (!xwl_seat->tablet_focus_window)
         return;
 
-    dx = xwl_seat->tablet_focus_window->window->drawable.x;
-    dy = xwl_seat->tablet_focus_window->window->drawable.y;
+    sx *= xwl_screen->global_surface_scale;
+    sy *= xwl_screen->global_surface_scale;
+
+    sx *= xwl_seat->tablet_focus_window->viewport_scale_x;
+    sy *= xwl_seat->tablet_focus_window->viewport_scale_y;
+
+    dx = xwl_seat->tablet_focus_window->toplevel->drawable.x;
+    dy = xwl_seat->tablet_focus_window->toplevel->drawable.y;
 
     xwl_tablet_tool->x = (double) dx + sx;
     xwl_tablet_tool->y = (double) dy + sy;
@@ -2164,12 +2257,19 @@ tablet_tool_tilt(void *data, struct zwp_tablet_tool_v2 *tool,
 {
     struct xwl_tablet_tool *xwl_tablet_tool = data;
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
 
     if (!xwl_seat->tablet_focus_window)
         return;
 
     xwl_tablet_tool->tilt_x = wl_fixed_to_double(tilt_x);
     xwl_tablet_tool->tilt_y = wl_fixed_to_double(tilt_y);
+
+    xwl_tablet_tool->tilt_x *= xwl_screen->global_surface_scale;
+    xwl_tablet_tool->tilt_y *= xwl_screen->global_surface_scale;
+
+    xwl_tablet_tool->tilt_x *= xwl_seat->tablet_focus_window->viewport_scale_x;
+    xwl_tablet_tool->tilt_y *= xwl_seat->tablet_focus_window->viewport_scale_y;
 }
 
 static void
@@ -2789,7 +2889,7 @@ tablet_seat_handle_add_tablet(void *data, struct zwp_tablet_seat_v2 *tablet_seat
     struct xwl_seat *xwl_seat = data;
     struct xwl_tablet *xwl_tablet;
 
-    xwl_tablet = calloc(sizeof *xwl_tablet, 1);
+    xwl_tablet = calloc(1, sizeof *xwl_tablet);
     if (xwl_tablet == NULL) {
         ErrorF("%s ENOMEM\n", __func__);
         return;
@@ -2820,7 +2920,7 @@ tablet_seat_handle_add_tool(void *data, struct zwp_tablet_seat_v2 *tablet_seat,
     struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     struct xwl_tablet_tool *xwl_tablet_tool;
 
-    xwl_tablet_tool = calloc(sizeof *xwl_tablet_tool, 1);
+    xwl_tablet_tool = calloc(1, sizeof *xwl_tablet_tool);
     if (xwl_tablet_tool == NULL) {
         ErrorF("%s ENOMEM\n", __func__);
         return;
@@ -2843,7 +2943,7 @@ tablet_seat_handle_add_pad(void *data, struct zwp_tablet_seat_v2 *tablet_seat,
     struct xwl_seat *xwl_seat = data;
     struct xwl_tablet_pad *xwl_tablet_pad;
 
-    xwl_tablet_pad = calloc(sizeof *xwl_tablet_pad, 1);
+    xwl_tablet_pad = calloc(1, sizeof *xwl_tablet_pad);
     if (xwl_tablet_pad == NULL) {
         ErrorF("%s ENOMEM\n", __func__);
         return;
@@ -3002,6 +3102,15 @@ init_keyboard_shortcuts_inhibit(struct xwl_screen *xwl_screen,
                           1);
 }
 
+static void
+init_system_bell(struct xwl_screen *xwl_screen, uint32_t id, uint32_t version)
+{
+     xwl_screen->system_bell =
+         wl_registry_bind(xwl_screen->registry, id,
+                          &xdg_system_bell_v1_interface,
+                          1);
+}
+
 /* The compositor may send us wl_seat and its capabilities before sending e.g.
    relative_pointer_manager or pointer_gesture interfaces. This would result in
    devices being created in capabilities handler, but listeners not, because
@@ -3053,6 +3162,8 @@ input_handler(void *data, struct wl_registry *registry, uint32_t id,
         init_keyboard_grab(xwl_screen, id, version);
     } else if (strcmp(interface, zwp_keyboard_shortcuts_inhibit_manager_v1_interface.name) == 0) {
         init_keyboard_shortcuts_inhibit(xwl_screen, id, version);
+    } else if (strcmp(interface, xdg_system_bell_v1_interface.name) == 0) {
+        init_system_bell(xwl_screen, id, version);
     }
 }
 
@@ -3075,6 +3186,28 @@ ProcessInputEvents(void)
 void
 DDXRingBell(int volume, int pitch, int duration)
 {
+    ScreenPtr screen = screenInfo.screens[0];
+    struct xwl_screen *xwl_screen;
+    struct xwl_seat *xwl_seat;
+
+    xwl_screen = xwl_screen_get(screen);
+    if (!xwl_screen->system_bell)
+        return;
+
+    xorg_list_for_each_entry(xwl_seat, &xwl_screen->seat_list, link) {
+        if (!xwl_seat->keyboard)
+            continue;
+
+        if (!xwl_seat->keyboard->coreEvents)
+            continue;
+
+        if (!xwl_seat->keyboard_focus)
+            continue;
+
+        DebugF("XWAYLAND: Ringing the bell\n");
+        xdg_system_bell_v1_ring (xwl_screen->system_bell, xwl_seat->keyboard_focus);
+        return;
+    }
 }
 
 static Bool
@@ -3108,14 +3241,24 @@ sprite_check_lost_focus(SpritePtr sprite, WindowPtr window)
     if (master->lastSlave != get_pointer_device(xwl_seat))
         return FALSE;
 
+    /* If we left the surface with a button down, it means the wayland compositor
+     * has grabbed the pointer so we will not get button release events from the
+     * compositor, so leave the window processing untouched, so that we do not
+     * end up with the wrong cursor, for example, when processing events once
+     * the pointer enters the X11 surface again.
+     */
+    if (master->button->buttonsDown)
+        return FALSE;
+
     if (xwl_seat->focus_window != NULL &&
         xwl_seat->cursor_confinement_window != NULL &&
         xwl_seat->focus_window != xwl_seat->cursor_confinement_window)
         return TRUE;
 
     if (xwl_seat->focus_window == NULL &&
-        xwl_seat->last_xwindow != NullWindow &&
-        (IsParent(xwl_seat->last_xwindow, window) || xwl_seat->last_xwindow == window))
+        xwl_seat->last_focus_window != NULL &&
+        (xwl_seat->last_focus_window->toplevel == window ||
+         IsParent(xwl_seat->last_focus_window->toplevel, window)))
         return TRUE;
 
     return FALSE;
@@ -3149,13 +3292,13 @@ xwl_xy_to_window(ScreenPtr screen, SpritePtr sprite, int x, int y)
 }
 
 void
-xwl_seat_clear_touch(struct xwl_seat *xwl_seat, WindowPtr window)
+xwl_seat_clear_touch(struct xwl_seat *xwl_seat, struct xwl_window *xwl_window)
 {
     struct xwl_touch *xwl_touch, *next_xwl_touch;
 
     xorg_list_for_each_entry_safe(xwl_touch, next_xwl_touch,
                                   &xwl_seat->touches, link_touch) {
-        if (xwl_touch->window->window == window) {
+        if (xwl_touch->window == xwl_window) {
             xorg_list_del(&xwl_touch->link_touch);
             free(xwl_touch);
         }
@@ -3178,7 +3321,7 @@ xwl_pointer_warp_emulator_set_fake_pos(struct xwl_pointer_warp_emulator *warp_em
     if (!warp_emulator->xwl_seat->focus_window)
         return;
 
-    window = warp_emulator->xwl_seat->focus_window->window;
+    window = warp_emulator->xwl_seat->focus_window->toplevel;
     if (x >= window->drawable.x ||
         y >= window->drawable.y ||
         x < (window->drawable.x + window->drawable.width) ||
@@ -3247,7 +3390,7 @@ xwl_pointer_warp_emulator_maybe_lock(struct xwl_pointer_warp_emulator *warp_emul
     if (pointer_grab &&
         !pointer_grab->ownerEvents &&
         sprite &&
-        XYToWindow(sprite, x, y) != xwl_seat->focus_window->window)
+        XYToWindow(sprite, x, y) != xwl_seat->focus_window->toplevel)
         return;
 
     xwl_pointer_warp_emulator_lock(warp_emulator);
@@ -3285,7 +3428,7 @@ xwl_pointer_warp_emulator_handle_motion(struct xwl_pointer_warp_emulator *warp_e
     QueuePointerEvents(xwl_seat->relative_pointer, MotionNotify, 0,
                        POINTER_RELATIVE, &mask);
 
-    window = xwl_seat->focus_window->window;
+    window = xwl_seat->focus_window->toplevel;
     miPointerGetPosition(xwl_seat->pointer, &x, &y);
 
     if (xwl_pointer_warp_emulator_is_locked(warp_emulator) &&
@@ -3499,6 +3642,7 @@ InitInput(int argc, char *argv[])
 
     mieqInit();
 
+    inputInfo.keyboard->ignoreXkbActionsBehaviors = TRUE;
     xwl_screen->input_registry = wl_display_get_registry(xwl_screen->display);
     wl_registry_add_listener(xwl_screen->input_registry, &input_listener,
                              xwl_screen);

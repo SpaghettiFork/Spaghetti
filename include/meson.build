@@ -148,11 +148,13 @@ conf_data.set('HAVE_GETUID', cc.has_function('getuid') ? '1' : false)
 conf_data.set('HAVE_GETEUID', cc.has_function('geteuid') ? '1' : false)
 conf_data.set('HAVE_ISASTREAM', cc.has_function('isastream') ? '1' : false)
 conf_data.set('HAVE_ISSETUGID', cc.has_function('issetugid') ? '1' : false)
+conf_data.set('HAVE_GETADDRINFO', cc.has_function('getaddrinfo') ? '1' : false)
 conf_data.set('HAVE_GETIFADDRS', cc.has_function('getifaddrs') ? '1' : false)
 conf_data.set('HAVE_GETPEEREID', cc.has_function('getpeereid') ? '1' : false)
 conf_data.set('HAVE_GETPEERUCRED', cc.has_function('getpeerucred') ? '1' : false)
 conf_data.set('HAVE_GETPROGNAME', cc.has_function('getprogname') ? '1' : false)
 conf_data.set('HAVE_GETZONEID', cc.has_function('getzoneid') ? '1' : false)
+conf_data.set('HAVE_INET_NTOP', cc.has_function('inet_ntop') ? '1' : false)
 conf_data.set('HAVE_MEMFD_CREATE', cc.has_function('memfd_create') ? '1' : false)
 conf_data.set('HAVE_MKOSTEMP', cc.has_function('mkostemp') ? '1' : false)
 conf_data.set('HAVE_MMAP', cc.has_function('mmap') ? '1' : false)
@@ -167,12 +169,16 @@ conf_data.set('HAVE_SETITIMER', cc.has_function('setitimer') ? '1' : false)
 conf_data.set('HAVE_SHMCTL64', cc.has_function('shmctl64') ? '1' : false)
 conf_data.set('HAVE_SIGACTION', cc.has_function('sigaction') ? '1' : false)
 conf_data.set('HAVE_SIGPROCMASK', cc.has_function('sigprocmask') ? '1' : false)
+# HAVE_SOCKLEN_T is used by xtrans when IPv6 is disabled
+conf_data.set('HAVE_SOCKLEN_T', cc.has_type('socklen_t', prefix: '#include <sys/socket.h>') ? '1' : false)
 conf_data.set('HAVE_STRCASECMP', cc.has_function('strcasecmp') ? '1' : false)
 conf_data.set('HAVE_STRCASESTR', cc.has_function('strcasestr') ? '1' : false)
 conf_data.set('HAVE_STRLCAT', cc.has_function('strlcat', dependencies: libbsd_dep) ? '1' : false)
 conf_data.set('HAVE_STRLCPY', cc.has_function('strlcpy', dependencies: libbsd_dep) ? '1' : false)
 conf_data.set('HAVE_STRNCASECMP', cc.has_function('strncasecmp') ? '1' : false)
 conf_data.set('HAVE_STRNDUP', cc.has_function('strndup') and cc.has_header_symbol('string.h', 'strndup') ? '1' : false)
+# HAVE_STRUCT_SOCKADDR_STORAGE is used by xtrans >= 1.6
+conf_data.set('HAVE_STRUCT_SOCKADDR_STORAGE', cc.has_type('struct sockaddr_storage', prefix: '#include <sys/socket.h>') ? '1' : false)
 conf_data.set('HAVE_TIMINGSAFE_MEMCMP', cc.has_function('timingsafe_memcmp') ? '1' : false)
 conf_data.set('HAVE_VASPRINTF', cc.has_function('vasprintf') ? '1' : false)
 conf_data.set('HAVE_VSNPRINTF', cc.has_function('vsnprintf') ? '1' : false)
@@ -384,11 +390,7 @@ if host_machine.system() == 'freebsd' or host_machine.system() == 'dragonfly'
     if host_machine.cpu_family() == 'x86' or host_machine.cpu_family() == 'x86_64' or host_machine.cpu_family() == 'aarch64'
         xorg_data.set('USE_DEV_IO', '1')
     endif
-elif host_machine.system() == 'netbsd'
-    if host_machine.cpu_family() == 'x86' or host_machine.cpu_family() == 'x86_64'
-        xorg_data.set('USE_I386_IOPL', '1')
-    endif
-elif host_machine.system() == 'openbsd'
+elif host_machine.system() == 'netbsd' or host_machine.system() == 'openbsd'
     if host_machine.cpu_family() == 'x86'
         xorg_data.set('USE_I386_IOPL', '1')
     endif
@@ -418,9 +420,10 @@ configure_file(output : 'xwin-config.h',
                input : 'xwin-config.h.meson.in',
                configuration : xwin_data)
 
+build_xwayland_glamor = build_glamor and gbm_dep.found()
+
 xwayland_data = configuration_data()
-xwayland_data.set('XWL_HAS_GLAMOR', build_glamor and (gbm_dep.found() or build_eglstream) ? '1' : false)
-xwayland_data.set('XWL_HAS_EGLSTREAM', build_eglstream ? '1' : false)
+xwayland_data.set('XWL_HAS_GLAMOR', build_xwayland_glamor ? '1' : false)
 xwayland_data.set('XWL_HAS_LIBDECOR', have_libdecor ? '1' : false)
 xwayland_data.set('XWL_HAS_XWAYLAND_EXTENSION', xwaylandproto_dep.found() ? '1' : false)
 xwayland_data.set('XWL_HAS_EI', build_ei)

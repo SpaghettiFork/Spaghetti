@@ -93,7 +93,7 @@ fbdevHWGetRec(ScrnInfoPtr pScrn)
     if (FBDEVHWPTR(pScrn) != NULL)
         return TRUE;
 
-    FBDEVHWPTRLVAL(pScrn) = xnfcalloc(sizeof(fbdevHWRec), 1);
+    FBDEVHWPTRLVAL(pScrn) = xnfcalloc(1, sizeof(fbdevHWRec));
     return TRUE;
 }
 
@@ -377,9 +377,9 @@ fbdev_open(int scrnIndex, const char *dev, char **namep)
             node++;
         }
 
-        if (asprintf(&sysfs_path, "/sys/class/graphics/%s", node) < 0 ||
+        if (asprintf(&sysfs_path, "/sys/class/graphics/%s/device/subsystem", node) < 0 ||
             readlink(sysfs_path, buf, sizeof(buf) - 1) < 0 ||
-            strstr(buf, "devices/pci")) {
+            strstr(buf, "bus/pci")) {
             free(sysfs_path);
             close(fd);
             return -1;

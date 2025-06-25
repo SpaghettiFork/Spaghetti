@@ -6,16 +6,18 @@ set -o xtrace
 # Packages which are needed by this script, but not for the xserver build
 EPHEMERAL="
 	libcairo2-dev
-	libevdev-dev
 	libexpat-dev
 	libgles2-mesa-dev
-	libinput-dev
 	libxkbcommon-dev
 	x11-utils
 	x11-xserver-utils
 	xauth
 	xvfb
 	"
+
+# Add bullseye-backports for the newer linux-libc-dev & meson packages
+echo 'deb http://deb.debian.org/debian bullseye-backports main' >> /etc/apt/sources.list
+apt update
 
 apt-get install -y \
 	$EPHEMERAL \
@@ -47,12 +49,14 @@ apt-get install -y \
 	libgles2 \
 	libglx-mesa0 \
 	libinput10 \
+	libinput-dev \
 	libnvidia-egl-wayland-dev \
 	libpango1.0-0 \
 	libpango1.0-dev \
 	libpciaccess-dev \
 	libpixman-1-dev \
 	libselinux1-dev \
+	libspice-protocol-dev \
 	libsystemd-dev \
 	libtool \
 	libudev-dev \
@@ -62,6 +66,9 @@ apt-get install -y \
 	libx11-xcb-dev \
 	libxau-dev \
 	libxaw7-dev \
+	libxcb-damage0-dev \
+	libxcb-dri2-0-dev \
+	libxcb-dri3-dev \
 	libxcb-glx0-dev \
 	libxcb-icccm4-dev \
 	libxcb-image0-dev \
@@ -71,8 +78,10 @@ apt-get install -y \
 	libxcb-render0-dev \
 	libxcb-shape0-dev \
 	libxcb-shm0-dev \
+	libxcb-sync-dev \
 	libxcb-util0-dev \
 	libxcb-xf86dri0-dev \
+	libxcb-xinput-dev \
 	libxcb-xkb-dev \
 	libxcb-xv0-dev \
 	libxcb1-dev \
@@ -94,8 +103,9 @@ apt-get install -y \
 	libxtst-dev \
 	libxv-dev \
 	libz-mingw-w64-dev \
+	linux-libc-dev/bullseye-backports \
 	mesa-common-dev \
-	meson \
+	meson/bullseye-backports \
 	mingw-w64-tools \
 	nettle-dev \
 	pkg-config \
@@ -115,8 +125,8 @@ apt-get install -y \
 
 cd /root
 
-# Xwayland requires drm 2.4.109 for drmGetDeviceFromDevId
-git clone https://gitlab.freedesktop.org/mesa/drm --depth 1 --branch=libdrm-2.4.109
+# Xwayland requires drm 2.4.116 for drmSyncobjEventfd
+git clone https://gitlab.freedesktop.org/mesa/drm --depth 1 --branch=libdrm-2.4.116
 cd drm
 meson _build
 ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
@@ -131,8 +141,8 @@ ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
 cd ..
 rm -rf libxcvt
 
-# xserver requires xorgproto >= 2023.2 for XWAYLAND
-git clone https://gitlab.freedesktop.org/xorg/proto/xorgproto.git --depth 1 --branch=xorgproto-2023.2
+# xserver requires xorgproto >= 2024.1 for XWAYLAND
+git clone https://gitlab.freedesktop.org/xorg/proto/xorgproto.git --depth 1 --branch=xorgproto-2024.1
 pushd xorgproto
 ./autogen.sh
 make -j${FDO_CI_CONCURRENT:-4} install
@@ -147,8 +157,8 @@ ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
 cd ..
 rm -rf wayland
 
-# Xwayland requires wayland-protocols >= 1.30, but Debian bullseye has 1.20 only
-git clone https://gitlab.freedesktop.org/wayland/wayland-protocols.git --depth 1 --branch=1.30
+# Xwayland requires wayland-protocols >= 1.38, but Debian bullseye has 1.20 only
+git clone https://gitlab.freedesktop.org/wayland/wayland-protocols.git --depth 1 --branch=1.38
 cd wayland-protocols
 meson _build
 ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
@@ -156,7 +166,7 @@ cd ..
 rm -rf wayland-protocols
 
 # Install libdecor for Xwayland
-git clone https://gitlab.gnome.org/jadahl/libdecor.git --depth 1 --branch=0.1.0
+git clone https://gitlab.freedesktop.org/libdecor/libdecor.git --depth 1 --branch=0.1.1
 cd libdecor
 meson _build -D{demo,install_demo}=false
 ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
@@ -178,10 +188,8 @@ cd ..
 
 git clone https://gitlab.freedesktop.org/xorg/test/xts
 cd xts
-git checkout dbbfa96c036e596346147081cbceda136e7c86c1
-# Using -fcommon until we get a proper fix into xtst.
-# See discussion at https://gitlab.freedesktop.org/xorg/xserver/-/merge_requests/913
-CFLAGS=-fcommon ./autogen.sh
+git checkout 12a887c2c72c4258962b56ced7b0aec782f1ffed
+./autogen.sh
 xvfb-run make -j${FDO_CI_CONCURRENT:-4}
 cd ..
 

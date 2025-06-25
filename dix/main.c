@@ -153,7 +153,7 @@ dix_main(int argc, char *argv[], char *envp[])
             CreateWellKnownSockets();
             for (i = 1; i < LimitClients; i++)
                 clients[i] = NullClient;
-            serverClient = calloc(sizeof(ClientRec), 1);
+            serverClient = calloc(1, sizeof(ClientRec));
             if (!serverClient)
                 FatalError("couldn't create server client");
             InitClient(serverClient, 0, (void *) NULL);
@@ -231,7 +231,9 @@ dix_main(int argc, char *argv[], char *envp[])
             FatalError("could not open default cursor font");
         }
 
-#ifdef PANORAMIX
+        rootCursor = RefCursor(rootCursor);
+
+#ifdef XINERAMA
         /*
          * Consolidate window and colourmap information for each screen
          */
@@ -270,6 +272,8 @@ dix_main(int argc, char *argv[], char *envp[])
         InputThreadInit();
 
         Dispatch();
+
+        UnrefCursor(rootCursor);
 
         UndisplayDevices();
         DisableAllDevices();

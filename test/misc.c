@@ -234,6 +234,4 @@ misc_test(void)
         NULL,
     };
     return testfuncs;
-
-    return 0;
 }

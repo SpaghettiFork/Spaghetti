@@ -4,7 +4,7 @@ project('xserver', 'c',
             'c_std=gnu99',
         ],
         version: '21.1.99.1',
-        meson_version: '>= 0.56.0',
+        meson_version: '>= 0.58.0',
 )
 release_date = '2021-07-05'
 
@@ -13,6 +13,7 @@ cc = meson.get_compiler('c')
 
 add_project_arguments('-fno-strict-aliasing', language : 'c')
 add_project_arguments('-fvisibility=hidden', language : 'c')
+add_project_arguments('-Wvla', language: 'c')
 
 add_project_link_arguments('-fvisibility=hidden', language : 'c')
 
@@ -46,6 +47,7 @@ if cc.get_id() == 'gcc' or cc.get_id() == 'clang'
         '-Werror=address',
         '-Werror=int-to-pointer-cast',
         '-Werror=pointer-to-int-cast',
+        '-Wvla',
     ]
 else
     test_wflags = []
@@ -60,15 +62,18 @@ endforeach
 
 add_project_arguments(common_wflags, language : ['c', 'objc'])
 
-libdrm_req = '>= 2.4.109'
+libdrm_req = '>= 2.4.116'
 libselinux_req = '>= 2.0.86'
 xext_req = '>= 1.0.99.4'
+xproto_req = '>= 7.0.31'
 wayland_req = '>= 1.21.0'
-wayland_protocols_req = '>= 1.30'
+wayland_protocols_req = '>= 1.38'
 gbm_req = '>= 10.2'
 xf86dgaproto_req = '>= 2.0.99.1'
+xshmfence_req = '>= 1.1'
 
-xproto_dep = dependency('xproto', version: '>= 7.0.31', fallback: ['xorgproto', 'ext_xorgproto'])
+x11_dep = dependency('x11')
+xproto_dep = dependency('xproto', version: xproto_req, fallback: ['xorgproto', 'ext_xorgproto'])
 randrproto_dep = dependency('randrproto', version: '>= 1.6.0', fallback: ['xorgproto', 'ext_xorgproto'])
 renderproto_dep = dependency('renderproto', version: '>= 0.11', fallback: ['xorgproto', 'ext_xorgproto'])
 xextproto_dep = dependency('xextproto', version: '>= 7.2.99.901', fallback: ['xorgproto', 'ext_xorgproto'])
@@ -79,7 +84,7 @@ fixesproto_dep = dependency('fixesproto', version: '>= 6.0', fallback: ['xorgpro
 damageproto_dep = dependency('damageproto', version: '>= 1.1', fallback: ['xorgproto', 'ext_xorgproto'])
 xcmiscproto_dep = dependency('xcmiscproto', version: '>= 1.2.0', fallback: ['xorgproto', 'ext_xorgproto'])
 bigreqsproto_dep = dependency('bigreqsproto', version: '>= 1.1.0', fallback: ['xorgproto', 'ext_xorgproto'])
-presentproto_dep = dependency('presentproto', version: '>= 1.3', fallback: ['xorgproto', 'ext_xorgproto'])
+presentproto_dep = dependency('presentproto', version: '>= 1.4', fallback: ['xorgproto', 'ext_xorgproto'])
 xtrans_dep = dependency('xtrans', version: '>= 1.3.5')
 
 videoproto_dep = dependency('videoproto', fallback: ['xorgproto', 'ext_xorgproto'])
@@ -89,12 +94,12 @@ scrnsaverproto_dep = dependency('scrnsaverproto', version: '>= 1.1', fallback: [
 resourceproto_dep = dependency('resourceproto', version: '>= 1.2.0', fallback: ['xorgproto', 'ext_xorgproto'])
 xf86driproto_dep = dependency('xf86driproto', version: '>= 2.1.0', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('dri1') == 'true')
 dri2proto_dep = dependency('dri2proto', version: '>= 2.8', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('dri2') == 'true')
-dri3proto_dep = dependency('dri3proto', version: '>= 1.2', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('dri3') == 'true')
+dri3proto_dep = dependency('dri3proto', version: '>= 1.4', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('dri3') == 'true')
 xineramaproto_dep = dependency('xineramaproto', fallback: ['xorgproto', 'ext_xorgproto'])
 xf86bigfontproto_dep = dependency('xf86bigfontproto', version: '>= 1.2.0', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('xf86bigfont'))
 xf86vidmodeproto_dep = dependency('xf86vidmodeproto', version: '>= 2.2.99.1', fallback: ['xorgproto', 'ext_xorgproto'])
 applewmproto_dep = dependency('applewmproto', version: '>= 1.4', fallback: ['xorgproto', 'ext_xorgproto'], required: false)
-xshmfence_dep = dependency('xshmfence', version: '>= 1.1', required: false)
+xshmfence_dep = dependency('xshmfence', version: xshmfence_req, required: false)
 xwaylandproto_dep = dependency('xwaylandproto', version: '>= 1.0', fallback: ['xorgproto', 'ext_xorgproto'], required: false)
 dpmsproto_dep = dependency('dpmsproto', version: '>= 1.2', required: get_option('dpms'))
 
@@ -172,15 +177,18 @@ else
     default_font_path = dfp
 endif
 
-hal_option = get_option('hal')
 glamor_option = get_option('glamor')
+
+hal_option = get_option('hal')
+if ['windows', 'darwin', 'cygwin'].contains(host_machine.system())
+    hal_option = 'false'
+endif
 
 build_udev = get_option('udev')
 build_udev_kms = get_option('udev_kms')
-if ['windows',  'darwin', 'cygwin'].contains(host_machine.system())
+if ['windows', 'darwin', 'cygwin', 'freebsd', 'netbsd', 'openbsd', 'sunos'].contains(host_machine.system())
     build_udev = false
     build_udev_kms = false
-    hal_option = 'false'
 endif
 
 if get_option('systemd_logind') == 'auto'
@@ -225,6 +233,7 @@ if (host_machine.system() != 'darwin' and
     ]
 
     if build_glamor
+        xwayland_dep += dependency('xshmfence', version: xshmfence_req, required: xwayland_required)
         xwayland_dep += dependency('libdrm', version: libdrm_req, required: xwayland_required)
         xwayland_dep += dependency('epoxy', required: xwayland_required)
     endif
@@ -283,11 +292,38 @@ if build_xquartz
     build_rootless = true
 endif
 
+build_xephyr = get_option('xephyr')
+build_xvfb = get_option('xvfb')
+
+summary({
+        'Xorg': build_xorg,
+        'Xwayland': build_xwayland,
+        'Xnest': build_xnest,
+        'Xvfb': build_xvfb,
+        'Xwin': build_xwin,
+        'Xquartz': build_xquartz,
+    },
+    section: 'DDX',
+    bool_yn: true,
+)
+
+# IPv6 support
+have_AF_INET6 = cc.compiles('''
+#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#endif
+int main(void) { int foo = AF_INET6; return foo; }''')
 if get_option('ipv6') == 'auto'
-    build_ipv6 = cc.has_function('getaddrinfo')
+    build_ipv6 = cc.has_function('getaddrinfo') and have_AF_INET6
 else
     build_ipv6 = get_option('ipv6') == 'true'
 endif
+if build_ipv6 and not have_AF_INET6
+    error('ipv6 support needs AF_INET6')
+endif
+message('IPv6 support: ' + (build_ipv6 ? 'YES' : 'NO'))
 
 int10 = get_option('int10')
 if int10 == 'auto'
@@ -359,21 +395,6 @@ if build_xwayland
     endif
 else
     have_libdecor = false
-endif
-
-eglstream_option = get_option('xwayland_eglstream')
-if build_xwayland and build_glamor
-    eglstream_dep = dependency('wayland-eglstream-protocols', required:false)
-    if eglstream_option == 'auto'
-        build_eglstream = eglstream_dep.found()
-    else
-        build_eglstream = eglstream_option == 'true'
-        if build_eglstream and not eglstream_dep.found()
-            error('glamor EGLStream support requested, but wayland-eglstream-protocols not found')
-        endif
-    endif
-else
-    build_eglstream = false
 endif
 
 if build_xwayland
@@ -507,13 +528,23 @@ else
     build_dri2 = get_option('dri2') == 'true'
 endif
 
+if host_machine.system() in ['freebsd', 'openbsd']
+   epoll_dep = dependency('epoll-shim')
+else
+   epoll_dep = []
+endif
+
+have_eventfd = cc.has_header('sys/eventfd.h', dependencies: epoll_dep)
 if get_option('dri3') == 'auto'
-    build_dri3 = dri3proto_dep.found() and xshmfence_dep.found() and libdrm_dep.found()
+    build_dri3 = dri3proto_dep.found() and xshmfence_dep.found() and libdrm_dep.found() and have_eventfd
 else
     build_dri3 = get_option('dri3') == 'true'
     if build_dri3
        if not xshmfence_dep.found()
            error('DRI3 requested, but xshmfence not found')
+       endif
+       if not have_eventfd
+           error('DRI3 requested, but sys/eventfd.h not found')
        endif
     endif
 endif
@@ -892,6 +923,7 @@ if build_xorg
 
     sdk_required_modules = [
       'pixman-1 >= 0.27.2',
+      f'xproto @xproto_req@',
     ]
 
     # XXX this isn't trying very hard, but hard enough.

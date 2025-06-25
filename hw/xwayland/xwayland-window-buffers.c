@@ -31,7 +31,18 @@
 #include "xwayland-window.h"
 #include "xwayland-pixmap.h"
 #include "xwayland-screen.h"
+#include "xwayland-glamor-gbm.h"
 #include "xwayland-window-buffers.h"
+#ifdef XWL_HAS_GLAMOR
+#include "glamor.h"
+#endif
+#include "dri3.h"
+
+#include <poll.h>
+#ifdef DRI3
+#include <sys/eventfd.h>
+#endif
+#include "linux-drm-syncobj-v1-client-protocol.h"
 
 #define BUFFER_TIMEOUT 1 * 1000 /* ms */
 
@@ -78,8 +89,7 @@ xwl_window_buffer_new(struct xwl_window *xwl_window)
     xwl_window_buffer->pixmap = NullPixmap;
     xwl_window_buffer->refcnt = 1;
 
-    xorg_list_append(&xwl_window_buffer->link_buffer,
-                     &xwl_window->window_buffers_available);
+    xorg_list_init(&xwl_window_buffer->link_buffer);
 
     return xwl_window_buffer;
 }
@@ -94,6 +104,22 @@ xwl_window_buffer_destroy_pixmap(struct xwl_window_buffer *xwl_window_buffer)
     xwl_window_buffer->pixmap = NullPixmap;
 }
 
+static void
+xwl_window_buffer_dispose(struct xwl_window_buffer *xwl_window_buffer)
+{
+    RegionDestroy(xwl_window_buffer->damage_region);
+
+    if (xwl_window_buffer->pixmap) {
+#ifdef XWL_HAS_GLAMOR
+        xwl_glamor_gbm_dispose_syncpts(xwl_window_buffer->pixmap);
+#endif /* XWL_HAS_GLAMOR */
+        xwl_window_buffer_destroy_pixmap (xwl_window_buffer);
+    }
+
+    xorg_list_del(&xwl_window_buffer->link_buffer);
+    free(xwl_window_buffer);
+}
+
 static Bool
 xwl_window_buffer_maybe_dispose(struct xwl_window_buffer *xwl_window_buffer)
 {
@@ -102,21 +128,15 @@ xwl_window_buffer_maybe_dispose(struct xwl_window_buffer *xwl_window_buffer)
     if (--xwl_window_buffer->refcnt)
         return FALSE;
 
-    RegionDestroy(xwl_window_buffer->damage_region);
-
-    if (xwl_window_buffer->pixmap)
-        xwl_window_buffer_destroy_pixmap (xwl_window_buffer);
-
-    xorg_list_del(&xwl_window_buffer->link_buffer);
-    free(xwl_window_buffer);
+    xwl_window_buffer_dispose(xwl_window_buffer);
 
     return TRUE;
 }
 
-static void
-xwl_window_buffer_add_damage_region(struct xwl_window *xwl_window,
-                                    RegionPtr damage_region)
+void
+xwl_window_buffer_add_damage_region(struct xwl_window *xwl_window)
 {
+    RegionPtr region = xwl_window_get_damage_region(xwl_window);
     struct xwl_window_buffer *xwl_window_buffer;
 
     /* Add damage region to all buffers */
@@ -125,14 +145,14 @@ xwl_window_buffer_add_damage_region(struct xwl_window *xwl_window,
                              link_buffer) {
         RegionUnion(xwl_window_buffer->damage_region,
                     xwl_window_buffer->damage_region,
-                    damage_region);
+                    region);
     }
     xorg_list_for_each_entry(xwl_window_buffer,
                              &xwl_window->window_buffers_unavailable,
                              link_buffer) {
         RegionUnion(xwl_window_buffer->damage_region,
                     xwl_window_buffer->damage_region,
-                    damage_region);
+                    region);
     }
 }
 
@@ -214,14 +234,29 @@ xwl_window_buffer_release_callback(void *data)
 }
 
 void
+xwl_window_buffer_release(struct xwl_window_buffer *xwl_window_buffer)
+{
+    xwl_window_buffer_release_callback(xwl_window_buffer);
+}
+
+void
 xwl_window_buffers_init(struct xwl_window *xwl_window)
 {
     xorg_list_init(&xwl_window->window_buffers_available);
     xorg_list_init(&xwl_window->window_buffers_unavailable);
 }
 
+static void
+xwl_window_buffer_disposal(struct xwl_window_buffer *xwl_window_buffer, Bool force)
+{
+    if (force)
+        xwl_window_buffer_dispose(xwl_window_buffer);
+    else
+        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+}
+
 void
-xwl_window_buffers_dispose(struct xwl_window *xwl_window)
+xwl_window_buffers_dispose(struct xwl_window *xwl_window, Bool force)
 {
     struct xwl_window_buffer *xwl_window_buffer, *tmp;
 
@@ -233,14 +268,14 @@ xwl_window_buffers_dispose(struct xwl_window *xwl_window)
                                   &xwl_window->window_buffers_available,
                                   link_buffer) {
         xorg_list_del(&xwl_window_buffer->link_buffer);
-        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+        xwl_window_buffer_disposal(xwl_window_buffer, force);
     }
 
     xorg_list_for_each_entry_safe(xwl_window_buffer, tmp,
                                   &xwl_window->window_buffers_unavailable,
                                   link_buffer) {
         xorg_list_del(&xwl_window_buffer->link_buffer);
-        xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+        xwl_window_buffer_disposal(xwl_window_buffer, force);
     }
 
     if (xwl_window->window_buffers_timer)
@@ -300,7 +335,7 @@ xwl_window_allocate_pixmap(struct xwl_window *xwl_window)
         return window_pixmap;
 #endif /* XWL_HAS_GLAMOR */
 
-    window_pixmap = screen->GetWindowPixmap(xwl_window->window);
+    window_pixmap = screen->GetWindowPixmap(xwl_window->surface_window);
     return screen->CreatePixmap(screen,
                                 window_pixmap->drawable.width,
                                 window_pixmap->drawable.height,
@@ -309,7 +344,7 @@ xwl_window_allocate_pixmap(struct xwl_window *xwl_window)
 }
 
 void
-xwl_window_recycle_pixmap(struct xwl_window *xwl_window)
+xwl_window_realloc_pixmap(struct xwl_window *xwl_window)
 {
     PixmapPtr window_pixmap, new_window_pixmap;
     WindowPtr window;
@@ -319,7 +354,7 @@ xwl_window_recycle_pixmap(struct xwl_window *xwl_window)
     if (!new_window_pixmap)
         return;
 
-    window = xwl_window->window;
+    window = xwl_window->surface_window;
     screen = window->drawable.pScreen;
     window_pixmap = screen->GetWindowPixmap(window);
     copy_pixmap_area(window_pixmap,
@@ -327,40 +362,61 @@ xwl_window_recycle_pixmap(struct xwl_window *xwl_window)
                      0, 0,
                      window_pixmap->drawable.width,
                      window_pixmap->drawable.height);
-    xwl_window_set_pixmap(xwl_window->window, new_window_pixmap);
+    xwl_window_set_pixmap(xwl_window->surface_window, new_window_pixmap);
     screen->DestroyPixmap(window_pixmap);
 }
 
+static Bool
+xwl_window_handle_pixmap_sync(struct xwl_window *xwl_window,
+                              PixmapPtr pixmap,
+                              struct xwl_window_buffer *xwl_window_buffer)
+{
+    Bool implicit_sync = TRUE;
+#ifdef XWL_HAS_GLAMOR
+    struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+
+    if (!xwl_glamor_supports_implicit_sync(xwl_screen)) {
+        if (xwl_screen->explicit_sync && xwl_glamor_gbm_set_syncpts(xwl_window, pixmap)) {
+            implicit_sync = FALSE;
+            /* wait until the release fence is available before re-using this buffer */
+            xwl_glamor_gbm_wait_release_fence(xwl_window, pixmap, xwl_window_buffer);
+        } else {
+            /* If glamor does not support implicit sync and we can't use
+             * explicit sync, wait for the GPU to be idle before presenting.
+             * Note that buffer re-use will still be unsynchronized :(
+             */
+            glamor_finish(xwl_screen->screen);
+        }
+    }
+#endif /* XWL_HAS_GLAMOR */
+    return implicit_sync;
+}
+
 PixmapPtr
-xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window,
-                              RegionPtr damage_region)
+xwl_window_swap_pixmap(struct xwl_window *xwl_window, Bool handle_sync)
 {
     struct xwl_screen *xwl_screen = xwl_window->xwl_screen;
+    WindowPtr surface_window = xwl_window->surface_window;
     struct xwl_window_buffer *xwl_window_buffer;
-    PixmapPtr window_pixmap, new_window_pixmap;
+    PixmapPtr window_pixmap;
 
-    window_pixmap = (*xwl_screen->screen->GetWindowPixmap) (xwl_window->window);
+    window_pixmap = (*xwl_screen->screen->GetWindowPixmap) (surface_window);
 
-#ifdef XWL_HAS_GLAMOR
-    if (!xwl_glamor_needs_n_buffering(xwl_screen))
-        return window_pixmap;
-#endif /* XWL_HAS_GLAMOR */
-
-    xwl_window_buffer_add_damage_region(xwl_window, damage_region);
+    xwl_window_buffer_add_damage_region(xwl_window);
 
     xwl_window_buffer = xwl_window_buffer_get_available(xwl_window);
     if (xwl_window_buffer) {
         RegionPtr full_damage = xwl_window_buffer->damage_region;
         BoxPtr pBox = RegionRects(full_damage);
         int nBox = RegionNumRects(full_damage);
-
-        new_window_pixmap = xwl_window_buffer->pixmap;
-
+#ifdef XWL_HAS_GLAMOR
+        xwl_glamor_gbm_wait_syncpts(xwl_window_buffer->pixmap);
+#endif /* XWL_HAS_GLAMOR */
         while (nBox--) {
             copy_pixmap_area(window_pixmap,
-                             new_window_pixmap,
-                             pBox->x1 + xwl_window->window->borderWidth,
-                             pBox->y1 + xwl_window->window->borderWidth,
+                             xwl_window_buffer->pixmap,
+                             pBox->x1 + surface_window->borderWidth,
+                             pBox->y1 + surface_window->borderWidth,
                              pBox->x2 - pBox->x1,
                              pBox->y2 - pBox->y1);
 
@@ -368,35 +424,51 @@ xwl_window_buffers_get_pixmap(struct xwl_window *xwl_window,
         }
 
         RegionEmpty(xwl_window_buffer->damage_region);
-    } else {
-        xwl_window_buffer = xwl_window_buffer_new(xwl_window);
+        xorg_list_del(&xwl_window_buffer->link_buffer);
+        xwl_window_set_pixmap(surface_window, xwl_window_buffer->pixmap);
 
-        new_window_pixmap = xwl_window_allocate_pixmap(xwl_window);
-        if (!new_window_pixmap) {
+        /* Can't re-use client pixmap as a window buffer */
+        if (xwl_is_client_pixmap(window_pixmap)) {
+            xwl_window_buffer->pixmap = NULL;
             xwl_window_buffer_maybe_dispose(xwl_window_buffer);
+            if (handle_sync)
+                xwl_window_handle_pixmap_sync(xwl_window, window_pixmap, NULL);
             return window_pixmap;
         }
+    } else {
+        /* Can't re-use client pixmap as a window buffer */
+        if (!xwl_is_client_pixmap(window_pixmap))
+            xwl_window_buffer = xwl_window_buffer_new(xwl_window);
 
-        copy_pixmap_area(window_pixmap,
-                         new_window_pixmap,
-                         0, 0,
-                         window_pixmap->drawable.width,
-                         window_pixmap->drawable.height);
+        window_pixmap->refcnt++;
+        xwl_window_realloc_pixmap(xwl_window);
+
+        if (!xwl_window_buffer) {
+            if (handle_sync)
+                xwl_window_handle_pixmap_sync(xwl_window, window_pixmap, NULL);
+            return window_pixmap;
+        }
     }
 
     xwl_window_buffer->pixmap = window_pixmap;
 
     /* Hold a reference on the buffer until it's released by the compositor */
     xwl_window_buffer->refcnt++;
-    xwl_pixmap_set_buffer_release_cb(xwl_window_buffer->pixmap,
-                                     xwl_window_buffer_release_callback,
-                                     xwl_window_buffer);
 
-    xorg_list_del(&xwl_window_buffer->link_buffer);
+    if (handle_sync &&
+        xwl_window_handle_pixmap_sync(xwl_window, window_pixmap, xwl_window_buffer)) {
+        xwl_pixmap_set_buffer_release_cb(xwl_window_buffer->pixmap,
+                                         xwl_window_buffer_release_callback,
+                                         xwl_window_buffer);
+
+        if (xwl_window->surface_sync) {
+            wp_linux_drm_syncobj_surface_v1_destroy(xwl_window->surface_sync);
+            xwl_window->surface_sync = NULL;
+        }
+    }
+
     xorg_list_append(&xwl_window_buffer->link_buffer,
                      &xwl_window->window_buffers_unavailable);
-
-    xwl_window_set_pixmap(xwl_window->window, new_window_pixmap);
 
     if (xorg_list_is_empty(&xwl_window->window_buffers_available))
         TimerCancel(xwl_window->window_buffers_timer);

@@ -154,18 +154,17 @@ int ms_entity_index = -1;
 static MODULESETUPPROTO(Setup);
 
 static XF86ModuleVersionInfo VersRec = {
-    "modesetting",
-    MODULEVENDORSTRING,
-    MODINFOSTRING1,
-    MODINFOSTRING2,
-    XORG_VERSION_CURRENT,
-    XORG_VERSION_MAJOR,
-    XORG_VERSION_MINOR,
-    XORG_VERSION_PATCH,
-    ABI_CLASS_VIDEODRV,
-    ABI_VIDEODRV_VERSION,
-    MOD_CLASS_VIDEODRV,
-    {0, 0, 0, 0}
+    .modname      = "modesetting",
+    .vendor       = MODULEVENDORSTRING,
+    ._modinfo1_   = MODINFOSTRING1,
+    ._modinfo2_   = MODINFOSTRING2,
+    .xf86version  = XORG_VERSION_CURRENT,
+    .majorversion = XORG_VERSION_MAJOR,
+    .minorversion = XORG_VERSION_MINOR,
+    .patchlevel   = XORG_VERSION_PATCH,
+    .abiclass     = ABI_CLASS_VIDEODRV,
+    .abiversion   = ABI_VIDEODRV_VERSION,
+    .moduleclass  = MOD_CLASS_VIDEODRV,
 };
 
 _X_EXPORT XF86ModuleData modesettingModuleData = { &VersRec, Setup, NULL };
@@ -392,7 +391,7 @@ ms_setup_entity(ScrnInfoPtr scrn, int entity_num)
     xf86SetEntityInstanceForScreen(scrn, entity_num, xf86GetNumEntityInstances(entity_num) - 1);
 
     if (!pPriv->ptr)
-        pPriv->ptr = xnfcalloc(sizeof(modesettingEntRec), 1);
+        pPriv->ptr = xnfcalloc(1, sizeof(modesettingEntRec));
 }
 
 #ifdef XSERVER_LIBPCIACCESS
@@ -511,7 +510,7 @@ GetRec(ScrnInfoPtr pScrn)
     if (pScrn->driverPrivate)
         return TRUE;
 
-    pScrn->driverPrivate = xnfcalloc(sizeof(modesettingRec), 1);
+    pScrn->driverPrivate = xnfcalloc(1, sizeof(modesettingRec));
 
     return TRUE;
 }

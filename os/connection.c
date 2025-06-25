@@ -87,16 +87,10 @@ SOFTWARE.
 #if defined(TCPCONN)
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#ifdef apollo
-#ifndef NO_TCP_H
-#include <netinet/tcp.h>
-#endif
-#else
 #ifdef CSRG_BASED
 #include <sys/param.h>
 #endif
 #include <netinet/tcp.h>
-#endif
 #include <arpa/inet.h>
 #endif
 
@@ -242,7 +236,7 @@ void
 CreateWellKnownSockets(void)
 {
     int i;
-    int partial;
+    int partial = 0;
 
     /* display is initialized to "0" by main(). It is then set to the display
      * number if specified on the command line. */
@@ -395,11 +389,20 @@ AuthAudit(ClientPtr client, Bool letin,
             strlcpy(addr, "local host", sizeof(addr));
             break;
 #if defined(TCPCONN)
-        case AF_INET:
-            snprintf(addr, sizeof(addr), "IP %s",
-                     inet_ntoa(((struct sockaddr_in *) saddr)->sin_addr));
+        case AF_INET:{
+#if defined(HAVE_INET_NTOP)
+            char ipaddr[INET_ADDRSTRLEN];
+
+            inet_ntop(AF_INET, &((struct sockaddr_in *) saddr)->sin_addr,
+                      ipaddr, sizeof(ipaddr));
+#else
+            const char *ipaddr =
+                inet_ntoa(((struct sockaddr_in *) saddr)->sin_addr);
+#endif
+            snprintf(addr, sizeof(addr), "IP %s", ipaddr);
+        }
             break;
-#if defined(IPv6) && defined(AF_INET6)
+#if defined(IPv6)
         case AF_INET6:{
             char ipaddr[INET6_ADDRSTRLEN];
 

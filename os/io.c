@@ -296,6 +296,10 @@ ReadRequestFromClient(ClientPtr client)
                 needed = get_big_req_len(request, client);
         }
         client->req_len = needed;
+        if (needed > MAXINT >> 2) {
+            /* Check for potential integer overflow */
+            return -(BadLength);
+        }
         needed <<= 2;           /* needed is in bytes now */
     }
     if (gotnow < needed) {
@@ -354,13 +358,8 @@ ReadRequestFromClient(ClientPtr client)
         if (result <= 0) {
             if ((result < 0) && ETEST(errno)) {
                 mark_client_not_ready(client);
-#if defined(SVR4) && defined(__i386__) && !defined(__sun)
-                if (0)
-#endif
-                {
-                    YieldControlNoInput(client);
-                    return 0;
-                }
+                YieldControlNoInput(client);
+                return 0;
             }
             YieldControlDeath();
             return -1;
@@ -391,6 +390,8 @@ ReadRequestFromClient(ClientPtr client)
                     needed = get_big_req_len(request, client);
             }
             client->req_len = needed;
+            if (needed > MAXINT >> 2)
+                return -(BadLength);
             needed <<= 2;
         }
         if (gotnow < needed) {
@@ -438,7 +439,7 @@ ReadRequestFromClient(ClientPtr client)
      */
 
     gotnow -= needed;
-    if (!gotnow)
+    if (!gotnow && !oci->ignoreBytes)
         AvailableInput = oc;
     if (move_header) {
         if (client->req_len < bytes_to_int32(sizeof(xBigReq) - sizeof(xReq))) {
@@ -890,9 +891,6 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
             todo = notWritten;
         }
         else if (ETEST(errno)
-#ifdef SUNSYSV                  /* check for another brain-damaged OS bug */
-                 || (errno == 0)
-#endif
 #ifdef EMSGSIZE                 /* check for another brain-damaged OS bug */
                  || ((errno == EMSGSIZE) && (todo == 1))
 #endif

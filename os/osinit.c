@@ -59,7 +59,7 @@ SOFTWARE.
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
-#ifdef HAVE_BACKTRACE
+#if defined(HAVE_BACKTRACE) && defined(HAVE_EXECINFO_H)
 #include <execinfo.h>
 #endif
 
@@ -67,7 +67,7 @@ SOFTWARE.
 
 #include "dixstruct.h"
 
-#if !defined(SYSV) && !defined(WIN32)
+#if !defined(WIN32)
 #include <sys/resource.h>
 #endif
 
@@ -206,7 +206,7 @@ OsInit(void)
         if (!server_poll)
             FatalError("failed to allocate poll structure");
 
-#ifdef HAVE_BACKTRACE
+#if defined(HAVE_BACKTRACE) && defined(HAVE_EXECINFO_H)
         /*
          * initialize the backtracer, since the ctor calls dlopen(), which
          * calls malloc(), which isn't signal-safe.
@@ -254,7 +254,7 @@ OsInit(void)
                 dup2(fileno(err), 2);
                 fclose(err);
             }
-#if defined(SYSV) || defined(SVR4) || defined(WIN32) || defined(__CYGWIN__)
+#if defined(SVR4) || defined(WIN32) || defined(__CYGWIN__)
             {
                 static char buf[BUFSIZ];
 

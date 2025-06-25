@@ -978,6 +978,23 @@ FreeAllDeviceClasses(ClassesPtr classes)
 
 }
 
+static void
+FreePendingFrozenDeviceEvents(DeviceIntPtr dev)
+{
+    QdEventPtr qe, tmp;
+
+    if (!dev->deviceGrab.sync.frozen)
+        return;
+
+    /* Dequeue any frozen pending events */
+    xorg_list_for_each_entry_safe(qe, tmp, &syncEvents.pending, next) {
+        if (qe->device == dev) {
+            xorg_list_del(&qe->next);
+            free(qe);
+        }
+    }
+}
+
 /**
  * Close down a device and free all resources.
  * Once closed down, the driver will probably not expect you that you'll ever
@@ -1042,6 +1059,7 @@ CloseDevice(DeviceIntPtr dev)
         valuator_mask_free(&dev->last.touches[j].valuators);
     free(dev->last.touches);
     dev->config_info = NULL;
+    FreePendingFrozenDeviceEvents(dev);
     dixFreePrivates(dev->devPrivates, PRIVATE_DEVICE);
     free(dev);
 }
@@ -2017,16 +2035,6 @@ NoteLedState(DeviceIntPtr keybd, int led, Bool on)
         ctrl->leds &= ~((Leds) 1 << (led - 1));
 }
 
-int
-Ones(unsigned long mask)
-{                               /* HACKMEM 169 */
-    unsigned long y;
-
-    y = (mask >> 1) & 033333333333;
-    y = mask - y - ((y >> 1) & 033333333333);
-    return (((y + (y >> 3)) & 030707070707) % 077);
-}
-
 static int
 DoChangeKeyboardControl(ClientPtr client, DeviceIntPtr keybd, XID *vlist,
                         BITS32 vmask)
@@ -2696,11 +2704,14 @@ AttachDevice(ClientPtr client, DeviceIntPtr dev, DeviceIntPtr master)
         dev->spriteInfo->paired = dev;
     }
     else {
+        DeviceIntPtr keyboard = GetMaster(dev, MASTER_KEYBOARD);
+
         dev->spriteInfo->sprite = master->spriteInfo->sprite;
         dev->spriteInfo->paired = master;
         dev->spriteInfo->spriteOwner = FALSE;
 
-        XkbPushLockedStateToSlaves(GetMaster(dev, MASTER_KEYBOARD), 0, 0);
+        if (keyboard)
+            XkbPushLockedStateToSlaves(keyboard, 0, 0);
         RecalculateMasterButtons(master);
     }
 
@@ -2725,7 +2736,7 @@ GetPairedDevice(DeviceIntPtr dev)
     if (!IsMaster(dev) && !IsFloating(dev))
         dev = GetMaster(dev, MASTER_ATTACHED);
 
-    return dev->spriteInfo? dev->spriteInfo->paired: NULL;
+    return (dev && dev->spriteInfo) ? dev->spriteInfo->paired: NULL;
 }
 
 /**

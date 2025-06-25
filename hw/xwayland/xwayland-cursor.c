@@ -43,8 +43,6 @@
 
 #define DELAYED_X_CURSOR_TIMEOUT 5 /* ms */
 
-static DevPrivateKeyRec xwl_cursor_private_key;
-
 static void
 expand_source_and_mask(CursorPtr cursor, CARD32 *data)
 {
@@ -80,28 +78,14 @@ expand_source_and_mask(CursorPtr cursor, CARD32 *data)
 static Bool
 xwl_realize_cursor(DeviceIntPtr device, ScreenPtr screen, CursorPtr cursor)
 {
-    PixmapPtr pixmap;
-
-    pixmap = xwl_shm_create_pixmap(screen, cursor->bits->width,
-                                   cursor->bits->height, 32,
-                                   CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
-    dixSetPrivate(&cursor->devPrivates, &xwl_cursor_private_key, pixmap);
-
     return TRUE;
 }
 
 static Bool
 xwl_unrealize_cursor(DeviceIntPtr device, ScreenPtr screen, CursorPtr cursor)
 {
-    PixmapPtr pixmap;
     struct xwl_screen *xwl_screen;
     struct xwl_seat *xwl_seat;
-
-    pixmap = dixGetPrivate(&cursor->devPrivates, &xwl_cursor_private_key);
-    if (!pixmap)
-        return TRUE;
-
-    dixSetPrivate(&cursor->devPrivates, &xwl_cursor_private_key, NULL);
 
     /* When called from FreeCursor(), device is always NULL */
     xwl_screen = xwl_screen_get(screen);
@@ -110,7 +94,7 @@ xwl_unrealize_cursor(DeviceIntPtr device, ScreenPtr screen, CursorPtr cursor)
             xwl_seat->x_cursor = NULL;
     }
 
-    return xwl_shm_destroy_pixmap(pixmap);
+    return TRUE;
 }
 
 static void
@@ -156,6 +140,7 @@ xwl_cursor_attach_pixmap(struct xwl_seat *xwl_seat,
                          struct xwl_cursor *xwl_cursor, PixmapPtr pixmap)
 {
     struct wl_buffer *buffer;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
 
     buffer = xwl_shm_pixmap_get_wl_buffer(pixmap);
     if (!buffer) {
@@ -164,15 +149,17 @@ xwl_cursor_attach_pixmap(struct xwl_seat *xwl_seat,
     }
 
     wl_surface_attach(xwl_cursor->surface, buffer, 0, 0);
-    xwl_surface_damage(xwl_seat->xwl_screen, xwl_cursor->surface, 0, 0,
+    wl_surface_set_buffer_scale(xwl_cursor->surface, xwl_screen->global_surface_scale);
+    xwl_surface_damage(xwl_screen, xwl_cursor->surface, 0, 0,
                        xwl_seat->x_cursor->bits->width,
                        xwl_seat->x_cursor->bits->height);
 
     xwl_cursor->frame_cb = wl_surface_frame(xwl_cursor->surface);
     wl_callback_add_listener(xwl_cursor->frame_cb, &frame_listener, xwl_cursor);
 
-    /* Hold a reference on the pixmap until it's released by the compositor */
-    pixmap->refcnt++;
+    /* The pixmap will be destroyed in xwl_cursor_buffer_release_callback()
+     * once the compositor is done with it.
+     */
     xwl_pixmap_set_buffer_release_cb(pixmap,
                                      xwl_cursor_buffer_release_callback,
                                      pixmap);
@@ -196,8 +183,10 @@ void
 xwl_seat_set_cursor(struct xwl_seat *xwl_seat)
 {
     struct xwl_cursor *xwl_cursor = &xwl_seat->cursor;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     PixmapPtr pixmap;
     CursorPtr cursor;
+    int xhot, yhot;
 
     if (!xwl_seat->wl_pointer)
         return;
@@ -216,17 +205,22 @@ xwl_seat_set_cursor(struct xwl_seat *xwl_seat)
     }
 
     cursor = xwl_seat->x_cursor;
-    pixmap = dixGetPrivate(&cursor->devPrivates, &xwl_cursor_private_key);
+    pixmap = xwl_shm_create_pixmap(xwl_screen->screen, cursor->bits->width,
+                                   cursor->bits->height, 32,
+                                   CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
     if (!pixmap)
         return;
 
     xwl_cursor_copy_bits_to_pixmap(cursor, pixmap);
 
+    xhot = xwl_seat->x_cursor->bits->xhot / xwl_screen->global_surface_scale;
+    yhot = xwl_seat->x_cursor->bits->yhot / xwl_screen->global_surface_scale;
+
     wl_pointer_set_cursor(xwl_seat->wl_pointer,
                           xwl_seat->pointer_enter_serial,
                           xwl_cursor->surface,
-                          xwl_seat->x_cursor->bits->xhot,
-                          xwl_seat->x_cursor->bits->yhot);
+                          xhot,
+                          yhot);
 
     xwl_cursor_attach_pixmap(xwl_seat, xwl_cursor, pixmap);
 }
@@ -235,9 +229,11 @@ void
 xwl_tablet_tool_set_cursor(struct xwl_tablet_tool *xwl_tablet_tool)
 {
     struct xwl_seat *xwl_seat = xwl_tablet_tool->seat;
+    struct xwl_screen *xwl_screen = xwl_seat->xwl_screen;
     struct xwl_cursor *xwl_cursor = &xwl_tablet_tool->cursor;
     PixmapPtr pixmap;
     CursorPtr cursor;
+    int xhot, yhot;
 
     if (!xwl_seat->x_cursor) {
         zwp_tablet_tool_v2_set_cursor(xwl_tablet_tool->tool,
@@ -254,17 +250,22 @@ xwl_tablet_tool_set_cursor(struct xwl_tablet_tool *xwl_tablet_tool)
     }
 
     cursor = xwl_seat->x_cursor;
-    pixmap = dixGetPrivate(&cursor->devPrivates, &xwl_cursor_private_key);
+    pixmap = xwl_shm_create_pixmap(xwl_screen->screen, cursor->bits->width,
+                                   cursor->bits->height, 32,
+                                   CREATE_PIXMAP_USAGE_BACKING_PIXMAP);
     if (!pixmap)
         return;
 
     xwl_cursor_copy_bits_to_pixmap(cursor, pixmap);
 
+    xhot = xwl_seat->x_cursor->bits->xhot / xwl_screen->global_surface_scale;
+    yhot = xwl_seat->x_cursor->bits->yhot / xwl_screen->global_surface_scale;
+
     zwp_tablet_tool_v2_set_cursor(xwl_tablet_tool->tool,
                                   xwl_tablet_tool->proximity_in_serial,
                                   xwl_cursor->surface,
-                                  xwl_seat->x_cursor->bits->xhot,
-                                  xwl_seat->x_cursor->bits->yhot);
+                                  xhot,
+                                  yhot);
 
     xwl_cursor_attach_pixmap(xwl_seat, xwl_cursor, pixmap);
 }
@@ -431,9 +432,6 @@ static miPointerScreenFuncRec xwl_pointer_screen_funcs = {
 Bool
 xwl_screen_init_cursor(struct xwl_screen *xwl_screen)
 {
-    if (!dixRegisterPrivateKey(&xwl_cursor_private_key, PRIVATE_CURSOR, 0))
-        return FALSE;
-
     return miPointerInitialize(xwl_screen->screen,
                                &xwl_pointer_sprite_funcs,
                                &xwl_pointer_screen_funcs, TRUE);

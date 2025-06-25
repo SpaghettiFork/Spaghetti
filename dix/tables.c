@@ -53,6 +53,7 @@ SOFTWARE.
 #include "windowstr.h"
 #include "extnsionst.h"
 #include "dixstruct.h"
+#include "dixstruct_priv.h"
 #include "dixevents.h"
 #include "dispatch.h"
 #include "swaprep.h"

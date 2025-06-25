@@ -359,8 +359,6 @@ glamor_build_program(ScreenPtr          screen,
 
     vs_prog = glamor_compile_glsl_prog(GL_VERTEX_SHADER, vs_prog_string);
     fs_prog = glamor_compile_glsl_prog(GL_FRAGMENT_SHADER, fs_prog_string);
-    free(vs_prog_string);
-    free(fs_prog_string);
     glAttachShader(prog->prog, vs_prog);
     glDeleteShader(vs_prog);
     glAttachShader(prog->prog, fs_prog);
@@ -378,7 +376,8 @@ glamor_build_program(ScreenPtr          screen,
         glBindFragDataLocationIndexed(prog->prog, 0, 1, "color1");
     }
 
-    glamor_link_glsl_prog(screen, prog->prog, "%s_%s", prim->name, fill->name);
+    if (!glamor_link_glsl_prog(screen, prog->prog, "%s_%s", prim->name, fill->name))
+        goto fail;
 
     prog->matrix_uniform = glamor_get_uniform(prog, glamor_program_location_none, "v_matrix");
     prog->fg_uniform = glamor_get_uniform(prog, glamor_program_location_fg, "fg");
@@ -393,6 +392,8 @@ glamor_build_program(ScreenPtr          screen,
     prog->atlas_uniform = glamor_get_uniform(prog, glamor_program_location_atlas, "atlas");
 
     free(version_string);
+    free(vs_prog_string);
+    free(fs_prog_string);
     free(fs_vars);
     free(vs_vars);
     return TRUE;

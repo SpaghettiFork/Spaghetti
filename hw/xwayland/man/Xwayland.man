@@ -43,7 +43,9 @@ of the Wayland desktop. It is however possible for a user to launch Xwayland
 non-rootless, mainly for testing purposes.
 .PP
 Like all of the X servers, \fIXwayland\fP accepts the command line options
-described in the \fIXserver\fP(@miscmansuffix@) manual page.
+described in the
+.BR Xserver (@miscmansuffix@)
+manual page.
 The following additional arguments are supported as well.
 .TP 8
 .B \-decorate
@@ -53,13 +55,6 @@ This option has no effect when \fIXwayland\fP is built without libdecor
 support (optional).
 
 This option is not compatible with rootless mode (\fI-rootless\fP).
-.TP 8
-.B \-eglstream
-Use EGLStream backend for NVidia GPUs. If \fIXwayland\fP was compiled with
-EGLStream support, this option will instruct \fIXwayland\fP to try that
-backend first, then fallback to the GBM backend if EGLStream is not supported
-by the Wayland server. Without this option, \fIXwayland\fP tries the GBM
-backend first, and fallback to EGLStream if GBM is not usable.
 .TP 8
 .B \-enable-ei-portal
 Enable support for the XDG portal for input emulation.
@@ -88,6 +83,11 @@ Without this option and without \fI-shm\fP option, \fIXwayland\fP tries the Open
 and fallback to GL ES if GL version is less than 2.1.
 
 This option is not compatible with \fI-shm\fP option.
+.TP 8
+.B \-hidpi
+Adjust to the scale of the outputs when running rootful in windowing mode.
+
+This option is not compatible with rootless mode (\fI-rootless\fP).
 .TP 8
 .B \-host-grab
 Disable host keyboard shorcuts and confine the pointer when running rootful.
@@ -148,7 +148,7 @@ Run \fIXwayland\fP rootless, so that X clients integrate seamlessly with
 Wayland clients in a Wayland desktop. That requires the Wayland server
 to be an X window manager as well.
 .TP 8
-.BI \-shm
+.B \-shm
 Force the shared memory backend instead of glamor (if available) for passing
 buffers to the Wayland server.
 
@@ -163,7 +163,7 @@ verbosity level.  When the
 value is supplied, the verbosity level is set to that value.  The default
 verbosity level is 0.
 .TP 8
-.BI \-version
+.B \-version
 Show the server version and exit.
 .TP 8
 .B \-wm \fIfd\fP
@@ -178,4 +178,6 @@ the name of the display of the Wayland server.
 .B XWAYLAND_NO_GLAMOR
 disable glamor and DRI3 support in \fIXwayland\fP, for testing purposes.
 .SH "SEE ALSO"
-General information: \fIX\fP(@miscmansuffix@), \fIwayland-info\fP(@miscmansuffix@)
+General information:
+.BR X (@miscmansuffix@),
+.BR wayland-info (@miscmansuffix@)

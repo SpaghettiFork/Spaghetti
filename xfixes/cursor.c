@@ -44,7 +44,10 @@
 
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
-#endif
+
+#include "dix/cursor_priv.h"
+#include "dix/dix_priv.h"
+#include "dix/input_priv.h"
 
 #include "xfixesint.h"
 #include "scrnintstr.h"
@@ -379,8 +382,8 @@ ProcXFixesGetCursorImage(ClientPtr client)
     width = pCursor->bits->width;
     height = pCursor->bits->height;
     npixels = width * height;
-    rep = calloc(sizeof(xXFixesGetCursorImageReply) + npixels * sizeof(CARD32),
-                 1);
+    rep = calloc(1,
+                 sizeof(xXFixesGetCursorImageReply) + npixels * sizeof(CARD32));
     if (!rep)
         return BadAlloc;
 
@@ -531,8 +534,8 @@ ProcXFixesGetCursorImageAndName(ClientPtr client)
     name = pCursor->name ? NameForAtom(pCursor->name) : "";
     nbytes = strlen(name);
     nbytesRound = pad_to_int32(nbytes);
-    rep = calloc(sizeof(xXFixesGetCursorImageAndNameReply) +
-                 npixels * sizeof(CARD32) + nbytesRound, 1);
+    rep = calloc(1, sizeof(xXFixesGetCursorImageAndNameReply) +
+                 npixels * sizeof(CARD32) + nbytesRound);
     if (!rep)
         return BadAlloc;
 
