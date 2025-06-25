@@ -24,8 +24,6 @@
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
 
-#include "dix/colormap_priv.h"
-
 #include "scrnintstr.h"
 #include "gcstruct.h"
 #include "pixmapstr.h"
