@@ -359,6 +359,11 @@ glamor_make_pixmap_exportable(PixmapPtr pixmap, Bool modifiers_ok)
                               0, 0, width, height, 0, 0);
     FreeScratchGC(scratch_gc);
 
+    /* In case that the pixmap backing BO importer's command stream accidentally
+     * gets flushed first.
+     */
+    glFlush();
+
     /* Now, swap the tex/gbm/EGLImage/etc. of the exported pixmap into
      * the original pixmap struct.
      */
