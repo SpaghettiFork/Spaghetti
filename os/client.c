@@ -58,6 +58,7 @@
 #include "client.h"
 #include "os.h"
 #include "dixstruct.h"
+#include "auth.h"
 
 #ifdef __sun
 #include <errno.h>

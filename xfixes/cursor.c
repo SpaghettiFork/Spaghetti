@@ -44,10 +44,7 @@
 
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
-
-#include "dix/cursor_priv.h"
-#include "dix/dix_priv.h"
-#include "dix/input_priv.h"
+#endif
 
 #include "xfixesint.h"
 #include "scrnintstr.h"

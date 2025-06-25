@@ -85,6 +85,8 @@ Equipment Corporation.
 #include "scrnintstr.h"
 #include "misc.h"
 #include "os.h"
+#include "../os/osdep.h"
+#include "../os/auth.h"
 #include "windowstr.h"
 #include "resource.h"
 #include "dixstruct.h"

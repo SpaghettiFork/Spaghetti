@@ -103,6 +103,7 @@ __stdcall unsigned long GetTickCount(void);
 #endif
 
 #include "xdmcp.h"
+#include "auth.h"
 
 #include "opaque.h"
 

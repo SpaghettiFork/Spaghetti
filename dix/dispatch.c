@@ -124,6 +124,7 @@ Equipment Corporation.
 #include "xkbsrv.h"
 #include "client.h"
 #include "xfixesint.h"
+#include "../os/auth.h"
 
 #ifdef XSERVER_DTRACE
 #include "registry.h"

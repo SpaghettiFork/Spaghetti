@@ -215,10 +215,6 @@ extern _X_EXPORT void UseMsg(void);
 
 extern _X_EXPORT void ProcessCommandLine(int /*argc */ , char * /*argv */ []);
 
-extern _X_EXPORT int set_font_authorizations(char **authorizations,
-                                             int *authlen,
-                                             void *client);
-
 /*
  * This function malloc(3)s buffer, terminating the server if there is not
  * enough memory.
@@ -312,32 +308,6 @@ OsLookupColor(int /*screen */ ,
               unsigned short * /*pgreen */ ,
               unsigned short * /*pblue */ );
 
-extern _X_EXPORT void
-OsInit(void);
-
-extern _X_EXPORT void
-OsCleanup(Bool);
-
-extern _X_EXPORT void
-OsVendorFatalError(const char *f, va_list args)
-_X_ATTRIBUTE_PRINTF(1, 0);
-
-extern _X_EXPORT void
-OsVendorInit(void);
-
-extern _X_EXPORT void
-OsBlockSignals(void);
-
-extern _X_EXPORT void
-OsReleaseSignals(void);
-
-extern void
-OsResetSignals(void);
-
-extern _X_EXPORT void
-OsAbort(void)
-    _X_NORETURN;
-
 #if !defined(WIN32)
 extern _X_EXPORT int
 System(const char *);
@@ -366,63 +336,8 @@ PrivsElevated(void);
 
 extern _X_EXPORT void
 CheckUserParameters(int argc, char **argv, char **envp);
-extern _X_EXPORT void
-CheckUserAuthorization(void);
-
-extern _X_EXPORT int
-AddHost(ClientPtr /*client */ ,
-        int /*family */ ,
-        unsigned /*length */ ,
-        const void * /*pAddr */ );
-
-extern _X_EXPORT Bool
-ForEachHostInFamily(int family,
-                    Bool (*func)(
-                                           unsigned char *addr,
-                                           short len,
-                                           void *closure),
-                    void *closure);
-
-extern _X_EXPORT int
-RemoveHost(ClientPtr client,
-           int family,
-           unsigned length,
-           void *pAddr);
-
-extern _X_EXPORT int
-GetHosts(void ** /*data */ ,
-         int * /*pnHosts */ ,
-         int * /*pLen */ ,
-         BOOL * /*pEnabled */ );
 
 typedef struct sockaddr *sockaddrPtr;
-
-extern _X_EXPORT int
-InvalidHost(sockaddrPtr /*saddr */ , int /*len */ , ClientPtr client);
-
-#define LCC_UID_SET	(1 << 0)
-#define LCC_GID_SET	(1 << 1)
-#define LCC_PID_SET	(1 << 2)
-#define LCC_ZID_SET	(1 << 3)
-
-typedef struct {
-    int fieldsSet;              /* Bit mask of fields set */
-    int euid;                   /* Effective uid */
-    int egid;                   /* Primary effective group id */
-    int nSuppGids;              /* Number of supplementary group ids */
-    int *pSuppGids;             /* Array of supplementary group ids */
-    int pid;                    /* Process id */
-    int zoneid;                 /* Only set on Solaris 10 & later */
-} LocalClientCredRec;
-
-extern _X_EXPORT int
-GetLocalClientCreds(ClientPtr, LocalClientCredRec **);
-
-extern _X_EXPORT void
-FreeLocalClientCreds(LocalClientCredRec *);
-
-extern _X_EXPORT int
-ChangeAccessControl(ClientPtr /*client */ , int /*fEnabled */ );
 
 extern _X_EXPORT int
 GetClientFd(ClientPtr);
@@ -432,93 +347,6 @@ ClientIsLocal(ClientPtr client);
 
 extern _X_EXPORT int
 GetAccessControl(void);
-
-extern _X_EXPORT void
-AddLocalHosts(void);
-
-extern _X_EXPORT void
-ResetHosts(const char *display);
-
-extern _X_EXPORT void
-EnableLocalAccess(void);
-
-extern _X_EXPORT void
-DisableLocalAccess(void);
-
-extern _X_EXPORT void
-EnableLocalHost(void);
-
-extern _X_EXPORT void
-DisableLocalHost(void);
-
-#ifndef NO_LOCAL_CLIENT_CRED
-extern _X_EXPORT void
-EnableLocalUser(void);
-
-extern _X_EXPORT void
-DisableLocalUser(void);
-
-extern _X_EXPORT void
-LocalAccessScopeUser(void);
-#endif
-
-extern _X_EXPORT void
-AccessUsingXdmcp(void);
-
-extern _X_EXPORT void
-DefineSelf(int /*fd */ );
-
-#ifdef XDMCP
-extern _X_EXPORT void
-AugmentSelf(void *from, int len);
-
-extern _X_EXPORT void
-RegisterAuthorizations(void);
-#endif
-
-extern _X_EXPORT void
-InitAuthorization(const char * /*filename */ );
-
-/* extern int LoadAuthorization(void); */
-
-extern _X_EXPORT int
-AuthorizationFromID(XID id,
-                    unsigned short *name_lenp,
-                    const char **namep,
-                    unsigned short *data_lenp, char **datap);
-
-extern _X_EXPORT XID
-CheckAuthorization(unsigned int /*namelength */ ,
-                   const char * /*name */ ,
-                   unsigned int /*datalength */ ,
-                   const char * /*data */ ,
-                   ClientPtr /*client */ ,
-                   const char **        /*reason */
-    );
-
-extern _X_EXPORT void
-ResetAuthorization(void);
-
-extern _X_EXPORT int
-RemoveAuthorization(unsigned short name_length,
-                    const char *name,
-                    unsigned short data_length, const char *data);
-
-extern _X_EXPORT int
-AddAuthorization(unsigned int /*name_length */ ,
-                 const char * /*name */ ,
-                 unsigned int /*data_length */ ,
-                 char * /*data */ );
-
-#ifdef XCSECURITY
-extern _X_EXPORT XID
-GenerateAuthorization(unsigned int /* name_length */ ,
-                      const char * /* name */ ,
-                      unsigned int /* data_length */ ,
-                      const char * /* data */ ,
-                      unsigned int * /* data_length_return */ ,
-                      char ** /* data_return */ );
-#endif
 
 extern _X_EXPORT int
 ddxProcessArgument(int /*argc */ , char * /*argv */ [], int /*i */ );

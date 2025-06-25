@@ -67,7 +67,6 @@
 #define NO_CFPLUGIN
 #include <IOKit/hidsystem/IOHIDLib.h>
 
-#include "input_priv.h"
 #include "screenint_priv.h"
 
 #ifdef MITSHM

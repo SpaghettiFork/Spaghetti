@@ -34,11 +34,9 @@ and Jim Haggerty of Metheus.
 
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
+#endif
 
-#include "dix/cursor_priv.h"
-#include "dix/eventconvert.h"
-#include "os/client_priv.h"
-#include "os/osdep.h"
+#include "../dix/eventconvert.h"
 
 #include "dixstruct.h"
 #include "extnsionst.h"

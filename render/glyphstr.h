@@ -114,6 +114,8 @@ extern Bool
 
 extern GlyphSetPtr AllocateGlyphSet(int fdepth, PictFormatPtr format);
 
+extern void FreeGlyph(GlyphPtr glyph, int format);
+
 extern int
  FreeGlyphSet(void *value, XID gid);
 

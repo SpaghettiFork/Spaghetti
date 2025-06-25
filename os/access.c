@@ -180,8 +180,10 @@ SOFTWARE.
 #include "dixstruct.h"
 #include "osdep.h"
 
+#include "auth.h"
 #include "xace.h"
 #include "xdmcp.h"
+#include "rpcauth.h"
 
 Bool defeatAccessControl = FALSE;
 

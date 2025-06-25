@@ -51,6 +51,8 @@ SOFTWARE.
 #ifndef _OSDEP_H_
 #define _OSDEP_H_ 1
 
+#include <X11/Xdefs.h>
+
 #if defined(XDMCP) || defined(HASXDMAUTH)
 #include <X11/Xdmcp.h>
 #endif
@@ -91,29 +93,6 @@ typedef struct _connectionOutput *ConnectionOutputPtr;
 
 struct _osComm;
 
-#define AuthInitArgs void
-typedef void (*AuthInitFunc) (AuthInitArgs);
-
-#define AuthAddCArgs unsigned short data_length, const char *data, XID id
-typedef int (*AuthAddCFunc) (AuthAddCArgs);
-
-#define AuthCheckArgs unsigned short data_length, const char *data, ClientPtr client, const char **reason
-typedef XID (*AuthCheckFunc) (AuthCheckArgs);
-
-#define AuthFromIDArgs XID id, unsigned short *data_lenp, char **datap
-typedef int (*AuthFromIDFunc) (AuthFromIDArgs);
-
-#define AuthGenCArgs unsigned data_length, const char *data, XID id, unsigned *data_length_return, char **data_return
-typedef XID (*AuthGenCFunc) (AuthGenCArgs);
-
-#define AuthRemCArgs unsigned short data_length, const char *data
-typedef int (*AuthRemCFunc) (AuthRemCArgs);
-
-#define AuthRstCArgs void
-typedef int (*AuthRstCFunc) (AuthRstCArgs);
-
-typedef void (*OsCloseFunc) (ClientPtr);
-
 typedef int (*OsFlushFunc) (ClientPtr who, struct _osComm * oc, char *extraBuf,
                             int extraCount);
 
@@ -152,8 +131,6 @@ listen_to_client(ClientPtr client);
 
 extern Bool NewOutputPending;
 
-extern WorkQueuePtr workQueue;
-
 /* in access.c */
 extern Bool ComputeLocalClient(ClientPtr client);
 
@@ -176,13 +153,11 @@ static inline void uname(struct utsname *uts) {
 
 const char *Win32TempDir(void);
 
-int System(const char *cmdline);
 static inline void Fclose(void *f) { fclose(f); }
 static inline void *Fopen(const char *a, const char *b) { return fopen(a,b); }
 
 #else /* WIN32 */
 
-int System(const char *);
 void *Popen(const char *, const char *);
 void *Fopen(const char *, const char *);
 int Fclose(void *f);
@@ -216,6 +191,7 @@ void OsBlockSignals(void);
 void OsReleaseSignals(void);
 void OsResetSignals(void);
 void OsAbort(void) _X_NORETURN;
+void AbortServer(void) _X_NORETURN;
 
 void MakeClientGrabPervious(ClientPtr client);
 void MakeClientGrabImpervious(ClientPtr client);
@@ -232,7 +208,6 @@ void CloseDownConnection(ClientPtr client);
 
 extern int LimitClients;
 extern Bool PartialNetwork;
-extern Bool RunFromSigStopParent;
 
 extern int limitDataSpace;
 extern int limitStackSpace;

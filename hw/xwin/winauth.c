@@ -36,8 +36,8 @@
 #include "winmsg.h"
 
 /* Includes for authorization */
-#include "securitysrv.h"
-#include "os/osdep.h"
+#include "Xext/securitysrv.h"
+#include "os.h"
 
 #include <xcb/xcb.h>
 

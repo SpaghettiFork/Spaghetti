@@ -65,6 +65,7 @@ Equipment Corporation.
 #include "closestr.h"
 #include "dixfont.h"
 #include "xace.h"
+#include "../os/auth.h"
 #include <X11/fonts/libxfont2.h>
 
 #ifdef XF86BIGFONT

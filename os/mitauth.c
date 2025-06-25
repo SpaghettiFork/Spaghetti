@@ -39,6 +39,7 @@ from The Open Group.
 #include "os.h"
 #include "osdep.h"
 #include "dixstruct.h"
+#include "mitauth.h"
 
 static struct auth {
     struct auth *next;

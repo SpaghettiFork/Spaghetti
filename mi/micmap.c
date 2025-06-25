@@ -34,8 +34,7 @@
 #include <X11/X.h>
 #include <X11/Xproto.h>
 
-#include "../os/osdep.h"
-
+#include "os.h"
 #include "scrnintstr.h"
 #include "colormapst.h"
 #include "resource.h"

@@ -102,6 +102,7 @@ SOFTWARE.
 #include "opaque.h"
 #include "dixstruct.h"
 #include "xace.h"
+#include "auth.h"
 
 #define Pid_t pid_t
 
