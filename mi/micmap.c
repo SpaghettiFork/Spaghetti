@@ -34,7 +34,6 @@
 #include <X11/X.h>
 #include <X11/Xproto.h>
 
-#include "mi/mi_priv.h"
 #include "os/osdep.h"
 
 #include "scrnintstr.h"
