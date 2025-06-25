@@ -246,6 +246,11 @@ static Bool siAddrMatch(int family, void *addr, int len, HOST * host,
 static int siCheckAddr(const char *addrString, int length);
 static void siTypesInitialize(void);
 
+#ifndef NO_LOCAL_CLIENT_CRED
+static void EnableLocalUser(void);
+static void DisableLocalUser(void);
+#endif
+
 /*
  * called when authorization is not enabled to add the
  * local host to the access list
