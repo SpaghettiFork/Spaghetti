@@ -102,6 +102,8 @@ __stdcall unsigned long GetTickCount(void);
 #endif
 #endif
 
+#include "xdmcp.h"
+
 #include "opaque.h"
 
 #include "dixstruct.h"

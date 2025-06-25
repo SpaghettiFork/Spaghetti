@@ -43,6 +43,7 @@
 #include "input.h"
 #include "dixstruct.h"
 #include "opaque.h"
+#include "xdmauth.h"
 
 #define XSERV_t
 #define TRANS_SERVER

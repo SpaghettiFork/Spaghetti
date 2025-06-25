@@ -181,6 +181,7 @@ SOFTWARE.
 #include "osdep.h"
 
 #include "xace.h"
+#include "xdmcp.h"
 
 Bool defeatAccessControl = FALSE;
 
