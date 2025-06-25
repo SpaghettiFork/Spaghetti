@@ -56,6 +56,8 @@ SOFTWARE.
 #include <dix-config.h>
 #endif
 
+#include "../os/cmdline.h"
+
 #ifdef WIN32
 #include <X11/Xwinsock.h>
 #endif

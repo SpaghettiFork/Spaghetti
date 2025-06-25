@@ -133,6 +133,7 @@ Equipment Corporation.
 #include "xace.h"
 #include "exevents.h"
 
+#include "../os/cmdline.h"
 #include "../os/auth.h"
 
 #include <X11/Xatom.h>          /* must come after server includes */

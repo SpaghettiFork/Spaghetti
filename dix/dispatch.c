@@ -101,6 +101,10 @@ Equipment Corporation.
 #include <version-config.h>
 #endif
 
+#include "../os/osdep.h"
+#include "../os/screensaver.h"
+#include "../os/auth.h"
+
 #include "windowstr.h"
 #include <X11/fonts/fontstruct.h>
 #include <X11/fonts/libxfont2.h>
@@ -124,7 +128,6 @@ Equipment Corporation.
 #include "xkbsrv.h"
 #include "client.h"
 #include "xfixesint.h"
-#include "../os/auth.h"
 
 #ifdef XSERVER_DTRACE
 #include "registry.h"

@@ -78,6 +78,11 @@ Equipment Corporation.
 #include <version-config.h>
 #endif
 
+#include "../os/osdep.h"
+#include "../os/auth.h"
+#include "../os/cmdline.h"
+#include "../os/screensaver.h"
+
 #include <X11/X.h>
 #include <X11/Xos.h>            /* for unistd.h  */
 #include <X11/Xproto.h>
@@ -85,9 +90,6 @@ Equipment Corporation.
 #include "scrnintstr.h"
 #include "misc.h"
 #include "os.h"
-#include "../os/osdep.h"
-#include "../os/auth.h"
-#include "../os/cmdline.h"
 #include "windowstr.h"
 #include "resource.h"
 #include "dixstruct.h"
