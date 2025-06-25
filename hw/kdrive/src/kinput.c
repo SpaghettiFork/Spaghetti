@@ -38,6 +38,8 @@
 #include <sys/file.h>           /* needed for FNONBLOCK & FASYNC */
 #endif
 
+#include "os/cmdline.h"
+
 #include "xkbsrv.h"
 
 #include <X11/extensions/XI.h>

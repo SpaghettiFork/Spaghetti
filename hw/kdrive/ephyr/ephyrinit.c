@@ -29,6 +29,7 @@
 #include "ephyr.h"
 #include "ephyrlog.h"
 #include "glx_extinit.h"
+#include "os/cmdline.h"
 
 extern Window EphyrPreExistingHostWin;
 extern Bool EphyrWantGrayScale;

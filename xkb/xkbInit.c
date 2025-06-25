@@ -50,6 +50,8 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <X11/extensions/XKMformat.h>
 #include "xkbfile.h"
 
+#include "../os/cmdline.h"
+
 #define	CREATE_ATOM(s)	MakeAtom(s,sizeof(s)-1,1)
 
 #if defined(__alpha) || defined(__alpha__)

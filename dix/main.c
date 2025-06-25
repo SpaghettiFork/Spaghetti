@@ -87,6 +87,7 @@ Equipment Corporation.
 #include "os.h"
 #include "../os/osdep.h"
 #include "../os/auth.h"
+#include "../os/cmdline.h"
 #include "windowstr.h"
 #include "resource.h"
 #include "dixstruct.h"
