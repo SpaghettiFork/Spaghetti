@@ -68,8 +68,9 @@ struct glamor_egl_screen_private {
     CloseScreenProcPtr CloseScreen;
 
     int fd;
-#define		GLAMOR_DMABUF_CAPABLE		(1 << 1)
-#define		GLAMOR_GLVND_FORCE_VENDOR	(1 << 2)
+#define		GLAMOR_DMABUF_CAPABLE			(1 << 1)
+#define		GLAMOR_GLVND_FORCE_VENDOR		(1 << 2)
+#define		GLAMOR_HIGH_PRIORITY_CONTEXT	(1 << 3)
     int flags;
 
     struct gbm_device *gbm;
@@ -1006,7 +1007,7 @@ glamor_egl_free_screen(ScrnInfoPtr scrn)
 }
 
 static Bool
-glamor_egl_try_big_gl_api(ScrnInfoPtr scrn)
+glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
 {
     struct glamor_egl_screen_private *glamor_egl =
         glamor_egl_get_screen_private(scrn);
@@ -1021,13 +1022,27 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn)
             GLAMOR_GL_CORE_VER_MINOR,
             EGL_NONE
         };
+
+        static const EGLint config_attribs_core_priority[] = {
+            EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR,
+            EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
+            EGL_CONTEXT_MAJOR_VERSION_KHR,
+            GLAMOR_GL_CORE_VER_MAJOR,
+            EGL_CONTEXT_MINOR_VERSION_KHR,
+            GLAMOR_GL_CORE_VER_MINOR,
+            EGL_CONTEXT_PRIORITY_LEVEL_IMG,
+            EGL_CONTEXT_PRIORITY_HIGH_IMG,
+            EGL_NONE
+        };
+
         static const EGLint config_attribs[] = {
             EGL_NONE
         };
 
         glamor_egl->context = eglCreateContext(glamor_egl->display,
                                                EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT,
-                                               config_attribs_core);
+                                               high_priority ?
+                                               config_attribs_core_priority : config_attribs_core);
 
         if (glamor_egl->context == EGL_NO_CONTEXT)
             glamor_egl->context = eglCreateContext(glamor_egl->display,
@@ -1059,7 +1074,7 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn)
 }
 
 static Bool
-glamor_egl_try_gles_api(ScrnInfoPtr scrn)
+glamor_egl_try_gles_api(ScrnInfoPtr scrn, bool high_priority)
 {
     struct glamor_egl_screen_private *glamor_egl =
         glamor_egl_get_screen_private(scrn);
@@ -1068,6 +1083,14 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
         EGL_CONTEXT_CLIENT_VERSION, 2,
         EGL_NONE
     };
+
+    static const EGLint config_attribs_priority[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 2,
+        EGL_CONTEXT_PRIORITY_LEVEL_IMG,
+        EGL_CONTEXT_PRIORITY_HIGH_IMG,
+        EGL_NONE
+    };
+
     if (!eglBindAPI(EGL_OPENGL_ES_API)) {
         xf86DrvMsg(scrn->scrnIndex, X_ERROR,
                     "glamor: Failed to bind GLES API.\n");
@@ -1076,7 +1099,7 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
 
     glamor_egl->context = eglCreateContext(glamor_egl->display,
                                             EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT,
-                                            config_attribs);
+                                            high_priority ? config_attribs_priority : config_attribs);
 
     if (glamor_egl->context != EGL_NO_CONTEXT) {
         if (!eglMakeCurrent(glamor_egl->display,
@@ -1173,13 +1196,26 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
     GLAMOR_CHECK_EGL_EXTENSION(KHR_surfaceless_context);
     GLAMOR_CHECK_EGL_EXTENSION(KHR_no_config_context);
 
+    /* Check if we have context priority first up
+     * since we'll need to set that up at context creation. */
+    if (epoxy_has_egl_extension(glamor_egl->display, "EGL_IMG_context_priority")) {
+        if (!!strstr(xf86Info.debug, "high_priority")) {
+            glamor_egl->flags |= GLAMOR_HIGH_PRIORITY_CONTEXT;
+
+            xf86DrvMsg(scrn->scrnIndex, X_INFO,
+                "Requesting a high priority EGL context\n");
+        }
+    }
+
+    const bool high_priority = (glamor_egl->flags & GLAMOR_HIGH_PRIORITY_CONTEXT);
+
     if (!force_es) {
-        if(!glamor_egl_try_big_gl_api(scrn))
+        if(!glamor_egl_try_big_gl_api(scrn, high_priority))
             goto error;
     }
 
     if (glamor_egl->context == EGL_NO_CONTEXT && es_allowed) {
-        if(!glamor_egl_try_gles_api(scrn))
+        if(!glamor_egl_try_gles_api(scrn, high_priority))
             goto error;
     }
 
