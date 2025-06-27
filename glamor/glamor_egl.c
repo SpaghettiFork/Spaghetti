@@ -1198,7 +1198,7 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
 
     /* Check if we have context priority first up
      * since we'll need to set that up at context creation. */
-    if (epoxy_has_egl_extension(glamor_egl->display, "EGL_IMG_context_priority")) {
+    if (xf86Info.debug != NULL && epoxy_has_egl_extension(glamor_egl->display, "EGL_IMG_context_priority")) {
         if (!!strstr(xf86Info.debug, "high_priority")) {
             glamor_egl->flags |= GLAMOR_HIGH_PRIORITY_CONTEXT;
 
