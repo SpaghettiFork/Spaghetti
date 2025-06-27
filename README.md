@@ -19,7 +19,7 @@ Yet _another_ fork of the X.Org Display Server.
 
 ## Credits.
 
-The Spaghetti is licensed under the GPLv3.
+The Spaghetti Display Server is licensed under the GPLv3.
 
 Additional license notices are available under the `COPYING` file.
 
