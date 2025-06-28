@@ -736,10 +736,6 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         epoxy_has_gl_extension("GL_ARB_instanced_arrays"))
         glamor_priv->use_gpu_shader4 = epoxy_has_gl_extension("GL_EXT_gpu_shader4");
 
-    glamor_priv->has_rw_pbo = FALSE;
-    if (!glamor_priv->is_gles)
-        glamor_priv->has_rw_pbo = TRUE;
-
     glamor_priv->has_khr_debug = epoxy_has_gl_extension("GL_KHR_debug");
     glamor_priv->has_pack_invert =
         epoxy_has_gl_extension("GL_MESA_pack_invert");

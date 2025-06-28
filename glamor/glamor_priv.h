@@ -238,7 +238,6 @@ typedef struct glamor_screen_private {
     Bool has_nv_texture_barrier;
     Bool has_pack_subimage;
     Bool has_unpack_subimage;
-    Bool has_rw_pbo;
     Bool use_quads;
     Bool has_dual_blend;
     Bool has_clear_texture;
