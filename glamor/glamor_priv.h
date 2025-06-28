@@ -230,6 +230,21 @@ struct glamor_saved_procs {
 typedef struct glamor_screen_private {
     Bool is_gles;
     int glsl_version;
+#define GLAMOR_USE_QUADS					(1 << 1)
+#define GLAMOR_HAS_PACK_INVERT				(1 << 2)
+#define GLAMOR_HAS_MAP_BUFFER_RANGE			(1 << 3)
+#define GLAMOR_HAS_BUFFER_STORAGE			(1 << 4)
+#define GLAMOR_HAS_KHR_DEBUG				(1 << 5)
+#define GLAMOR_HAS_MESA_TILE_RASTER_ORDER	(1 << 6)
+#define GLAMOR_HAS_NV_TEXTURE_BARRIER		(1 << 7)
+#define GLAMOR_HAS_PACK_SUBIMAGE			(1 << 8)
+#define GLAMOR_HAS_UNPACK_SUBIMAGE			(1 << 9)
+#define GLAMOR_HAS_DUAL_BLENDING			(1 << 10)
+#define GLAMOR_HAS_CLEAR_TEXTURE			(1 << 11)
+#define GLAMOR_HAS_TEXTURE_SWIZZLE			(1 << 12)
+#define GLAMOR_HAS_RED_GREEN				(1 << 13)
+#define GLAMOR_HAS_GPU_SHADER4				(1 << 14)
+    unsigned int hardware_caps;
     Bool has_pack_invert;
     Bool has_fbo_blit;
     Bool has_map_buffer_range;
