@@ -231,7 +231,6 @@ typedef struct glamor_screen_private {
     Bool is_gles;
     int glsl_version;
     Bool has_pack_invert;
-    Bool has_fbo_blit;
     Bool has_map_buffer_range;
     Bool has_buffer_storage;
     Bool has_khr_debug;
