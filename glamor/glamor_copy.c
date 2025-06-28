@@ -408,7 +408,7 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
 
     v = glamor_get_vbo_space(dst->pScreen, nbox * 8 * sizeof (int16_t), &vbo_offset);
 
-    if (src_pixmap == dst_pixmap && glamor_priv->has_mesa_tile_raster_order) {
+    if (src_pixmap == dst_pixmap && (glamor_priv->hardware_caps & GLAMOR_HAS_MESA_TILE_RASTER_ORDER)) {
         glEnable(GL_TILE_RASTER_ORDER_FIXED_MESA);
         if (dx >= 0)
             glEnable(GL_TILE_RASTER_ORDER_INCREASING_X_MESA);
@@ -483,7 +483,7 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     ret = TRUE;
 
 bail_ctx:
-    if (src_pixmap == dst_pixmap && glamor_priv->has_mesa_tile_raster_order) {
+    if (src_pixmap == dst_pixmap && (glamor_priv->hardware_caps & GLAMOR_HAS_MESA_TILE_RASTER_ORDER)) {
         glDisable(GL_TILE_RASTER_ORDER_FIXED_MESA);
     }
     glDisable(GL_SCISSOR_TEST);
@@ -643,10 +643,10 @@ glamor_copy_needs_temp(DrawablePtr src,
     if (nbox == 0)
         return FALSE;
 
-    if (!glamor_priv->has_nv_texture_barrier)
+    if (!(glamor_priv->hardware_caps & GLAMOR_HAS_NV_TEXTURE_BARRIER))
         return TRUE;
 
-    if (!glamor_priv->has_mesa_tile_raster_order) {
+    if (!(glamor_priv->hardware_caps & GLAMOR_HAS_MESA_TILE_RASTER_ORDER)) {
         glamor_get_drawable_deltas(src, src_pixmap, &src_off_x, &src_off_y);
         glamor_get_drawable_deltas(dst, dst_pixmap, &dst_off_x, &dst_off_y);
 

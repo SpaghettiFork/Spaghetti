@@ -52,7 +52,7 @@ glamor_get_vbo_space(ScreenPtr screen, unsigned size, char **vbo_offset)
 
     glBindBuffer(GL_ARRAY_BUFFER, glamor_priv->vbo);
 
-    if (glamor_priv->has_buffer_storage) {
+    if ((glamor_priv->hardware_caps & GLAMOR_HAS_BUFFER_STORAGE)) {
         if (glamor_priv->vbo_size < glamor_priv->vbo_offset + size) {
             if (glamor_priv->vbo_size)
                 glUnmapBuffer(GL_ARRAY_BUFFER);
@@ -77,7 +77,7 @@ glamor_get_vbo_space(ScreenPtr screen, unsigned size, char **vbo_offset)
                     /* If the driver failed our coherent mapping, fall
                      * back to the ARB_mbr path.
                      */
-                    glamor_priv->has_buffer_storage = false;
+                    glamor_priv->hardware_caps &= GLAMOR_HAS_BUFFER_STORAGE;
                     glamor_priv->vbo_size = 0;
 
                     return glamor_get_vbo_space(screen, size, vbo_offset);
@@ -95,7 +95,7 @@ glamor_get_vbo_space(ScreenPtr screen, unsigned size, char **vbo_offset)
         *vbo_offset = (void *)(uintptr_t)glamor_priv->vbo_offset;
         data = glamor_priv->vb + glamor_priv->vbo_offset;
         glamor_priv->vbo_offset += size;
-    } else if (glamor_priv->has_map_buffer_range) {
+    } else if ((glamor_priv->hardware_caps & GLAMOR_HAS_MAP_BUFFER_RANGE)) {
         /* Avoid GL errors on GL 4.5 / ES 3.0 with mapping size == 0,
          * which callers may sometimes pass us (for example, if
          * clipping leads to zero rectangles left).  Prior to that
@@ -148,12 +148,12 @@ glamor_put_vbo_space(ScreenPtr screen)
 
     glamor_make_current(glamor_priv);
 
-    if (glamor_priv->has_buffer_storage) {
+    if ((glamor_priv->hardware_caps & GLAMOR_HAS_BUFFER_STORAGE)) {
         /* If we're in the ARB_buffer_storage path, we have a
          * persistent mapping, so we can leave it around until we
          * reach the end of the buffer.
          */
-    } else if (glamor_priv->has_map_buffer_range) {
+    } else if ((glamor_priv->hardware_caps & GLAMOR_HAS_MAP_BUFFER_RANGE)) {
         if (glamor_priv->vbo_mapped) {
             glUnmapBuffer(GL_ARRAY_BUFFER);
             glamor_priv->vbo_mapped = FALSE;
@@ -187,6 +187,7 @@ glamor_fini_vbo(ScreenPtr screen)
 
     glDeleteVertexArrays(1, &glamor_priv->vao);
     glamor_priv->vao = 0;
-    if (!glamor_priv->has_map_buffer_range)
+
+    if (!(glamor_priv->hardware_caps & GLAMOR_HAS_MAP_BUFFER_RANGE))
         free(glamor_priv->vb);
 }

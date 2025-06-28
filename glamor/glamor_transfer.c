@@ -48,7 +48,7 @@ glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
-    if (glamor_priv->has_unpack_subimage)
+    if ((glamor_priv->hardware_caps & GLAMOR_HAS_UNPACK_SUBIMAGE))
         glPixelStorei(GL_UNPACK_ROW_LENGTH, byte_stride / bytes_per_pixel);
 
     glamor_pixmap_loop(priv, box_index) {
@@ -92,7 +92,7 @@ glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
                 src_line = (uint32_t *)(tmp_bits + ofs);
             }
 
-            if (glamor_priv->has_unpack_subimage ||
+            if ((glamor_priv->hardware_caps & GLAMOR_HAS_UNPACK_SUBIMAGE) ||
                 x2 - x1 == byte_stride / bytes_per_pixel) {
                 glTexSubImage2D(GL_TEXTURE_2D, 0,
                                 x1 - box->x1, y1 - box->y1,
@@ -112,7 +112,7 @@ glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
 
     free(tmp_bits);
 
-    if (glamor_priv->has_unpack_subimage)
+    if ((glamor_priv->hardware_caps & GLAMOR_HAS_UNPACK_SUBIMAGE))
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
@@ -151,7 +151,7 @@ glamor_download_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
     glamor_make_current(glamor_priv);
 
     glPixelStorei(GL_PACK_ALIGNMENT, 4);
-    if (glamor_priv->has_pack_subimage)
+    if ((glamor_priv->hardware_caps & GLAMOR_HAS_PACK_SUBIMAGE))
         glPixelStorei(GL_PACK_ROW_LENGTH, byte_stride / bytes_per_pixel);
 
     glamor_pixmap_loop(priv, box_index) {
@@ -179,7 +179,7 @@ glamor_download_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
             if (x2 <= x1 || y2 <= y1)
                 continue;
 
-            if (glamor_priv->has_pack_subimage ||
+            if ((glamor_priv->hardware_caps & GLAMOR_HAS_PACK_SUBIMAGE) ||
                 x2 - x1 == byte_stride / bytes_per_pixel) {
                 glReadPixels(x1 - box->x1, y1 - box->y1, x2 - x1, y2 - y1, f->format, f->type, bits + ofs);
             } else {
@@ -188,6 +188,7 @@ glamor_download_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
             }
         }
     }
-    if (glamor_priv->has_pack_subimage)
+
+    if ((glamor_priv->hardware_caps & GLAMOR_HAS_PACK_SUBIMAGE))
         glPixelStorei(GL_PACK_ROW_LENGTH, 0);
 }

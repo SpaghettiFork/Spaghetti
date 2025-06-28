@@ -249,10 +249,9 @@ glamor_pixmap_clear_fbo(glamor_screen_private *glamor_priv, glamor_pixmap_fbo *f
 
     assert(fbo->fb != 0 && fbo->tex != 0);
 
-    if (glamor_priv->has_clear_texture) {
+    if ((glamor_priv->hardware_caps & GLAMOR_HAS_CLEAR_TEXTURE)) {
         glClearTexImage(fbo->tex, 0, pixmap_format->format, pixmap_format->type, NULL);
-    }
-    else {
+    } else {
         glamor_set_destination_pixmap_fbo(glamor_priv, fbo, 0, 0, fbo->width, fbo->height);
 
         glClearColor(0.0, 0.0, 0.0, 0.0);

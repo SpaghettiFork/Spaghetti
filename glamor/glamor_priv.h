@@ -257,9 +257,6 @@ typedef struct glamor_screen_private {
     Bool has_rw_pbo;
     Bool use_quads;
     Bool has_dual_blend;
-    Bool has_clear_texture;
-    Bool has_texture_swizzle;
-    Bool has_rg;
     Bool is_core_profile;
     Bool can_copyplane;
     Bool use_gpu_shader4;

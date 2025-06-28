@@ -322,7 +322,7 @@ glamor_gldrawarrays_quads_using_indices(glamor_screen_private *glamor_priv,
          * writing, but it's long past time for drivers to have
          * MapBufferRange.
          */
-        if (!glamor_priv->has_map_buffer_range)
+        if (!(glamor_priv->hardware_caps & GLAMOR_HAS_MAP_BUFFER_RANGE))
             goto fallback;
 
         /* Lazy create the buffer name, and only bind it once since
@@ -537,7 +537,7 @@ glamor_setup_formats(ScreenPtr screen)
      * only falling back to a8 if we can't do them. We cannot do them
      * on GLES2 due to lack of texture swizzle.
      */
-    if (glamor_priv->has_rg && glamor_priv->has_texture_swizzle) {
+    if (glamor_priv->hardware_caps & (GLAMOR_HAS_TEXTURE_SWIZZLE | GLAMOR_HAS_RED_GREEN)) {
         glamor_add_format(screen, 1, PICT_a1,
                           GL_R8, GL_RED, GL_UNSIGNED_BYTE, FALSE);
         glamor_add_format(screen, 8, PICT_a8,
@@ -591,7 +591,7 @@ glamor_setup_formats(ScreenPtr screen)
     }
 
     glamor_priv->cbcr_format.depth = 16;
-    if (glamor_priv->is_gles && glamor_priv->has_rg) {
+    if (glamor_priv->is_gles && (glamor_priv->hardware_caps & GLAMOR_HAS_RED_GREEN)) {
         glamor_priv->cbcr_format.internalformat = GL_RG;
     } else {
         glamor_priv->cbcr_format.internalformat = GL_RG8;
@@ -764,14 +764,6 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         (glamor_glsl_has_ints(glamor_priv) ||
         epoxy_has_gl_extension("GL_ARB_ES2_compatibility"))) ||
         epoxy_has_gl_extension("GL_EXT_blend_func_extended");
-    glamor_priv->has_clear_texture =
-        epoxy_gl_version() >= 44 ||
-        epoxy_has_gl_extension("GL_ARB_clear_texture");
-    /* GL_EXT_texture_rg is part of GLES3 core */
-    glamor_priv->has_rg =
-        (glamor_priv->is_gles && epoxy_gl_version() >= 30) ||
-        epoxy_has_gl_extension("GL_EXT_texture_rg") ||
-        epoxy_has_gl_extension("GL_ARB_texture_rg");
 
     glamor_priv->can_copyplane = (gl_version >= 30);
 
@@ -797,10 +789,6 @@ glamor_init(ScreenPtr screen, unsigned int flags)
 #ifdef MAX_FBO_SIZE
     glamor_priv->max_fbo_size = MAX_FBO_SIZE;
 #endif
-
-    glamor_priv->has_texture_swizzle =
-        (epoxy_has_gl_extension("GL_ARB_texture_swizzle") ||
-         (glamor_priv->is_gles && gl_version >= 30));
 
     glamor_setup_formats(screen);
 

@@ -314,7 +314,7 @@ glamor_upload_picture_to_texture(PicturePtr picture)
                      swizzle[2] != GL_BLUE ||
                      swizzle[3] != GL_ALPHA);
 
-    if (!glamor_priv->has_texture_swizzle && needs_swizzle) {
+    if (!(glamor_priv->hardware_caps & GLAMOR_HAS_TEXTURE_SWIZZLE) && needs_swizzle) {
         glamor_fallback("Couldn't upload temporary picture due to missing "
                         "GL_ARB_texture_swizzle.\n");
         return FALSE;
