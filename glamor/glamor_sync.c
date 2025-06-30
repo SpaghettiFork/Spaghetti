@@ -35,7 +35,8 @@
 static DevPrivateKeyRec glamor_sync_fence_key;
 
 struct glamor_sync_fence {
-        SyncFenceSetTriggeredFunc set_triggered;
+	GLsync gl_fence;
+	SyncFenceSetTriggeredFunc set_triggered;
 };
 
 static inline struct glamor_sync_fence *
@@ -50,9 +51,17 @@ glamor_sync_fence_set_triggered (SyncFence *fence)
 	ScreenPtr screen = fence->pScreen;
 	glamor_screen_private *glamor = glamor_get_screen_private(screen);
 	struct glamor_sync_fence *glamor_fence = glamor_get_sync_fence(fence);
+	GLsync arb_sync_fence = glamor_fence->gl_fence;
 
 	/* Flush pending rendering operations */
-	glamor_flush(glamor);
+	glamor_flush(glamor, arb_sync_fence);
+
+    if (arb_sync_fence)
+    {
+        /* glamor_flush() may not always sync the fence,
+         *  so we have to track and delete the fence if it goes unused. */
+        glDeleteSync(arb_sync_fence);
+    }
 
 	fence->funcs.SetTriggered = glamor_fence->set_triggered;
 	fence->funcs.SetTriggered(fence);
@@ -68,6 +77,11 @@ glamor_sync_create_fence(ScreenPtr screen,
 	glamor_screen_private *glamor = glamor_get_screen_private(screen);
 	SyncScreenFuncsPtr screen_funcs = miSyncGetScreenFuncs(screen);
 	struct glamor_sync_fence *glamor_fence = glamor_get_sync_fence(fence);
+
+	if (glamor->has_arb_sync)
+	{
+		glamor_fence->gl_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	}
 
 	screen_funcs->CreateFence = glamor->saved_procs.sync_screen_funcs.CreateFence;
 	screen_funcs->CreateFence(screen, fence, initially_triggered);

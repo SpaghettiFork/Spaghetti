@@ -3974,7 +3974,12 @@ drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
     modesettingPtr ms = modesettingPTR(pScrn);
 
     if (drmmode->glamor) {
-        if (!ms->glamor.init(pScreen, GLAMOR_USE_EGL_SCREEN)) {
+        int flags = GLAMOR_USE_EGL_SCREEN;
+
+        if (ms->sync_fence_enabled)
+            flags |= GLAMOR_FENCE_ARB_SYNC;
+
+        if (!ms->glamor.init(pScreen, flags)) {
             return FALSE;
         }
 #ifdef GBM_BO_WITH_MODIFIERS

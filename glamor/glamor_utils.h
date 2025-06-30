@@ -676,13 +676,27 @@ glamor_make_current(glamor_screen_private *glamor_priv)
 }
 
 static inline void
-glamor_flush(glamor_screen_private *glamor_priv)
+glamor_flush(glamor_screen_private *glamor_priv, GLsync fence)
 {
-    if (glamor_priv->dirty) {
+    /* Don't flush if we've not done any work. */
+    if (!glamor_priv->dirty)
+    {
+        return;
+    }
+
+    if (!fence)
+    {
+        /* Legacy path. */
         glamor_make_current(glamor_priv);
         glFlush();
-        glamor_priv->dirty = FALSE;
     }
+	else
+    {
+        /* Use a fence instead of glFlush() */
+        glClientWaitSync(fence, GL_SYNC_FLUSH_COMMANDS_BIT, INT32_MAX);
+    }
+
+    glamor_priv->dirty = FALSE;
 }
 
 static inline BoxRec

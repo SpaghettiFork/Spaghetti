@@ -273,7 +273,7 @@ void
 glamor_block_handler(ScreenPtr screen)
 {
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
-    glamor_flush(glamor_priv);
+    glamor_flush(glamor_priv, NULL);
 }
 
 static void
@@ -281,7 +281,7 @@ _glamor_block_handler(ScreenPtr screen, void *timeout)
 {
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
 
-    glamor_flush(glamor_priv);
+    glamor_flush(glamor_priv, NULL);
 
     screen->BlockHandler = glamor_priv->saved_procs.block_handler;
     screen->BlockHandler(screen, timeout);
@@ -764,6 +764,13 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         (glamor_priv->is_gles && epoxy_gl_version() >= 30) ||
         epoxy_has_gl_extension("GL_EXT_texture_rg") ||
         epoxy_has_gl_extension("GL_ARB_texture_rg");
+    
+    /* Enable fence sync if the user has requested so. */
+    if ((flags & GLAMOR_FENCE_ARB_SYNC) && epoxy_has_gl_extension("GL_ARB_sync"))
+    {
+        glamor_priv->has_arb_sync = TRUE;
+        LogMessage(X_INFO, "glamor%d: Using GL_ARB_sync for Xorg fences.", screen->myNum);
+    }
 
     glamor_priv->can_copyplane = (gl_version >= 30);
 

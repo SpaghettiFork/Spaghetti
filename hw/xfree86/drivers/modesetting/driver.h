@@ -67,6 +67,7 @@ typedef enum {
     OPTION_USE_GAMMA_LUT,
     OPTION_ASYNC_FLIP_SECONDARIES,
     OPTION_TEARFREE,
+    OPTION_FENCE_ARB_SYNC
 } modesettingOpts;
 
 typedef struct
@@ -141,6 +142,7 @@ typedef struct _modesettingRec {
     Bool tried_queue_sequence;
 
     Bool kms_has_modifiers;
+    Bool sync_fence_enabled;
 
     /* VRR support */
     Bool vrr_support;

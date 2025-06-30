@@ -149,6 +149,7 @@ static const OptionInfoRec Options[] = {
     {OPTION_USE_GAMMA_LUT, "UseGammaLUT", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_ASYNC_FLIP_SECONDARIES, "AsyncFlipSecondaries", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_TEARFREE, "TearFree", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_FENCE_ARB_SYNC, "FenceARBSync", OPTV_BOOLEAN, {0}, FALSE},
     {-1, NULL, OPTV_NONE, {0}, FALSE}
 };
 
@@ -1153,6 +1154,7 @@ try_enable_glamor(ScrnInfoPtr pScrn)
     modesettingPtr ms = modesettingPTR(pScrn);
     const char *accel_method_str = xf86GetOptValString(ms->drmmode.Options,
                                                        OPTION_ACCEL_METHOD);
+
     Bool do_glamor = (!accel_method_str ||
                       strcmp(accel_method_str, "glamor") == 0);
 
@@ -1386,6 +1388,10 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         return FALSE;
     if (!xf86SetDefaultVisual(pScrn, -1))
         return FALSE;
+
+    if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_FENCE_ARB_SYNC, FALSE)) {
+        ms->sync_fence_enabled = TRUE;
+    }
 
     if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_SW_CURSOR, FALSE)) {
         ms->drmmode.sw_cursor = TRUE;
