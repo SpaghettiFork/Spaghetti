@@ -231,7 +231,6 @@ typedef struct glamor_screen_private {
     Bool is_gles;
     int glsl_version;
     Bool has_pack_invert;
-    Bool has_fbo_blit;
     Bool has_map_buffer_range;
     Bool has_buffer_storage;
     Bool has_khr_debug;
@@ -239,7 +238,6 @@ typedef struct glamor_screen_private {
     Bool has_nv_texture_barrier;
     Bool has_pack_subimage;
     Bool has_unpack_subimage;
-    Bool has_rw_pbo;
     Bool use_quads;
     Bool has_dual_blend;
     Bool has_clear_texture;
