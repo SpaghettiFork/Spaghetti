@@ -190,7 +190,7 @@ ms_present_flush(WindowPtr window)
 #endif
 }
 
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(MS_DRI3)
 
 /**
  * Callback for the DRM event queue when a flip has completed on all pipes
@@ -246,7 +246,7 @@ ms_present_check_unflip(RRCrtcPtr crtc,
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
     int num_crtcs_on = 0;
     int i;
-    struct gbm_bo *gbm;
+    struct gbm_bo *gbm = NULL;
 
     if (!ms->drmmode.pageflip)
         return FALSE;
@@ -283,16 +283,25 @@ ms_present_check_unflip(RRCrtcPtr crtc,
     if (!ms->drmmode.glamor)
         return FALSE;
 
-#ifdef GBM_BO_WITH_MODIFIERS
+#if defined(GBM_BO_WITH_MODIFIERS) || defined(MS_DRI3)
     /* Check if buffer format/modifier is supported by all active CRTCs */
-    gbm = ms->glamor.gbm_bo_from_pixmap(screen, pixmap);
+    if (ms->drmmode.glamor) {
+        gbm = ms->glamor.gbm_bo_from_pixmap(screen, pixmap);
+    }
+#ifdef MS_DRI3
+    else if (ms->drmmode.dri3_enabled) {
+        gbm = ms_dri3_gbm_bo_from_pixmap(screen, pixmap);
+    }
+#endif
+
     if (gbm) {
         uint32_t format;
         uint64_t modifier;
 
         format = gbm_bo_get_format(gbm);
         modifier = gbm_bo_get_modifier(gbm);
-        gbm_bo_destroy(gbm);
+        if (ms->drmmode.glamor)
+           gbm_bo_destroy(gbm);
 
         if (!drmmode_is_format_supported(scrn, format, modifier, !sync_flip)) {
             if (reason)
@@ -497,7 +506,7 @@ static present_screen_info_rec ms_present_screen_info = {
     .flush = ms_present_flush,
 
     .capabilities = PresentCapabilityNone,
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(MS_DRI3)
     .check_flip = NULL,
     .check_flip2 = ms_present_check_flip,
     .flip = ms_present_flip,
