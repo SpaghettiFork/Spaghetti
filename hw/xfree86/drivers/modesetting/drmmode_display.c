@@ -102,10 +102,35 @@ static uint32_t
 get_opaque_format(uint32_t format)
 {
     switch (format) {
+    case DRM_FORMAT_ARGB1555:
+        return DRM_FORMAT_XRGB1555;
     case DRM_FORMAT_ARGB8888:
         return DRM_FORMAT_XRGB8888;
+    case DRM_FORMAT_ABGR8888:
+        return DRM_FORMAT_XBGR8888;
     case DRM_FORMAT_ARGB2101010:
         return DRM_FORMAT_XRGB2101010;
+    case DRM_FORMAT_ABGR2101010:
+        return DRM_FORMAT_XBGR2101010;
+    /* These formats were introduced between 2019 and 2021,
+     * We should play it safe and have them guarded between
+     * a ifdef. */
+#if defined(DRM_FORMAT_ARGB16161616)
+    case DRM_FORMAT_ARGB16161616:
+        return DRM_FORMAT_XRGB16161616;
+#endif
+#if defined(DRM_FORMAT_ABGR16161616)
+    case DRM_FORMAT_ABGR16161616:
+        return DRM_FORMAT_XBGR16161616;
+#endif
+#if defined(DRM_FORMAT_ARGB16161616F)
+    case DRM_FORMAT_ARGB16161616F:
+        return DRM_FORMAT_XRGB16161616F;
+#endif
+#if defined(DRM_FORMAT_ABGR16161616F)
+    case DRM_FORMAT_ABGR16161616F:
+        return DRM_FORMAT_XBGR16161616F;
+#endif
     default:
         return format;
     }
