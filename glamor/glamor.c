@@ -416,8 +416,7 @@ glamor_setup_debug_output(ScreenPtr screen)
     /* If KHR_debug is present, all debug output is disabled by
      * default on non-debug contexts.
      */
-    if (epoxy_has_gl_extension("GL_KHR_debug"))
-        glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT);
 }
 
 const struct glamor_format *

@@ -3,3 +3,4 @@
 *.patch
 tags
 .vscode/
+.idea/
