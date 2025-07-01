@@ -1921,7 +1921,8 @@ drmmode_set_gamma_lut(drmmode_crtc_private_ptr drmmode_crtc,
     drmmode_prop_info_ptr gamma_lut_info =
         &drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT];
     const uint32_t crtc_id = drmmode_crtc->mode_crtc->crtc_id;
-    struct drm_color_lut *lut = calloc(size, sizeof(struct drm_color_lut));
+    size_t lut_sz = sizeof(struct drm_color_lut) * size;
+    struct drm_color_lut *lut = calloc(1, lut_sz);
     if (!lut)
         return;
 
@@ -1935,9 +1936,7 @@ drmmode_set_gamma_lut(drmmode_crtc_private_ptr drmmode_crtc,
     }
 
     uint32_t blob_id;
-    if (drmModeCreatePropertyBlob(drmmode->fd, lut,
-                                  sizeof(struct drm_color_lut) * size,
-                                  &blob_id)) {
+    if (drmModeCreatePropertyBlob(drmmode->fd, lut, lut_sz, &blob_id)) {
         free(lut);
         return;
     }
