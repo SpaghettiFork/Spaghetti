@@ -38,6 +38,7 @@
 struct glamor_context {
     EGLDisplay display;
     EGLContext ctx;
+    EGLSurface surface;
 
     void (*make_current)(struct glamor_context *glamor_ctx);
 };
