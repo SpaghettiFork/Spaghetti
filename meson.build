@@ -175,6 +175,7 @@ else
 endif
 
 glamor_option = get_option('glamor')
+build_meatball = get_option('meatball')
 
 hal_option = get_option('hal')
 if ['windows', 'darwin', 'cygwin'].contains(host_machine.system())
@@ -743,6 +744,9 @@ subdir('Xi')
 # other
 if build_glamor
     subdir('glamor')
+endif
+if build_meatball
+    subdir('meatball')
 endif
 if build_xorg or get_option('xephyr')
     subdir('exa')
