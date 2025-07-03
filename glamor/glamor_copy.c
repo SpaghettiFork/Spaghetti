@@ -341,26 +341,86 @@ bail:
  * Copy from GPU to GPU by using the source
  * as a texture and painting that into the destination
  */
-
 static Bool
-glamor_copy_fbo_fbo_draw(DrawablePtr src,
-                         DrawablePtr dst,
-                         GCPtr gc,
-                         BoxPtr box,
-                         int nbox,
-                         int dx,
-                         int dy,
-                         Bool reverse,
-                         Bool upsidedown,
-                         Pixel bitplane,
-                         void *closure)
+glamor_copy_fbo_fbo_draw_blit(
+    ScreenPtr screen,
+    glamor_screen_private *glamor_priv,
+    DrawablePtr src,
+    DrawablePtr dst,
+    GCPtr gc,
+    BoxPtr box,
+    int nbox,
+    int dx,
+    int dy,
+    Pixel bitplane)
 {
-    ScreenPtr screen = dst->pScreen;
-    glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
     PixmapPtr src_pixmap = glamor_get_drawable_pixmap(src);
     PixmapPtr dst_pixmap = glamor_get_drawable_pixmap(dst);
     glamor_pixmap_private *src_priv = glamor_get_pixmap_private(src_pixmap);
     glamor_pixmap_private *dst_priv = glamor_get_pixmap_private(dst_pixmap);
+
+    int dst_off_x, dst_off_y;
+    int src_off_x, src_off_y;
+
+    if (!glamor_priv->has_direct_state_access)
+        return FALSE;
+
+    if (!bitplane)
+        return FALSE;
+
+    if (gc && gc->alu != GXcopy)
+        return FALSE;
+
+    if (nbox != 1)
+        return FALSE;
+
+    if (src_pixmap == dst_pixmap)
+        return FALSE;
+
+    if (glamor_pixmap_hcnt(src_priv) != 1)
+        return FALSE;
+
+    if (glamor_pixmap_hcnt(dst_priv) != 1)
+        return FALSE;
+
+    glamor_get_drawable_deltas(src, src_pixmap, &src_off_x, &src_off_y);
+    glamor_get_drawable_deltas(dst, dst_pixmap, &dst_off_x, &dst_off_y);
+
+    glBlitNamedFramebuffer(
+        src_priv->fbo->fb,
+        dst_priv->fbo->fb,
+        box[0].x1 + dx + src_off_x,
+        box[0].y1 + dy + src_off_y,
+        box[0].x2 + dx + src_off_x,
+        box[0].y2 + dy + src_off_y,
+        box[0].x1 + dst_off_x,
+        box[0].y1 + dst_off_y,
+        box[0].x2 + dst_off_x,
+        box[0].y2 + dst_off_y,
+        GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    return TRUE;
+}
+
+
+static Bool
+glamor_copy_fbo_fbo_draw_quads(
+    ScreenPtr screen,
+    glamor_screen_private *glamor_priv,
+    DrawablePtr src,
+    DrawablePtr dst,
+    GCPtr gc,
+    BoxPtr box,
+    int nbox,
+    int dx,
+    int dy,
+    Pixel bitplane)
+{
+    PixmapPtr src_pixmap = glamor_get_drawable_pixmap(src);
+    PixmapPtr dst_pixmap = glamor_get_drawable_pixmap(dst);
+    glamor_pixmap_private *src_priv = glamor_get_pixmap_private(src_pixmap);
+    glamor_pixmap_private *dst_priv = glamor_get_pixmap_private(dst_pixmap);
+
     int src_box_index, dst_box_index;
     int dst_off_x, dst_off_y;
     int src_off_x, src_off_y;
@@ -369,20 +429,7 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     struct copy_args args;
     glamor_program *prog;
     const glamor_facet *copy_facet;
-    int n;
-    Bool ret = FALSE;
     BoxRec bounds = glamor_no_rendering_bounds();
-
-    glamor_make_current(glamor_priv);
-
-    if (gc && !glamor_set_planemask(gc->depth, gc->planemask))
-        goto bail_ctx;
-
-    if (!glamor_set_alu(dst, gc ? gc->alu : GXcopy))
-        goto bail_ctx;
-
-    if (bitplane && !glamor_priv->can_copyplane)
-        goto bail_ctx;
 
     if (bitplane) {
         prog = &glamor_priv->copy_plane_prog;
@@ -393,12 +440,12 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     }
 
     if (prog->failed)
-        goto bail_ctx;
+        goto failed_copy;
 
     if (!prog->prog) {
         if (!glamor_build_program(screen, prog,
                                   copy_facet, NULL, NULL, NULL))
-            goto bail_ctx;
+            return FALSE;
     }
 
     args.src_drawable = src;
@@ -430,7 +477,7 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
             glamor_bounds_union_box(&bounds, &box[i]);
     }
 
-    for (n = 0; n < nbox; n++) {
+    for (int n = 0; n < nbox; n++) {
         v[0] = box->x1; v[1] = box->y1;
         v[2] = box->x1; v[3] = box->y2;
         v[4] = box->x2; v[5] = box->y2;
@@ -454,22 +501,23 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
         args.src = glamor_pixmap_fbo_at(src_priv, src_box_index);
 
         if (!glamor_use_program(dst, gc, prog, &args))
-            goto bail_ctx;
+            goto failed_copy;
 
         glamor_pixmap_loop(dst_priv, dst_box_index) {
-            BoxRec scissor = {
+            const BoxRec scissor = {
                 .x1 = max(-args.dx, bounds.x1),
                 .y1 = max(-args.dy, bounds.y1),
                 .x2 = min(-args.dx + src_box->x2 - src_box->x1, bounds.x2),
                 .y2 = min(-args.dy + src_box->y2 - src_box->y1, bounds.y2),
             };
+
             if (scissor.x1 >= scissor.x2 || scissor.y1 >= scissor.y2)
                 continue;
 
             if (!glamor_set_destination_drawable(dst, dst_box_index, FALSE, FALSE,
                                                  prog->matrix_uniform,
                                                  &dst_off_x, &dst_off_y))
-                goto bail_ctx;
+                goto failed_copy;
 
             glScissor(scissor.x1 + dst_off_x,
                       scissor.y1 + dst_off_y,
@@ -480,16 +528,55 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
         }
     }
 
-    ret = TRUE;
+    return TRUE;
 
-bail_ctx:
+failed_copy:
     if (src_pixmap == dst_pixmap && glamor_priv->has_mesa_tile_raster_order) {
         glDisable(GL_TILE_RASTER_ORDER_FIXED_MESA);
     }
     glDisable(GL_SCISSOR_TEST);
     glDisableVertexAttribArray(GLAMOR_VERTEX_POS);
 
-    return ret;
+    return FALSE;
+}
+
+static Bool
+glamor_copy_fbo_fbo_draw(DrawablePtr src,
+                         DrawablePtr dst,
+                         GCPtr gc,
+                         BoxPtr box,
+                         int nbox,
+                         int dx,
+                         int dy,
+                         Bool reverse,
+                         Bool upsidedown,
+                         Pixel bitplane,
+                         void *closure)
+{
+    ScreenPtr screen = dst->pScreen;
+    glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
+
+    glamor_make_current(glamor_priv);
+
+    if (gc && !glamor_set_planemask(gc->depth, gc->planemask))
+        goto bail_ctx;
+
+    if (!glamor_set_alu(dst, gc ? gc->alu : GXcopy))
+        goto bail_ctx;
+
+    if (bitplane && !glamor_priv->can_copyplane)
+        goto bail_ctx;
+
+    if (glamor_copy_fbo_fbo_draw_blit(screen, glamor_priv, src, dst, gc, box, nbox, dx, dy, bitplane))
+        goto copy_successful;
+
+    if (!glamor_copy_fbo_fbo_draw_quads(screen, glamor_priv, src, dst, gc, box, nbox, dx, dy, bitplane))
+        goto bail_ctx;
+
+copy_successful:
+    return TRUE;
+bail_ctx:
+    return FALSE;
 }
 
 /**
