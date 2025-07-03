@@ -105,7 +105,7 @@ __glGetMap_size(GLenum target, GLenum query)
         }
         break;
     }
-    return -1;
+    return 0;
 }
 
 GLint
