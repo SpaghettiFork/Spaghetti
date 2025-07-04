@@ -178,19 +178,36 @@ int xthread_sigmask(int how, const sigset_t *set, sigset_t *oldest);
 extern void (*OsVendorVErrorFProc) (const char *, va_list args)
     _X_ATTRIBUTE_PRINTF(1, 0);
 
-typedef void (*OsSigHandlerPtr) (int sig);
+typedef void (*OsSigHandlerPtr) (int /* sig */ );
+extern _X_EXPORT OsSigHandlerPtr
+OsSignal(int /* sig */ , OsSigHandlerPtr /* handler */ );
 
-/* install signal handler */
-OsSigHandlerPtr OsSignal(int sig, OsSigHandlerPtr handler);
+extern _X_EXPORT void
+OsInit(void);
 
-void OsInit(void);
-void OsCleanup(Bool);
-void OsVendorFatalError(const char *f, va_list args) _X_ATTRIBUTE_PRINTF(1, 0);
-void OsVendorInit(void);
-void OsBlockSignals(void);
-void OsReleaseSignals(void);
-void OsResetSignals(void);
-void OsAbort(void) _X_NORETURN;
+extern _X_EXPORT void
+OsCleanup(Bool);
+
+extern _X_EXPORT void
+OsVendorFatalError(const char *f, va_list args)
+_X_ATTRIBUTE_PRINTF(1, 0);
+
+extern _X_EXPORT void
+OsVendorInit(void);
+
+extern _X_EXPORT void
+OsBlockSignals(void);
+
+extern _X_EXPORT void
+OsReleaseSignals(void);
+
+extern void
+OsResetSignals(void);
+
+extern _X_EXPORT void
+OsAbort(void)
+    _X_NORETURN;
+
 void AbortServer(void) _X_NORETURN;
 
 void MakeClientGrabPervious(ClientPtr client);
