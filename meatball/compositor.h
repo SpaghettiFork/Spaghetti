@@ -28,10 +28,10 @@
 #include <sys/poll.h>
 
 #include <limits.h>
-#include <log.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
+#include <X11/Xfuncproto.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/Xresource.h>
@@ -48,7 +48,9 @@
 
 #include <pixman.h>
 
-#include "static-headers/transfer_atoms.h"
+#include "meatball.h"
+#include "log.h"
+#include "transfer_atoms.h"
 
 #define RENDERER_EGL		"egl"
 #define RENDERER_PICTURE	"picture"
@@ -559,9 +561,11 @@ extern int renderer_flags;
 extern void RegisterStaticRenderer(const char *, RenderFuncs *,
                                    BufferFuncs *);
 
-extern void InitRenderers(void);
+extern void InitRenderers(struct meatball_config*);
 
-extern void SetRenderer(const char* renderDevice);
+extern void* GetRenderer(const char*);
+
+extern void SetRenderer(struct meatball_config*);
 
 extern RenderTarget RenderTargetFromWindow(Window, unsigned long);
 
@@ -2112,11 +2116,12 @@ extern Bool HandleErrorForPictureRenderer(XErrorEvent *);
 
 extern Bool HandleOneXEventForPictureRenderer(XEvent *);
 
-extern void InitPictureRenderer(void);
+extern void InitPictureRenderer(struct meatball_config*);
 
 #if defined(HAVE_EGL_SUPPORT)
 
 /* Defined in egl_renderer.c.  */
+
 
 extern void InitEGL(void);
 
@@ -2288,6 +2293,10 @@ extern void XLInitXdgActivation(void);
 /* Defined in tearing_control.c.  */
 
 extern void XLInitTearingControl(void);
+
+/* Defined in xdg_system_bell.c */
+
+extern void XLInitSystemBell(void);
 
 /* Defined in sync_source.h.  */
 

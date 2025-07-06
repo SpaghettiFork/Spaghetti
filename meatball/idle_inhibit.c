@@ -188,8 +188,8 @@ Destroy(struct wl_client *client, struct wl_resource *resource)
 }
 
 static const struct zwp_idle_inhibitor_v1_interface idle_inhibitor_impl =
-	{
-		.destroy = Destroy,
+{
+	.destroy = Destroy,
 };
 
 static void
@@ -310,9 +310,9 @@ DestroyIdleInhibitManager(struct wl_client *client,
 }
 
 static struct zwp_idle_inhibit_manager_v1_interface idle_inhibit_manager_impl =
-	{
-		.destroy = DestroyIdleInhibitManager,
-		.create_inhibitor = CreateInhibitor,
+{
+	.destroy = DestroyIdleInhibitManager,
+	.create_inhibitor = CreateInhibitor,
 };
 
 static void

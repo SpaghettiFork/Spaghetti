@@ -749,7 +749,7 @@ HandleBusfault(int signal, siginfo_t *siginfo, void *ucontext)
 	if (DetectBusfault(busfault_tree, siginfo->si_addr))
 		return;
 
-	LogMessage(X_ERROR, "meatball: Encountered a bus error, exiting...");
+	MBLog(MB_LOG_ERROR, "meatball: Encountered a bus error, exiting...");
 	pthread_exit(NULL);
 }
 

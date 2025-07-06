@@ -968,15 +968,15 @@ Commit(struct wl_client *client, struct wl_resource *resource)
 }
 
 static const struct zwp_text_input_v3_interface input_impl =
-	{
-		.destroy = DestroyTextInput,
-		.enable = Enable,
-		.disable = Disable,
-		.set_surrounding_text = SetSurroundingText,
-		.set_text_change_cause = SetTextChangeCause,
-		.set_content_type = SetContentType,
-		.set_cursor_rectangle = SetCursorRectangle,
-		.commit = Commit,
+{
+	.destroy = DestroyTextInput,
+	.enable = Enable,
+	.disable = Disable,
+	.set_surrounding_text = SetSurroundingText,
+	.set_text_change_cause = SetTextChangeCause,
+	.set_content_type = SetContentType,
+	.set_cursor_rectangle = SetCursorRectangle,
+	.commit = Commit,
 };
 
 /* Forward declarations.  */
@@ -1321,9 +1321,9 @@ GetTextInput(struct wl_client *client, struct wl_resource *resource,
 }
 
 static const struct zwp_text_input_manager_v3_interface manager_impl =
-	{
-		.destroy = Destroy,
-		.get_text_input = GetTextInput,
+{
+	.destroy = Destroy,
+	.get_text_input = GetTextInput,
 };
 
 static void

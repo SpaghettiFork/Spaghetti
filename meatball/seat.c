@@ -945,7 +945,7 @@ EndCursorClock(SeatCursor *cursor)
 }
 
 static void
-FreeCursor(SeatCursor *cursor)
+XLFreeCursor(SeatCursor *cursor)
 {
 	Window window;
 
@@ -1074,7 +1074,7 @@ ReleaseSeat(Seat *seat)
 	wl_array_release(&seat->keys);
 
 	if (seat->cursor)
-		FreeCursor(seat->cursor);
+		XLFreeCursor(seat->cursor);
 
 	if (seat->data_device)
 	{
@@ -1410,7 +1410,7 @@ SetCursor(struct wl_client *client, struct wl_resource *resource,
 			return;
 
 		if (seat->cursor)
-			FreeCursor(seat->cursor);
+			XLFreeCursor(seat->cursor);
 
 		return;
 	}
@@ -1452,7 +1452,7 @@ SetCursor(struct wl_client *client, struct wl_resource *resource,
 
 	/* Free any cursor that already exists.  */
 	if (seat->cursor)
-		FreeCursor(seat->cursor);
+		XLFreeCursor(seat->cursor);
 
 	MakeCurrentCursor(seat, surface, hotspot_x, hotspot_y);
 }
@@ -3381,7 +3381,7 @@ ClearLastSeenSurface(void *data)
 	/* The surface underneath the pointer was destroyed, so clear the
 	   cursor.  */
 	if (seat->cursor)
-		FreeCursor(seat->cursor);
+		XLFreeCursor(seat->cursor);
 
 	seat->last_seen_surface = NULL;
 	seat->last_seen_surface_callback = NULL;
@@ -3470,7 +3470,7 @@ EnteredSurface(Seat *seat, Surface *surface, Time time,
 			/* The surface underneath the pointer was destroyed, so
 			   clear the cursor.  */
 			if (seat->cursor && !preserve_cursor)
-				FreeCursor(seat->cursor);
+				XLFreeCursor(seat->cursor);
 		}
 
 		/* Cancel any pointer confinement.  */
@@ -5667,7 +5667,7 @@ CancelDrag(Seat *seat, Window event_source, double x, double y)
 	/* If the last seen surface is now different from the drag start
 	   surface, clear the cursor on the latter.  */
 	if (seat->drag_start_surface != seat->last_seen_surface && seat->cursor)
-		FreeCursor(seat->cursor);
+		XLFreeCursor(seat->cursor);
 
 	if (seat->data_source)
 		XLDoDragFinish(seat);

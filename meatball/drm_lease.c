@@ -1298,7 +1298,7 @@ FindProvider(RRProvider id)
 }
 
 static void
-RemoveDevice(DrmLeaseDevice *device)
+XLRemoveDevice(DrmLeaseDevice *device)
 {
 	/* Mark the device as invalid and free its fd and global.  The
 	   device itself will be destroyed once no more references to it
@@ -1600,7 +1600,7 @@ HandleOutputOrResourceChange(Time timestamp)
 				   device);
 
 		/* Remove the device.  */
-		RemoveDevice(device);
+		XLRemoveDevice(device);
 
 	next_device:
 		device = device->next;

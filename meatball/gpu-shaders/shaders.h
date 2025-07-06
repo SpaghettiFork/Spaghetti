@@ -16,15 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const char* clear_rectangle_fragment_shader = R"
+const char* clear_rectangle_fragment_shader = R"(
 void
 main (void)
 {
 	gl_FragColor = vec4 (0.0, 0.0, 0.0, 0.0);
 }
-";
+)";
 
-const char* clear_rectangle_vertex_shader = R"
+const char* clear_rectangle_vertex_shader = R"(
 attribute vec2 pos;
 
 void
@@ -32,9 +32,9 @@ main (void)
 {
 	gl_Position = vec4 (pos.x, pos.y, 1.0, 1.0);
 }
-";
+)";
 
-const char* composite_rectangle_vertex_shader = R"
+const char* composite_rectangle_vertex_shader = R"(
 precision mediump float;
 attribute vec2 pos;
 attribute vec2 texcoord;
@@ -47,9 +47,9 @@ main (void)
 	gl_Position = vec4 (pos.x, pos.y, 1.0, 1.0);
 	v_texcoord = (source * vec3 (texcoord, 1.0)).xy;
 }
-";
+)";
 
-const char* composite_rectangle_fragment_shader_rgba = R"
+const char* composite_rectangle_fragment_shader_rgba = R"(
 precision mediump float;
 uniform sampler2D texture;
 uniform bool invert_y;
@@ -67,9 +67,9 @@ main (void)
 
 	gl_FragColor = texture2D (texture, texcoord);
 }
-";
+)";
 
-const char* composite_rectangle_fragment_shader_rgbx = R"
+const char* composite_rectangle_fragment_shader_rgbx = R"(
 precision mediump float;
 uniform sampler2D texture;
 uniform mat3 source;
@@ -88,9 +88,9 @@ main (void)
 
 	gl_FragColor = vec4 (texture2D (texture, texcoord).rgb, 1.0);
 }
-";
+)";
 
-const char* composite_rectangle_fragment_shader_external = R"
+const char* composite_rectangle_fragment_shader_external = R"(
 #extension GL_OES_EGL_image_external : require
 
 precision mediump float;
@@ -111,9 +111,9 @@ main (void)
 
 	gl_FragColor = texture2D (texture, texcoord);
 }
-";
+)";
 
-const char* composite_rectangle_fragment_shader_single_pixel = R"
+const char* composite_rectangle_fragment_shader_single_pixel = R"(
 #extension GL_OES_EGL_image_external : require
 
 precision mediump float;
@@ -138,4 +138,4 @@ main (void)
 	else
 		gl_FragColor = source_color;
 }
-";
+)";

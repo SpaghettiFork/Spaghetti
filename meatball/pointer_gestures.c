@@ -157,11 +157,11 @@ GetHoldGesture(struct wl_client *client, struct wl_resource *resource,
 }
 
 static struct zwp_pointer_gestures_v1_interface pointer_gestures_impl =
-	{
-		.get_swipe_gesture = GetSwipeGesture,
-		.get_pinch_gesture = GetPinchGesture,
-		.release = Release,
-		.get_hold_gesture = GetHoldGesture,
+{
+	.get_swipe_gesture = GetSwipeGesture,
+	.get_pinch_gesture = GetPinchGesture,
+	.release = Release,
+	.get_hold_gesture = GetHoldGesture,
 };
 
 static void

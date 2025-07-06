@@ -14,7 +14,8 @@ wayland_protos = [
     'viewporter.xml',
     'xdg-shell.xml',
     'xdg-activation-v1.xml',
-    'xdg-decoration-unstable-v1.xml'
+    'xdg-decoration-unstable-v1.xml',
+    'xdg-system-bell-v1.xml'
 ]
 
 scanner_dep = dependency('wayland-scanner', native: true)
@@ -25,6 +26,15 @@ server_header = generator(scanner,
                           arguments : ['server-header', '@INPUT@', '@OUTPUT@']
 )
 
+server_code = generator(scanner,
+                          output : '@BASENAME@.c',
+                          arguments : ['private-code', '@INPUT@', '@OUTPUT@']
+)
+
 foreach xml : wayland_protos
     headers_meatball += server_header.process(xml)
+endforeach
+
+foreach xml : wayland_protos
+    srcs_meatball    += server_code.process(xml)
 endforeach

@@ -798,7 +798,7 @@ SyncChangeAlarmAttributes(ClientPtr client, SyncAlarm * pAlarm, Mask mask,
                           CARD32 *values)
 {
     int status;
-    XSyncCounter counter;
+    XSyncCounter current_counter;
     Mask origmask = mask;
     SyncTrigger trigger;
     Bool select_events_changed = FALSE;
@@ -807,7 +807,7 @@ SyncChangeAlarmAttributes(ClientPtr client, SyncAlarm * pAlarm, Mask mask,
 
     trigger = pAlarm->trigger;
     delta = pAlarm->delta;
-    counter = trigger.pSync ? trigger.pSync->id : None;
+    current_counter = trigger.pSync ? trigger.pSync->id : None;
 
     while (mask) {
         int index2 = lowbit(mask);
@@ -817,7 +817,7 @@ SyncChangeAlarmAttributes(ClientPtr client, SyncAlarm * pAlarm, Mask mask,
         case XSyncCACounter:
             mask &= ~XSyncCACounter;
             /* sanity check in SyncInitTrigger */
-            counter = *values++;
+            current_counter = *values++;
             break;
 
         case XSyncCAValueType:
@@ -887,7 +887,7 @@ SyncChangeAlarmAttributes(ClientPtr client, SyncAlarm * pAlarm, Mask mask,
     /* postpone this until now, when we're sure nothing else can go wrong */
     pAlarm->delta = delta;
     pAlarm->trigger = trigger;
-    if ((status = SyncInitTrigger(client, &pAlarm->trigger, counter, RTCounter,
+    if ((status = SyncInitTrigger(client, &pAlarm->trigger, current_counter, RTCounter,
                                   origmask & XSyncCAAllTrigger)) != Success)
         return status;
 

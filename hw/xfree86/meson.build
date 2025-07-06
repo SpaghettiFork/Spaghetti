@@ -39,6 +39,12 @@ subdir('parser')
 subdir('ramdac')
 subdir('xkb')
 
+# Only build the Sauce interposer if Meatball is
+# also being built by the end user.
+if build_meatball
+    subdir('sauce')
+endif
+
 srcs_xorg = [
     '../../mi/miinitext.c',
     '../../mi/miinitext.h',

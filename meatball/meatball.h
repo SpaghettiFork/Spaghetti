@@ -24,8 +24,41 @@
 #include <xorg-config.h>
 #endif
 
-#include "xf86Module.h"
-#include "xf86Priv.h"
-#include "xf86.h"
+typedef int _MEATBALL_BOOL;
+
+enum MEATBALL_BOOL
+{
+	MEATBALL_FALSE = 0,
+	MEATBALL_TRUE  = 1
+};
+
+enum meatball_flags
+{
+	MB_NONE									= 0,
+	MB_FORCE_SOFTWARE_RENDERING				= 0x2,
+	MB_PICTURE_EXPOSE_ALL_SHM_FORMATS		= 0x4,
+};
+
+struct meatball_config
+{
+	/**
+	 * Render device to use.
+	 *
+	 * Accepted values:
+	 * - DRM path (e.g. /dev/dri/renderD128)
+	 * - Screen name (e.g. "G0")
+	 */
+	const char*					renderer_string;
+	/**
+	 * Meatball flags to modify behaviour.
+	 *
+	 * See `meatball_flags` for more accepted values.
+	 */
+	unsigned long				meatball_flags;
+};
+
+extern _X_EXPORT _MEATBALL_BOOL meatball_initialize(struct meatball_config* config);
+
+extern _X_EXPORT void meatball_shutdown(void);
 
 #endif /* _MEATBALL_H */

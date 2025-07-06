@@ -18,10 +18,9 @@
  * You should have received a copy of the GNU General Public License
  * along with 12to11.  If not, see <https://www.gnu.org/licenses/>.
  */
-#include <byteswap.h>
-
 #include <stdio.h>
 #include <string.h>
+#include <byteswap.h>
 
 #include "compositor.h"
 

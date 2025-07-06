@@ -280,10 +280,10 @@ HandleSynchronizationDestroy(struct wl_resource *resource)
 }
 
 static struct zwp_linux_surface_synchronization_v1_interface synchronization_impl =
-	{
-		.destroy = DestroySynchronization,
-		.set_acquire_fence = SetAcquireFence,
-		.get_release = GetRelease,
+{
+	.destroy = DestroySynchronization,
+	.set_acquire_fence = SetAcquireFence,
+	.get_release = GetRelease,
 };
 
 static void
@@ -357,9 +357,9 @@ GetSynchronization(struct wl_client *client, struct wl_resource *resource,
 }
 
 static struct zwp_linux_explicit_synchronization_v1_interface explicit_sync_impl =
-	{
-		.destroy = Destroy,
-		.get_synchronization = GetSynchronization,
+{
+	.destroy = Destroy,
+	.get_synchronization = GetSynchronization,
 };
 
 static void

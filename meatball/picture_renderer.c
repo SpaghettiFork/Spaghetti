@@ -27,7 +27,7 @@
 #include <libdrm/drm_fourcc.h>
 
 #include "compositor.h"
-#include "static-headers/drm_modifiers.h"
+#include "drm_modifiers.h"
 
 #include <xcb/dri3.h>
 #include <xcb/randr.h>
@@ -37,6 +37,8 @@
 #include <X11/extensions/Xpresent.h>
 #include <X11/extensions/Xfixes.h>
 #include <X11/extensions/shape.h>
+
+#include "meatball.h"
 
 typedef struct _DrmFormatInfo DrmFormatInfo;
 typedef struct _DmaBufRecord DmaBufRecord;
@@ -313,6 +315,9 @@ struct _DmaBufRecord {
 	short width, height;
 };
 
+/* Should we expose all SHM formats (meatball debug option) */
+static bool expose_all_shm_formats = false;
+
 /* Number of format modifiers specified by the user.  */
 static int num_specified_modifiers;
 
@@ -330,8 +335,16 @@ static XTransform identity_transform;
 
 static ShmFormat default_formats[] =
 {
-	{WL_SHM_FORMAT_ARGB8888},
-	{WL_SHM_FORMAT_XRGB8888},
+	{ WL_SHM_FORMAT_ARGB8888 },
+	{ WL_SHM_FORMAT_XRGB8888 },
+};
+
+static ShmFormat full_formats[] =
+{
+	{ WL_SHM_FORMAT_ARGB8888 },
+	{ WL_SHM_FORMAT_XRGB8888 },
+	{ WL_SHM_FORMAT_XBGR8888 },
+	{ WL_SHM_FORMAT_ABGR8888 },
 };
 
 /* List of all supported DRM formats.  */
@@ -2236,10 +2249,20 @@ GetRenderDevices(int *num_devices) {
 }
 
 static ShmFormat *
-GetShmFormats(int *num_formats) {
-	/* Return the two mandatory SHM formats.  */
-	*num_formats = ArrayElements(default_formats);
-	return default_formats;
+GetShmFormats(int *num_formats)
+{
+	if (!expose_all_shm_formats)
+	{
+		/* Return the two mandatory SHM formats.  */
+		*num_formats = ArrayElements(default_formats);
+		return default_formats;
+	}
+	else
+	{
+		/* Return all supported formats. (debug option) */
+		*num_formats = ArrayElements(full_formats);
+		return full_formats;
+	}
 }
 
 static int
@@ -3081,7 +3104,7 @@ static BufferFuncs picture_buffer_funcs = {
 	.init_buffer_funcs = InitBufferFuncs,
 };
 
-Bool HandleErrorForPictureRenderer(const XErrorEvent *error) {
+Bool HandleErrorForPictureRenderer(XErrorEvent *error) {
 	DmaBufRecord *record, *next;
 
 	if (error->request_code == dri3_opcode && error->minor_code == xDRI3BuffersFromPixmap) {
@@ -3253,7 +3276,13 @@ Bool HandleOneXEventForPictureRenderer(XEvent *event) {
 	return False;
 }
 
-void InitPictureRenderer(void) {
+void InitPictureRenderer(struct meatball_config* config)
+{
+	/* This should be strictly opt-in. */
+	expose_all_shm_formats = (config->meatball_flags & MB_PICTURE_EXPOSE_ALL_SHM_FORMATS);
+
+	/* Now setup the rest. */
+
 	identity_transform.matrix[0][0] = 1;
 	identity_transform.matrix[1][1] = 1;
 	identity_transform.matrix[2][2] = 1;

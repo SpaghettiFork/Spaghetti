@@ -57,11 +57,11 @@ int renderer_flags;
 
 static Renderer *
 AllocateRenderer(void) {
-	static Renderer renderers[2];
+	static Renderer known_renderers[2];
 	static int used;
 
-	if (used < ArrayElements(renderers))
-		return &renderers[used++];
+	if (used < ArrayElements(known_renderers))
+		return &known_renderers[used++];
 
 	/* When adding a new renderer, make sure to update the number of
 	   renderers in the above array.  */
@@ -310,21 +310,21 @@ Bool RenderIsBufferOpaque(RenderBuffer buffer) {
 }
 
 void RegisterStaticRenderer(const char *name,
-                            RenderFuncs *render_funcs,
-                            BufferFuncs *buffer_funcs) {
-	Renderer *renderer;
-
-	renderer = AllocateRenderer();
+                            RenderFuncs *render_funcs_,
+                            BufferFuncs *buffer_funcs_)
+{
+	Renderer *renderer = AllocateRenderer();
 	renderer->next = renderers;
-	renderer->buffer_funcs = buffer_funcs;
-	renderer->render_funcs = render_funcs;
+	renderer->buffer_funcs = buffer_funcs_;
+	renderer->render_funcs = render_funcs_;
 	renderer->name = name;
 
 	renderers = renderer;
 }
 
 static Bool
-InstallRenderer(Renderer *renderer) {
+InstallRenderer(Renderer *renderer)
+{
 	if (!renderer) {
 		return False;
 	}
@@ -353,14 +353,16 @@ InstallRenderer(Renderer *renderer) {
 	return True;
 }
 
-void InitRenderers(void) {
+void InitRenderers(struct meatball_config* config)
+{
 #if defined(HAVE_EGL_SUPPORT)
 	InitEGL();
 #endif
-	InitPictureRenderer();
+	InitPictureRenderer(config);
 }
 
-Renderer* GetRenderer(const char* name) {
+void* GetRenderer(const char* name)
+{
 	/* Install and initialize the first renderer in the list.  */
 	XLAssert(renderers != NULL);
 
@@ -368,23 +370,25 @@ Renderer* GetRenderer(const char* name) {
 		if (!strcmp (renderer->name, name))
 			return renderer;
 	}
+
 	return NULL;
 }
 
-void SetRenderer(const char* renderDevice) {
+void SetRenderer(struct meatball_config* config)
+{
 	Renderer* renderer_ptr;
 
 #if defined(HAVE_EGL_SUPPORT)
-	if (renderDevice)
+	if (config->renderer_string)
 	{
-		renderer_ptr = GetRenderer(RENDERER_EGL);
-		LogMessage(X_INFO, "meatball: Using EGL renderer.");
+		renderer_ptr = (Renderer*) GetRenderer(RENDERER_EGL);
+		MBLog(MB_LOG_INFO, "meatball: Using EGL renderer.");
 	}
 	else
 #endif
 	{
-		renderer_ptr = GetRenderer(RENDERER_PICTURE);
-		LogMessage(X_INFO, "meatball: Using software renderer.");
+		renderer_ptr = (Renderer*) GetRenderer(RENDERER_PICTURE);
+		MBLog(MB_LOG_INFO, "meatball: Using software renderer.");
 	}
 
 	InstallRenderer(renderer_ptr);

@@ -134,8 +134,8 @@ DestroyKeyboardShortcutsInhibitor(struct wl_client *client,
 }
 
 static struct zwp_keyboard_shortcuts_inhibitor_v1_interface inhibitor_impl =
-	{
-		.destroy = DestroyKeyboardShortcutsInhibitor,
+{
+	.destroy = DestroyKeyboardShortcutsInhibitor,
 };
 
 static void
@@ -289,9 +289,9 @@ InhibitShortcuts(struct wl_client *client, struct wl_resource *resource,
 }
 
 static struct zwp_keyboard_shortcuts_inhibit_manager_v1_interface manager_impl =
-	{
-		.inhibit_shortcuts = InhibitShortcuts,
-		.destroy = Destroy,
+{
+	.inhibit_shortcuts = InhibitShortcuts,
+	.destroy = Destroy,
 };
 
 static void

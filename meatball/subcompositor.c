@@ -721,10 +721,10 @@ SubcompositorUpdateBounds(Subcompositor *subcompositor, int doflags)
 }
 
 static void
-SubcompositorUpdateBoundsForInsert(Subcompositor *subcompositor,
+SubcompositorUpdateBoundsForInsert(Subcompositor *_subcompositor,
 								   View *view)
 {
-	XLAssert(view->subcompositor == subcompositor);
+	XLAssert(view->subcompositor == _subcompositor);
 
 	if (!ViewIsMapped(view))
 		/* If the view is unmapped, do nothing.  */
@@ -732,43 +732,43 @@ SubcompositorUpdateBoundsForInsert(Subcompositor *subcompositor,
 
 	/* Inserting a view cannot shrink the subcompositor.  */
 
-	if (view->abs_x < subcompositor->min_x)
+	if (view->abs_x < _subcompositor->min_x)
 	{
-		subcompositor->min_x = view->abs_x;
+		_subcompositor->min_x = view->abs_x;
 
 		/* Garbage the subcompositor for this change.  */
-		SetGarbaged(subcompositor);
+		SetGarbaged(_subcompositor);
 	}
 
 	if (view->abs_y < view->subcompositor->min_y)
 	{
-		subcompositor->min_y = view->abs_y;
+		_subcompositor->min_y = view->abs_y;
 
 		/* Garbage the subcompositor for this change.  */
-		SetGarbaged(subcompositor);
+		SetGarbaged(_subcompositor);
 	}
 
 	if (view->subcompositor->max_x < ViewMaxX(view))
-		subcompositor->max_x = ViewMaxX(view);
+		_subcompositor->max_x = ViewMaxX(view);
 
 	if (view->subcompositor->max_y < ViewMaxY(view))
-		subcompositor->max_y = ViewMaxY(view);
+		_subcompositor->max_y = ViewMaxY(view);
 }
 
-void SubcompositorSetTarget(Subcompositor *compositor,
+void SubcompositorSetTarget(Subcompositor *_compositor,
 							RenderTarget *target_in)
 {
 	if (target_in)
 	{
-		compositor->target = *target_in;
-		SetTargetAttached(compositor);
+		_compositor->target = *target_in;
+		SetTargetAttached(_compositor);
 	}
 	else
-		compositor->state &= SubcompositorIsTargetAttached;
+		_compositor->state &= SubcompositorIsTargetAttached;
 
 	/* We don't know if the new picture has the previous state left
 	   over.  */
-	SetGarbaged(compositor);
+	SetGarbaged(_compositor);
 }
 
 #define SkipSlug(list, view, next)             \
@@ -857,32 +857,32 @@ DamageIncludingInferiors(View *parent)
 	}
 }
 
-void SubcompositorInsert(Subcompositor *compositor, View *view)
+void SubcompositorInsert(Subcompositor *_compositor, View *view)
 {
 	/* Link view into the list of children.  */
-	ListInsertBefore(compositor->last_children, view->self);
+	ListInsertBefore(_compositor->last_children, view->self);
 
 	/* Make view's inferiors part of the compositor.  */
 	ListRelinkBefore(view->link, view->inferior,
-					 compositor->last);
+					 _compositor->last);
 
 	/* We don't know whether or not the subcompositor is partially
 	   mapped.  Set the IsPartiallyMapped flag if the view has children;
 	   it will be cleared upon the next update if the subcompositor is
 	   not partially mapped.  */
 	if (IsViewUnmapped(view) || view->link != view->inferior)
-		SetPartiallyMapped(compositor);
+		SetPartiallyMapped(_compositor);
 
 	/* And update bounds.  */
-	SubcompositorUpdateBoundsForInsert(compositor, view);
+	SubcompositorUpdateBoundsForInsert(_compositor, view);
 
 	/* Now, if the subcompositor is still not garbaged, damage each
 	   inferior of the view.  */
-	if (!IsGarbaged(compositor))
+	if (!IsGarbaged(_compositor))
 		DamageIncludingInferiors(view);
 }
 
-void SubcompositorInsertBefore(Subcompositor *compositor, View *view,
+void SubcompositorInsertBefore(Subcompositor *_compositor, View *view,
 							   View *sibling)
 {
 	/* Link view into the list of children, before the given
@@ -897,18 +897,18 @@ void SubcompositorInsertBefore(Subcompositor *compositor, View *view,
 	   it will be cleared upon the next update if the subcompositor is
 	   not partially mapped.  */
 	if (IsViewUnmapped(view) || view->link != view->inferior)
-		SetPartiallyMapped(compositor);
+		SetPartiallyMapped(_compositor);
 
 	/* And update bounds.  */
-	SubcompositorUpdateBoundsForInsert(compositor, view);
+	SubcompositorUpdateBoundsForInsert(_compositor, view);
 
 	/* Now, if the subcompositor is still not garbaged, damage each
 	   inferior of the view.  */
-	if (!IsGarbaged(compositor))
+	if (!IsGarbaged(_compositor))
 		DamageIncludingInferiors(view);
 }
 
-void SubcompositorInsertAfter(Subcompositor *compositor, View *view,
+void SubcompositorInsertAfter(Subcompositor *_compositor, View *view,
 							  View *sibling)
 {
 	/* Link view into the list of children, after the given sibling.  */
@@ -922,14 +922,14 @@ void SubcompositorInsertAfter(Subcompositor *compositor, View *view,
 	   it will be cleared upon the next update if the subcompositor is
 	   not partially mapped.  */
 	if (IsViewUnmapped(view) || view->link != view->inferior)
-		SetPartiallyMapped(compositor);
+		SetPartiallyMapped(_compositor);
 
 	/* And update bounds.  */
-	SubcompositorUpdateBoundsForInsert(compositor, view);
+	SubcompositorUpdateBoundsForInsert(_compositor, view);
 
 	/* Now, if the subcompositor is still not garbaged, damage each
 	   inferior of the view.  */
-	if (!IsGarbaged(compositor))
+	if (!IsGarbaged(_compositor))
 		DamageIncludingInferiors(view);
 }
 

@@ -66,6 +66,7 @@ libdrm_req = '>= 2.4.116'
 libselinux_req = '>= 2.0.86'
 xext_req = '>= 1.0.99.4'
 xproto_req = '>= 7.0.31'
+wayland_req = '>= 1.21.0'
 gbm_req = '>= 10.2'
 xf86dgaproto_req = '>= 2.0.99.1'
 xshmfence_req = '>= 1.1'
@@ -628,6 +629,10 @@ inc = include_directories(
     'randr',
     'render',
     'xfixes',
+)
+
+meatball_inc = include_directories(
+    'meatball'
 )
 
 build_xselinux = false

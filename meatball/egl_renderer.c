@@ -34,6 +34,13 @@
 
 #include "linux-dmabuf-unstable-v1.h"
 
+/**
+ * https://registry.khronos.org/EGL/extensions/EXT/EGL_EXT_device_drm_render_node.txt
+ */
+#ifndef EGL_DRM_RENDER_NODE_FILE_EXT
+#define EGL_DRM_RENDER_NODE_FILE_EXT 0x3377
+#endif
+
 /* These are flags for the DrmFormats.  */
 
 enum {
@@ -520,7 +527,7 @@ EglInitGlFuncs(void) {
 
 	/* We treat eglWaitSyncKHR specially, since it only works if the
 	   server client API also supports GL_OES_EGL_sync.  */
-	if (!HaveGlExtension("GL_OES_EGL_sync"))
+	if (!epoxy_has_gl_extension("GL_OES_EGL_sync"))
 		IWaitSync = NULL;
 }
 
@@ -927,7 +934,7 @@ EglInitDisplay(void) {
 	if (!epoxy_has_egl_extension(egl_display, "EGL_EXT_image_dma_buf_import")) {
 		eglTerminate(display);
 
-		LogMessage(X_ERROR, "meatball(EGL): EGL_EXT_image_dma_buf_import not found.");
+		MBLog(MB_LOG_ERROR, "meatball(EGL): EGL_EXT_image_dma_buf_import not found.");
 		return False;
 	}
 
@@ -1456,7 +1463,7 @@ FinishRender(RenderTarget target, pixman_region32_t *damage,
 	switch (damage_mode) {
 		case EGL_DAMAGE_CAP_SWAP_DAMAGE: {
 			if (!damage)
-				goto no_damage;;
+				goto no_damage;
 
 			/* Do a swap taking the buffer damage into account.  First,
 			   convert the damage into cartesian coordinates.  */
@@ -1501,6 +1508,7 @@ no_damage:
 		default: {
 			/* This should also do glFinish.  */
 			eglSwapBuffers(egl_display, egl_target->surface);
+			break;
 		}
 	}
 
@@ -2106,7 +2114,7 @@ InitBufferFuncs(void) {
 	/* And initialize the SHM formats that are supported.  */
 	InitShmFormats();
 
-	LogMessage(X_INFO, "meatball: EGL backend is running.");
+	MBLog(MB_LOG_INFO, "meatball: EGL backend is running.");
 }
 
 static Bool
@@ -2430,6 +2438,7 @@ IsBufferOpaque(RenderBuffer buffer) {
 	return !(egl_buffer->flags & HasAlpha);
 }
 
+#if defined(HAVE_EGL_SUPPORT)
 static BufferFuncs egl_buffer_funcs =
 {
 	.get_drm_formats = GetDrmFormats,
@@ -2453,3 +2462,4 @@ void InitEGL(void) {
 	RegisterStaticRenderer("egl", &egl_render_funcs,
 	                       &egl_buffer_funcs);
 }
+#endif

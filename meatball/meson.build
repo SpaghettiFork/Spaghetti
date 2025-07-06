@@ -2,6 +2,7 @@ headers_meatball = []
 
 srcs_meatball = [
     'meatball.c',
+    'log.c',
     'run.c',
     'alloc.c',
     'fns.c',
@@ -33,7 +34,6 @@ srcs_meatball = [
     'icon_surface.c',
     'primary_selection.c',
     'renderer.c',
-    'picture_renderer.c',
     'explicit_synchronization.c',
     'transform.c',
     'wp_viewporter.c',
@@ -53,7 +53,32 @@ srcs_meatball = [
     'buffer_release.c',
     'xdg_activation.c',
     'tearing_control.c',
-    'sync_source.c'
+    'sync_source.c',
+    'xdg_system_bell.c',
+    'picture_renderer.c',
+    'egl_renderer.c'
+]
+
+# Do the dependency check first.
+meatball_dep = [
+    # Core.
+    dependency('xorg-server', required : true),
+
+    # Xorg interaction.
+    dependency('xpresent', required : true),
+    dependency('xcb-randr', required : true),
+    dependency('xcb-dri3', required : true),
+    dependency('xcb-shape', required : true),
+    dependency('xcb-shm', required : true),
+    dependency('x11-xcb', required : true),
+    dependency('xcb', required : true),
+    dependency('xfixes', required : true),
+    dependency('xrandr', required : true),
+    dependency('xi', required : true),
+    dependency('xshmfence', required : true),
+
+    # Finally we also need Wayland of course.
+    dependency('wayland-server', version: wayland_req, required: true)
 ]
 
 # We need the headers in order to actually get a build.
@@ -62,22 +87,33 @@ subdir('wayland-proto')
 
 meatball_headers = declare_dependency(
     sources : headers_meatball,
+    include_directories: [
+        '.',
+        'static-headers',
+        'gpu-shaders',
+    ]
 )
-epoxy_dep = dependency('epoxy')
 
-meatball = shared_module('meatball',
+meatball = static_library('meatball',
     srcs_meatball,
-    c_args : ['-D_GNU_SOURCE'],
-    include_directories : [inc, glx_inc],
+    c_args : [
+        '-D_GNU_SOURCE',
+        '-D_BSD_SOURCE',
+        '-U_SVID_SOURCE'
+    ],
+    include_directories : [
+        inc
+    ],
     dependencies : [
         common_dep,
         epoxy_dep,
         libdrm_dep,
         pixman_dep,
+        meatball_dep,
         meatball_headers
-    ],
-    install : true,
-    install_dir : module_dir,
+    ]
 )
 
-install_data('meatball.h', install_dir : xorgsdkdir)
+if build_xorg
+    install_data('meatball.h', install_dir : xorgsdkdir)
+endif

@@ -845,17 +845,17 @@ SetRegion(struct wl_client *client, struct wl_resource *resource,
 }
 
 static const struct zwp_confined_pointer_v1_interface confined_pointer_impl =
-	{
-		.destroy = DestroyConfinedPointer,
-		.set_region = SetRegion,
+{
+	.destroy = DestroyConfinedPointer,
+	.set_region = SetRegion,
 };
 
 static const struct zwp_locked_pointer_v1_interface locked_pointer_impl =
-	{
-		.destroy = DestroyLockedPointer,
-		.set_cursor_position_hint = SetCursorPositionHint,
-		/* SetRegion can be shared between both types of resources.  */
-		.set_region = SetRegion,
+{
+	.destroy = DestroyLockedPointer,
+	.set_cursor_position_hint = SetCursorPositionHint,
+	/* SetRegion can be shared between both types of resources.  */
+	.set_region = SetRegion,
 };
 
 static void
@@ -1225,10 +1225,10 @@ ConfinePointer(struct wl_client *client, struct wl_resource *resource,
 }
 
 static struct zwp_pointer_constraints_v1_interface pointer_constraints_impl =
-	{
-		.destroy = Destroy,
-		.lock_pointer = LockPointer,
-		.confine_pointer = ConfinePointer,
+{
+	.destroy = Destroy,
+	.lock_pointer = LockPointer,
+	.confine_pointer = ConfinePointer,
 };
 
 static void

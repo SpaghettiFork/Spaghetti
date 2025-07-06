@@ -419,9 +419,7 @@ BuildOutputTree(void)
 	XRRCrtcInfo *crtc;
 	int i, j;
 	Output *output;
-	XLList *all_outputs;
-
-	all_outputs = NULL;
+	XLList *all_outputs_local = NULL;
 
 	resources = XRRGetScreenResources(compositor.display,
 									  DefaultRootWindow(compositor.display));
@@ -474,7 +472,7 @@ BuildOutputTree(void)
 			output->transform = ComputeTransform(crtc);
 			output->subpixel = ComputeSubpixel(info);
 
-			all_outputs = XLListPrepend(all_outputs, output);
+			all_outputs_local = XLListPrepend(all_outputs_local, output);
 
 			output->name = XLStrdup(info->name);
 
@@ -495,7 +493,7 @@ BuildOutputTree(void)
 	}
 
 	XRRFreeScreenResources(resources);
-	return all_outputs;
+	return all_outputs_local;
 }
 
 static Bool

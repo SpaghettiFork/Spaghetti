@@ -17,11 +17,7 @@
  */
 #include <locale.h>
 
-#include "misc.h"
-#include <X11/Xlib.h>
-#include <X11/Xfuncproto.h>
-
-#include "meatball.h"
+/* Meatball interface is imported via compositor.h */
 #include "compositor.h"
 
 /* GLOBAL */ pthread_t meatball_thread;
@@ -60,16 +56,21 @@ DetermineServerTime(void) {
 	} else {
 	overflow:
 		compositor.server_time_monotonic = False;
-		LogMessage(X_WARNING, "meatball: the X server time does not seem to"
+		MBLog(MB_LOG_WARNING, "meatball: the X server time does not seem to"
 		           " be synchronized with the monotonic time.  Multiple"
 		           " subsurfaces may be displayed at a reduced maximum"
 		           " frame rate.\n");
 	}
 }
 
+/**
+ * Main work thread, intended to be called via pthreads.
+ */
 static void
-meatball_run(const void* __renderer_ptr__)
+*meatball_thread_init(void* __config_ptr__)
 {
+	struct meatball_config* config = __config_ptr__;
+
 	/* Set the locale.  */
 	setlocale(LC_ALL, "");
 
@@ -80,14 +81,14 @@ meatball_run(const void* __renderer_ptr__)
 	struct wl_display *wl_display = wl_display_create();
 
 	if (!dpy || !wl_display) {
-		LogMessage(X_ERROR, "meatball: Display initialization failed\n");
+		MBLog(MB_LOG_ERROR, "meatball: Display initialization failed\n");
 		exit(1);
 	}
 
 	const char *socket = wl_display_add_socket_auto(wl_display);
 
 	if (!socket) {
-		LogMessage(X_ERROR, "meatball: Unable to add socket to Wayland display\n");
+		MBLog(MB_LOG_ERROR, "meatball: Unable to add socket to Wayland display\n");
 		exit(1);
 	}
 
@@ -120,8 +121,8 @@ meatball_run(const void* __renderer_ptr__)
 	 * Initialize renderers immediately after timers and
 	 * atoms are setup.
 	 */
-	InitRenderers();
-	SetRenderer(__renderer_ptr__);
+	InitRenderers(config);
+	SetRenderer(config);
 
 	XLInitRROutputs();
 	XLInitCompositor();
@@ -130,6 +131,7 @@ meatball_run(const void* __renderer_ptr__)
 	XLInitXdgWM();
 	XLInitXdgSurfaces();
 	XLInitXdgToplevels();
+	XLInitSystemBell();
 	XLInitFrameClock();
 	XLInitSubsurfaces();
 	XLInitSeats();
@@ -163,98 +165,19 @@ meatball_run(const void* __renderer_ptr__)
 	pthread_exit(NULL);
 }
 
-static MODULESETUPPROTO(meatballSetup);
-static MODULETEARDOWNPROTO(meatballShutdown);
-
-static XF86ModuleVersionInfo VersRec =
+_MEATBALL_BOOL
+meatball_initialize(struct meatball_config* config)
 {
-	.modname      = "meatball",
-	.vendor       = "Spaghetti Fork",
-	._modinfo1_   = MODINFOSTRING1,
-	._modinfo2_   = MODINFOSTRING2,
-	.xf86version  = XORG_VERSION_CURRENT,
-	.majorversion = 1,
-	.minorversion = 0,
-	.patchlevel   = 0,
-	.abiclass     = ABI_CLASS_EXTENSION,
-	.abiversion   = ABI_EXTENSION_VERSION,
-};
+	if (!config)
+		return MEATBALL_FALSE;
 
-_X_EXPORT XF86ModuleData meatballModuleData =
-{
-	.vers = &VersRec,
-	.setup = meatballSetup,
-	.teardown = meatballShutdown
-};
-
-#if 0
-static ScrnInfoPtr
-GetPrimaryScreen(void)
-{
-	for (int i = 0; i < screenInfo.numScreens; i++) {
-		const ScreenPtr screen = screenInfo.screens[i];
-
-		if (!screen)
-		{
-			continue;
-		}
-
-		/**
-		 * Skip any PRIME or offload screens since
-		 * they won't be of any use to us.
-		 */
-		if (screen->is_offload_secondary || screen->is_output_secondary)
-		{
-			continue;
-		}
-
-		return xf86ScreenToScrn(screen);
-	}
-
-	return NULL;
-}
-#endif
-
-static void *
-meatballSetup(void *module, void *opts, int *errmaj, int *errmin)
-{
-	static Bool setupDone = FALSE;
-
-	if (setupDone) {
-		if (errmaj)
-		{
-			*errmaj = LDR_ONCEONLY;
-		}
-		return NULL;
-	}
-
-	setupDone = TRUE;
-	LogMessage(X_INFO, "meatball: Initializing.");
-
-#if 0
-	const ScrnInfoPtr ptr = GetPrimaryScreen();
-	if (ptr)
-	{
-		LogMessage(X_INFO, "meatball: Using screen %d as backing.", ptr->scrnIndex);
-	}
-	else
-	{
-		LogMessage(X_ERROR, "meatball: Failed to get the primary screen! Aborting.");
-		return NULL;
-	}
-
-	pthread_create(&meatball_thread, NULL, meatball_run, NULL);
-#endif
-	return module;
+	return pthread_create(&meatball_thread, NULL, meatball_thread_init, config) == 0;
 }
 
-static void
-meatballShutdown(void *teardownData)
+void meatball_shutdown(void)
 {
-#if 0
 	if (meatball_thread)
 	{
-		pthread_kill(meatball_thread, SIGSTOP);
+		pthread_kill(meatball_thread, SIGINT);
 	}
-#endif
 }

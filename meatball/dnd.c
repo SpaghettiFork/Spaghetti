@@ -321,7 +321,7 @@ Accept(struct wl_client *client, struct wl_resource *resource,
 {
 	uint32_t sc;
 
-	sc = (intptr_t)wl_resource_get_user_data(resource);
+	sc = (uintptr_t)wl_resource_get_user_data(resource);
 
 	if (sc < dnd_state.serial || dnd_state.source_window == None)
 		/* This data offer is out of date.  */
@@ -355,7 +355,7 @@ Receive(struct wl_client *client, struct wl_resource *resource,
 {
 	uint32_t serial;
 
-	serial = (intptr_t)wl_resource_get_user_data(resource);
+	serial = (uintptr_t)wl_resource_get_user_data(resource);
 
 	if (serial < dnd_state.serial || dnd_state.source_window == None)
 	{
@@ -379,7 +379,7 @@ Finish(struct wl_client *client, struct wl_resource *resource)
 {
 	uint32_t serial;
 
-	serial = (intptr_t)wl_resource_get_user_data(resource);
+	serial = (uintptr_t)wl_resource_get_user_data(resource);
 
 	if (serial < dnd_state.serial || !dnd_state.used_action || !dnd_state.accepted || dnd_state.finished)
 	{
@@ -493,7 +493,7 @@ SetActions(struct wl_client *client, struct wl_resource *resource,
 {
 	uint32_t serial;
 
-	serial = (intptr_t)wl_resource_get_user_data(resource);
+	serial = (uintptr_t)wl_resource_get_user_data(resource);
 
 	if (serial < dnd_state.serial || !dnd_state.source_window)
 		/* This data offer is out of date.  */
@@ -526,7 +526,7 @@ HandleResourceDestroy(struct wl_resource *resource)
 {
 	uint32_t serial;
 
-	serial = (intptr_t)wl_resource_get_user_data(resource);
+	serial = (uintptr_t)wl_resource_get_user_data(resource);
 
 	if (serial >= dnd_state.serial && dnd_state.source_window != None)
 	{

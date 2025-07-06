@@ -117,18 +117,18 @@ FindSystemCounter(const char *name)
 {
 	XSyncSystemCounter *system_counters;
 	int i, num_counters;
-	XSyncCounter counter;
+	XSyncCounter _counter;
 
 	num_counters = 0;
 	system_counters = XSyncListSystemCounters(compositor.display,
 											  &num_counters);
-	counter = None;
+	_counter = None;
 
 	for (i = 0; i < num_counters; ++i)
 	{
 		if (!strcmp(system_counters[i].name, name))
 		{
-			counter = system_counters[i].counter;
+			_counter = system_counters[i].counter;
 			break;
 		}
 
@@ -138,7 +138,7 @@ FindSystemCounter(const char *name)
 	if (system_counters)
 		XSyncFreeSystemCounterList(system_counters);
 
-	return counter;
+	return _counter;
 }
 
 static uint64_t
@@ -159,7 +159,7 @@ ScalarToValue(uint64_t scalar, XSyncValue *value)
 }
 
 static void
-StartAlarms(XSyncCounter counter, XSyncValue current_value)
+StartAlarms(XSyncCounter _counter, XSyncValue current_value)
 {
 	uint64_t scalar_value, target;
 	XSyncTrigger trigger;
@@ -189,7 +189,7 @@ StartAlarms(XSyncCounter counter, XSyncValue current_value)
 	{
 		/* value exceeds HalfMonth.  Wait for value to overflow back to
 		   0.  */
-		trigger.counter = counter;
+		trigger.counter = _counter;
 		trigger.test_type = XSyncNegativeComparison;
 		trigger.wait_value = current_value;
 
@@ -208,7 +208,7 @@ StartAlarms(XSyncCounter counter, XSyncValue current_value)
 	{
 		/* value is not yet HalfMonth.  Wait for value to exceed
 		   HalfMonth - 1.  */
-		trigger.counter = counter;
+		trigger.counter = _counter;
 		trigger.test_type = XSyncPositiveComparison;
 		ScalarToValue(HalfMonth, &trigger.wait_value);
 
@@ -229,7 +229,7 @@ StartAlarms(XSyncCounter counter, XSyncValue current_value)
 		/* The time exceeds HalfMonth.  Wait for the value to overflow
 	   time again.  */
 		target = (scalar_value & ~MaxTime) + MaxTime + 1;
-		trigger.counter = counter;
+		trigger.counter = _counter;
 		trigger.test_type = XSyncPositiveComparison;
 		ScalarToValue(target, &trigger.wait_value);
 
@@ -246,7 +246,7 @@ StartAlarms(XSyncCounter counter, XSyncValue current_value)
 		/* The time is not yet HalfMonth.  Wait for the time to exceed
 		   HalfMonth - 1.  */
 		target = (scalar_value & ~MaxTime) + HalfMonth;
-		trigger.counter = counter;
+		trigger.counter = _counter;
 		trigger.test_type = XSyncPositiveComparison;
 		ScalarToValue(target, &trigger.wait_value);
 
