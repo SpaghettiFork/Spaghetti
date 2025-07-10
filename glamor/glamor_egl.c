@@ -1132,8 +1132,6 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
             EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
             EGL_CONTEXT_MAJOR_VERSION_KHR,
             GLAMOR_GL_CORE_VER_MAJOR,
-            EGL_CONTEXT_MINOR_VERSION_KHR,
-            GLAMOR_GL_CORE_VER_MINOR,
             EGL_NONE
         };
 
@@ -1142,8 +1140,6 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
             EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
             EGL_CONTEXT_MAJOR_VERSION_KHR,
             GLAMOR_GL_CORE_VER_MAJOR,
-            EGL_CONTEXT_MINOR_VERSION_KHR,
-            GLAMOR_GL_CORE_VER_MINOR,
             EGL_CONTEXT_PRIORITY_LEVEL_IMG,
             EGL_CONTEXT_PRIORITY_HIGH_IMG,
             EGL_NONE
@@ -1163,6 +1159,7 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
                                                    EGL_NO_CONFIG_KHR,
                                                    EGL_NO_CONTEXT,
                                                    config_attribs);
+
     }
 
     if (glamor_egl->context != EGL_NO_CONTEXT) {
@@ -1173,12 +1170,14 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
             return FALSE;
         }
 
-        if (epoxy_gl_version() < 21) {
+        if (epoxy_gl_version() < 21)
+        {
             xf86DrvMsg(scrn->scrnIndex, X_INFO,
-                       "glamor: Ignoring GL < 2.1, falling back to GLES.\n");
+                       "glamor: Ignoring OpenGL < 2.1, falling back to GLES.\n");
             eglDestroyContext(glamor_egl->display, glamor_egl->context);
             glamor_egl->context = EGL_NO_CONTEXT;
         }
+
         xf86DrvMsg(scrn->scrnIndex, X_INFO,
             "glamor: Using OpenGL %d.%d context.\n",
             epoxy_gl_version() / 10,
@@ -1222,6 +1221,7 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn, bool high_priority)
                        "Failed to make GLES context current\n");
             return FALSE;
         }
+
         xf86DrvMsg(scrn->scrnIndex, X_INFO,
                 "glamor: Using OpenGL ES %d.%d context.\n",
                 epoxy_gl_version() / 10,
