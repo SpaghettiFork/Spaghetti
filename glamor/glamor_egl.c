@@ -42,6 +42,8 @@
 #include <gbm.h>
 #include <drm_fourcc.h>
 
+#include "minivec.h"
+
 #include "glamor_egl.h"
 
 #include "glamor.h"
@@ -230,6 +232,17 @@ glamor_egl_create_textured_pixmap(PixmapPtr pixmap, int handle, int stride)
     return TRUE;
 }
 
+#if defined(GBM_BO_FD_FOR_PLANE)
+enum PlaneAttrs {
+    PLANE_FD,
+    PLANE_OFFSET,
+    PLANE_PITCH,
+    PLANE_MODIFIER_LO,
+    PLANE_MODIFIER_HI,
+    NUM_PLANE_ATTRS
+};
+#endif
+
 Bool
 glamor_egl_create_textured_pixmap_from_gbm_bo(PixmapPtr pixmap,
                                               struct gbm_bo *bo,
@@ -246,15 +259,118 @@ glamor_egl_create_textured_pixmap_from_gbm_bo(PixmapPtr pixmap,
 
     glamor_egl = glamor_egl_get_screen_private(scrn);
 
+#if defined(GBM_BO_FD_FOR_PLANE)
+    uint64_t modifier = gbm_bo_get_modifier(bo);
+    const int num_planes = gbm_bo_get_plane_count(bo);
+    int fds[GBM_MAX_PLANES];
+    int plane = 0;
+    int attr_num = 0;
+    EGLint img_attrs[64] = {0};
+
+    static const EGLint planeAttrs[][NUM_PLANE_ATTRS] = {
+        {
+            EGL_DMA_BUF_PLANE0_FD_EXT,
+            EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+            EGL_DMA_BUF_PLANE0_PITCH_EXT,
+            EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT,
+            EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT,
+        },
+        {
+            EGL_DMA_BUF_PLANE1_FD_EXT,
+            EGL_DMA_BUF_PLANE1_OFFSET_EXT,
+            EGL_DMA_BUF_PLANE1_PITCH_EXT,
+            EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT,
+            EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT,
+        },
+        {
+            EGL_DMA_BUF_PLANE2_FD_EXT,
+            EGL_DMA_BUF_PLANE2_OFFSET_EXT,
+            EGL_DMA_BUF_PLANE2_PITCH_EXT,
+            EGL_DMA_BUF_PLANE2_MODIFIER_LO_EXT,
+            EGL_DMA_BUF_PLANE2_MODIFIER_HI_EXT,
+        },
+        {
+            EGL_DMA_BUF_PLANE3_FD_EXT,
+            EGL_DMA_BUF_PLANE3_OFFSET_EXT,
+            EGL_DMA_BUF_PLANE3_PITCH_EXT,
+            EGL_DMA_BUF_PLANE3_MODIFIER_LO_EXT,
+            EGL_DMA_BUF_PLANE3_MODIFIER_HI_EXT,
+        },
+    };
+
+    for (plane = 0; plane < num_planes; plane++) fds[plane] = -1;
+#endif
+
     glamor_make_current(glamor_priv);
 
-    image = eglCreateImageKHR(glamor_egl->display,
-                              EGL_NO_CONTEXT,
-                              EGL_NATIVE_PIXMAP_KHR, bo, NULL);
+#if defined(GBM_BO_FD_FOR_PLANE)
+    if (glamor_egl->flags & GLAMOR_DMABUF_CAPABLE)
+    {
+#define ADD_ATTR(attrs, num, attr)                                      \
+        do {                                                            \
+            assert(((num) + 1) < (sizeof(attrs) / sizeof((attrs)[0]))); \
+            (attrs)[(num)++] = (attr);                                  \
+        } while (0)
+
+        ADD_ATTR(img_attrs, attr_num, EGL_WIDTH);
+        ADD_ATTR(img_attrs, attr_num, gbm_bo_get_width(bo));
+        ADD_ATTR(img_attrs, attr_num, EGL_HEIGHT);
+        ADD_ATTR(img_attrs, attr_num, gbm_bo_get_height(bo));
+        ADD_ATTR(img_attrs, attr_num, EGL_LINUX_DRM_FOURCC_EXT);
+        ADD_ATTR(img_attrs, attr_num, gbm_bo_get_format(bo));
+
+        for (plane = 0; plane < num_planes; plane++)
+        {
+            fds[plane] = gbm_bo_get_fd_for_plane(bo, plane);
+
+            ADD_ATTR(img_attrs, attr_num, planeAttrs[plane][PLANE_FD]);
+            ADD_ATTR(img_attrs, attr_num, fds[plane]);
+            ADD_ATTR(img_attrs, attr_num, planeAttrs[plane][PLANE_OFFSET]);
+            ADD_ATTR(img_attrs, attr_num, gbm_bo_get_offset(bo, plane));
+            ADD_ATTR(img_attrs, attr_num, planeAttrs[plane][PLANE_PITCH]);
+            ADD_ATTR(img_attrs, attr_num, gbm_bo_get_stride_for_plane(bo, plane));
+            ADD_ATTR(img_attrs, attr_num, planeAttrs[plane][PLANE_MODIFIER_LO]);
+            ADD_ATTR(img_attrs, attr_num, (uint32_t)(modifier & 0xFFFFFFFFULL));
+            ADD_ATTR(img_attrs, attr_num, planeAttrs[plane][PLANE_MODIFIER_HI]);
+            ADD_ATTR(img_attrs, attr_num, (uint32_t)(modifier >> 32ULL));
+        }
+
+        ADD_ATTR(img_attrs, attr_num, EGL_NONE);
+#undef ADD_ATTR
+
+        /*
+         * "If <target> is EGL_LINUX_DMA_BUF_EXT,
+         * <dpy> must be a valid display, <ctx> must be EGL_NO_CONTEXT"
+         */
+        image = eglCreateImageKHR(glamor_egl->display,
+                                  EGL_NO_CONTEXT,
+                                  EGL_LINUX_DMA_BUF_EXT,
+                                  NULL,
+                                 img_attrs);
+
+        for (plane = 0; plane < num_planes; plane++)
+        {
+            close(fds[plane]);
+            fds[plane] = -1;
+        }
+    }
+    else
+#endif
+    {
+        /*
+         * "If <target> is EGL_NATIVE_PIXMAP_KHR, and <ctx> is
+         * not EGL_NO_CONTEXT, the error EGL_BAD_PARAMETER is generated."
+         */
+        image = eglCreateImageKHR(glamor_egl->display,
+                                  EGL_NO_CONTEXT,
+                                  EGL_NATIVE_PIXMAP_KHR, bo, NULL);
+    }
+
     if (image == EGL_NO_IMAGE_KHR) {
         glamor_set_pixmap_type(pixmap, GLAMOR_DRM_ONLY);
         goto done;
     }
+
     glamor_create_texture_from_image(screen, image, &texture);
     glamor_set_pixmap_type(pixmap, GLAMOR_TEXTURE_DRM);
     glamor_set_pixmap_texture(pixmap, texture);
@@ -1013,27 +1129,23 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
         glamor_egl_get_screen_private(scrn);
 
     if (eglBindAPI(EGL_OPENGL_API)) {
-        static const EGLint config_attribs_core[] = {
-            EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR,
-            EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
-            EGL_CONTEXT_MAJOR_VERSION_KHR,
-            GLAMOR_GL_CORE_VER_MAJOR,
-            EGL_CONTEXT_MINOR_VERSION_KHR,
-            GLAMOR_GL_CORE_VER_MINOR,
-            EGL_NONE
-        };
+        mini_vector config;
+        mini_vector_init(&config, sizeof(EGLint), 5);
 
-        static const EGLint config_attribs_core_priority[] = {
-            EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR,
-            EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
-            EGL_CONTEXT_MAJOR_VERSION_KHR,
-            GLAMOR_GL_CORE_VER_MAJOR,
-            EGL_CONTEXT_MINOR_VERSION_KHR,
-            GLAMOR_GL_CORE_VER_MINOR,
-            EGL_CONTEXT_PRIORITY_LEVEL_IMG,
-            EGL_CONTEXT_PRIORITY_HIGH_IMG,
-            EGL_NONE
-        };
+        insert_mini_vector(&config, EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR);
+        insert_mini_vector(&config, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR);
+
+        /*
+         * If the user has requested a high priority context,
+         * set up the context with the hint for the driver.
+         */
+        if (high_priority)
+        {
+            insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_LEVEL_IMG);
+            insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_HIGH_IMG);
+        }
+
+        insert_mini_vector(&config, EGL_NONE);
 
         static const EGLint config_attribs[] = {
             EGL_NONE
@@ -1041,14 +1153,15 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
 
         glamor_egl->context = eglCreateContext(glamor_egl->display,
                                                EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT,
-                                               high_priority ?
-                                               config_attribs_core_priority : config_attribs_core);
+                                               config.array);
+        free_mini_vector(&config);
 
         if (glamor_egl->context == EGL_NO_CONTEXT)
             glamor_egl->context = eglCreateContext(glamor_egl->display,
                                                    EGL_NO_CONFIG_KHR,
                                                    EGL_NO_CONTEXT,
                                                    config_attribs);
+
     }
 
     if (glamor_egl->context != EGL_NO_CONTEXT) {
@@ -1059,12 +1172,14 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
             return FALSE;
         }
 
-        if (epoxy_gl_version() < 21) {
+        if (epoxy_gl_version() < 21)
+        {
             xf86DrvMsg(scrn->scrnIndex, X_INFO,
-                       "glamor: Ignoring GL < 2.1, falling back to GLES.\n");
+                       "glamor: Ignoring OpenGL < 2.1, falling back to GLES.\n");
             eglDestroyContext(glamor_egl->display, glamor_egl->context);
             glamor_egl->context = EGL_NO_CONTEXT;
         }
+
         xf86DrvMsg(scrn->scrnIndex, X_INFO,
             "glamor: Using OpenGL %d.%d context.\n",
             epoxy_gl_version() / 10,
@@ -1078,18 +1193,25 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn, bool high_priority)
 {
     struct glamor_egl_screen_private *glamor_egl =
         glamor_egl_get_screen_private(scrn);
-        
-    static const EGLint config_attribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 2,
-        EGL_NONE
-    };
 
-    static const EGLint config_attribs_priority[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 2,
-        EGL_CONTEXT_PRIORITY_LEVEL_IMG,
-        EGL_CONTEXT_PRIORITY_HIGH_IMG,
-        EGL_NONE
-    };
+    mini_vector config;
+    mini_vector_init(&config, sizeof(EGLint), 5);
+
+    insert_mini_vector(&config, EGL_CONTEXT_CLIENT_VERSION);
+    insert_mini_vector(&config, 2);
+
+    /*
+     * If the user has requested a high priority context,
+     * set up the context with the hint for the driver.
+     */
+    if (high_priority)
+    {
+        insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_LEVEL_IMG);
+        insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_HIGH_IMG);
+    }
+
+    insert_mini_vector(&config, EGL_NONE);
+
 
     if (!eglBindAPI(EGL_OPENGL_ES_API)) {
         xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -1099,7 +1221,9 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn, bool high_priority)
 
     glamor_egl->context = eglCreateContext(glamor_egl->display,
                                             EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT,
-                                            high_priority ? config_attribs_priority : config_attribs);
+                                            config.array);
+
+    free_mini_vector(&config);
 
     if (glamor_egl->context != EGL_NO_CONTEXT) {
         if (!eglMakeCurrent(glamor_egl->display,
@@ -1108,6 +1232,7 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn, bool high_priority)
                        "Failed to make GLES context current\n");
             return FALSE;
         }
+
         xf86DrvMsg(scrn->scrnIndex, X_INFO,
                 "glamor: Using OpenGL ES %d.%d context.\n",
                 epoxy_gl_version() / 10,

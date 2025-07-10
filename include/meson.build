@@ -464,6 +464,7 @@ if build_xorg
             'inputstr.h',
             'list.h',
             'log.h',
+            'minivec.h',
             'misc.h',
             'miscstruct.h',
             'opaque.h',
