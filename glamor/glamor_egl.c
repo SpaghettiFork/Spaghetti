@@ -62,20 +62,25 @@ static const char* ALLOWLIST_DMA_BUF_CAPABLE[] =
 };
 
 struct glamor_egl_screen_private {
+    /* Core. */
+
     EGLDisplay display;
     EGLContext context;
+    struct gbm_device *gbm;
     char *device_path;
+
+    /* Screen capabilities. */
+
+    Bool dmabuf_capable;
+    Bool glvnd_force_vendor;
+    Bool high_priority_ctx;
+
+    /* Misc. items, least used. */
+
+    int fd;
 
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr CloseScreen;
-
-    int fd;
-#define		GLAMOR_DMABUF_CAPABLE			(1 << 1)
-#define		GLAMOR_GLVND_FORCE_VENDOR		(1 << 2)
-#define		GLAMOR_HIGH_PRIORITY_CONTEXT	(1 << 3)
-    unsigned int flags;
-
-    struct gbm_device *gbm;
 
     CloseScreenProcPtr saved_close_screen;
     DestroyPixmapProcPtr saved_destroy_pixmap;
@@ -304,7 +309,7 @@ glamor_egl_create_textured_pixmap_from_gbm_bo(PixmapPtr pixmap,
     glamor_make_current(glamor_priv);
 
 #if defined(GBM_BO_FD_FOR_PLANE)
-    if (glamor_egl->flags & GLAMOR_DMABUF_CAPABLE)
+    if (glamor_egl->dmabuf_capable)
     {
 #define ADD_ATTR(attrs, num, attr)                                      \
         do {                                                            \
@@ -437,7 +442,7 @@ glamor_make_pixmap_exportable(PixmapPtr pixmap, Bool modifiers_ok)
     }
 
 #ifdef GBM_BO_WITH_MODIFIERS
-    if (modifiers_ok && (glamor_egl->flags & GLAMOR_DMABUF_CAPABLE)) {
+    if (modifiers_ok && glamor_egl->dmabuf_capable) {
         uint32_t num_modifiers;
         uint64_t *modifiers = NULL;
 
@@ -733,7 +738,7 @@ glamor_pixmap_from_fds(ScreenPtr screen,
     pixmap = screen->CreatePixmap(screen, 0, 0, depth, 0);
 
 #ifdef GBM_BO_WITH_MODIFIERS
-    if ((glamor_egl->flags & GLAMOR_DMABUF_CAPABLE) && modifier != DRM_FORMAT_MOD_INVALID) {
+    if (glamor_egl->dmabuf_capable && modifier != DRM_FORMAT_MOD_INVALID) {
         struct gbm_import_fd_modifier_data import_data = { 0 };
         struct gbm_bo *bo;
 
@@ -808,7 +813,7 @@ glamor_get_formats(ScreenPtr screen,
 
     glamor_egl = glamor_egl_get_screen_private(xf86ScreenToScrn(screen));
 
-    if (!(glamor_egl->flags & GLAMOR_DMABUF_CAPABLE))
+    if (!glamor_egl->dmabuf_capable)
         return TRUE;
 
     if (!eglQueryDmaBufFormatsEXT(glamor_egl->display, 0, NULL, &num))
@@ -848,7 +853,7 @@ glamor_get_modifiers(ScreenPtr screen, uint32_t format,
 
     glamor_egl = glamor_egl_get_screen_private(xf86ScreenToScrn(screen));
 
-    if (!(glamor_egl->flags & GLAMOR_DMABUF_CAPABLE))
+    if (!glamor_egl->dmabuf_capable)
         return FALSE;
 
     if (!eglQueryDmaBufModifiersEXT(glamor_egl->display, format, 0, NULL,
@@ -1051,7 +1056,7 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
     glamor_ctx->make_current = glamor_egl_make_current;
 
     /* Use dynamic logic only if vendor is not forced via xorg.conf */
-    if (!(glamor_egl->flags & GLAMOR_GLVND_FORCE_VENDOR)) {
+    if (!glamor_egl->glvnd_force_vendor) {
         gbm_backend_name = gbm_device_get_backend_name(glamor_egl->gbm);
         /* Mesa uses "drm" as backend name, in that case, just do nothing */
         if (gbm_backend_name && strcmp(gbm_backend_name, "drm") != 0)
@@ -1275,7 +1280,7 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
     glvnd_vendor = xf86GetOptValString(options, GLAMOREGLOPT_VENDOR_LIBRARY);
     if (glvnd_vendor) {
         glamor_set_glvnd_vendor(xf86ScrnToScreen(scrn), glvnd_vendor);
-        glamor_egl->flags |= GLAMOR_GLVND_FORCE_VENDOR;
+        glamor_egl->glvnd_force_vendor = TRUE;
     }
     api = xf86GetOptValString(options, GLAMOREGLOPT_RENDERING_API);
     if (api && !strncasecmp(api, "es", 2))
@@ -1325,22 +1330,20 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
      * since we'll need to set that up at context creation. */
     if (xf86Info.debug != NULL && epoxy_has_egl_extension(glamor_egl->display, "EGL_IMG_context_priority")) {
         if (!!strstr(xf86Info.debug, "high_priority")) {
-            glamor_egl->flags |= GLAMOR_HIGH_PRIORITY_CONTEXT;
+            glamor_egl->high_priority_ctx = TRUE;
 
             xf86DrvMsg(scrn->scrnIndex, X_INFO,
                 "Requesting a high priority EGL context\n");
         }
     }
 
-    const bool high_priority = (glamor_egl->flags & GLAMOR_HIGH_PRIORITY_CONTEXT);
-
     if (!force_es) {
-        if(!glamor_egl_try_big_gl_api(scrn, high_priority))
+        if (!glamor_egl_try_big_gl_api(scrn, glamor_egl->high_priority_ctx))
             goto error;
     }
 
     if (glamor_egl->context == EGL_NO_CONTEXT && es_allowed) {
-        if(!glamor_egl_try_gles_api(scrn, high_priority))
+        if (!glamor_egl_try_gles_api(scrn, glamor_egl->high_priority_ctx))
             goto error;
     }
 
@@ -1393,13 +1396,12 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
         epoxy_has_egl_extension(glamor_egl->display,
                                 "EGL_EXT_image_dma_buf_import_modifiers")) {
         if (xf86Info.debug != NULL) {
-            if (!!strstr(xf86Info.debug, "dmabuf_capable"))
-                glamor_egl->flags |= GLAMOR_DMABUF_CAPABLE;
+            glamor_egl->dmabuf_capable = !!strstr(xf86Info.debug, "dmabuf_capable");
         } else {
             const int size = sizeof(ALLOWLIST_DMA_BUF_CAPABLE) / sizeof(ALLOWLIST_DMA_BUF_CAPABLE[0]);
             for (int idx = 0; idx < size; idx++) {
                 if (strstr((const char *)renderer, ALLOWLIST_DMA_BUF_CAPABLE[idx])) {
-                    glamor_egl->flags |= GLAMOR_DMABUF_CAPABLE;
+                    glamor_egl->dmabuf_capable = TRUE;
                     break;
                 }
             }
