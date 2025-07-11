@@ -3170,10 +3170,12 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
 {
     drmmode_output_private_ptr drmmode_output = output->driver_private;
     drmmode_ptr drmmode = drmmode_output->drmmode;
-    int i;
 
-    for (i = 0; i < drmmode_output->num_props; i++) {
+    for (int i = 0; i < drmmode_output->num_props; i++) {
         drmmode_prop_ptr p = &drmmode_output->props[i];
+
+        if (!p->atoms)
+            continue;
 
         if (p->atoms[0] != property)
             continue;
@@ -3193,7 +3195,6 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
         else if (p->mode_prop->flags & DRM_MODE_PROP_ENUM) {
             Atom atom;
             const char *name;
-            int j;
 
             if (value->type != XA_ATOM || value->format != 32 ||
                 value->size != 1)
@@ -3203,7 +3204,7 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
                 return FALSE;
 
             /* search for matching name string, then set its value down */
-            for (j = 0; j < p->mode_prop->count_enums; j++) {
+            for (int j = 0; j < p->mode_prop->count_enums; j++) {
                 if (!strcmp(p->mode_prop->enums[j].name, name)) {
                     drmModeConnectorSetProperty(drmmode->fd,
                                                 drmmode_output->output_id,
