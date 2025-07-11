@@ -1128,7 +1128,7 @@ glamor_egl_free_screen(ScrnInfoPtr scrn)
 }
 
 static Bool
-glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
+glamor_egl_try_big_gl_api(ScrnInfoPtr scrn)
 {
     struct glamor_egl_screen_private *glamor_egl =
         glamor_egl_get_screen_private(scrn);
@@ -1144,7 +1144,7 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
          * If the user has requested a high priority context,
          * set up the context with the hint for the driver.
          */
-        if (high_priority)
+        if (glamor_egl->high_priority_ctx)
         {
             insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_LEVEL_IMG);
             insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_HIGH_IMG);
@@ -1194,7 +1194,7 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn, bool high_priority)
 }
 
 static Bool
-glamor_egl_try_gles_api(ScrnInfoPtr scrn, bool high_priority)
+glamor_egl_try_gles_api(ScrnInfoPtr scrn)
 {
     struct glamor_egl_screen_private *glamor_egl =
         glamor_egl_get_screen_private(scrn);
@@ -1209,7 +1209,7 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn, bool high_priority)
      * If the user has requested a high priority context,
      * set up the context with the hint for the driver.
      */
-    if (high_priority)
+    if (glamor_egl->high_priority_ctx)
     {
         insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_LEVEL_IMG);
         insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_HIGH_IMG);
@@ -1338,12 +1338,12 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
     }
 
     if (!force_es) {
-        if (!glamor_egl_try_big_gl_api(scrn, glamor_egl->high_priority_ctx))
+        if (!glamor_egl_try_big_gl_api(scrn))
             goto error;
     }
 
     if (glamor_egl->context == EGL_NO_CONTEXT && es_allowed) {
-        if (!glamor_egl_try_gles_api(scrn, glamor_egl->high_priority_ctx))
+        if (!glamor_egl_try_gles_api(scrn))
             goto error;
     }
 
