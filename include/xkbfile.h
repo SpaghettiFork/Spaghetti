@@ -86,6 +86,14 @@ extern _X_EXPORT int XkbFindKeycodeByName(XkbDescPtr /* xkb */ ,
                                           Bool  /* use_aliases */
     );
 
+/***====================================================================***/
+
+extern _X_EXPORT unsigned XkbConvertGetByNameComponents(Bool /* toXkm */ ,
+                                                        unsigned        /* orig */
+    );
+
+/***====================================================================***/
+
 extern _X_EXPORT Bool XkbWriteXKBKeycodes(FILE * /* file */ ,
                                           XkbDescPtr /* result */ ,
                                           Bool /* topLevel */ ,
