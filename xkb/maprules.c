@@ -262,6 +262,7 @@ SetUpRemap(InputLine * line, RemapSpec * remap)
 {
     char *tok, *str;
     unsigned present, l_ndx_present, v_ndx_present;
+    register int i;
     int len, ndx;
     _Xstrtokparams strtok_buf;
     Bool found;
@@ -276,7 +277,7 @@ SetUpRemap(InputLine * line, RemapSpec * remap)
         str = NULL;
         if (strcmp(tok, "=") == 0)
             continue;
-        for (int i = 0; i < MAX_WORDS; i++) {
+        for (i = 0; i < MAX_WORDS; i++) {
             len = strlen(cname[i]);
             if (strncmp(cname[i], tok, len) == 0) {
                 if (strlen(tok) > len) {
@@ -322,7 +323,7 @@ SetUpRemap(InputLine * line, RemapSpec * remap)
         unsigned mask = PART_MASK;
 
         ErrorF("Mapping needs at least one of ");
-        for (int i = 0; (i < MAX_WORDS); i++) {
+        for (i = 0; (i < MAX_WORDS); i++) {
             if ((1L << i) & mask) {
                 mask &= ~(1L << i);
                 if (mask)
@@ -375,7 +376,7 @@ CheckLine(InputLine * line,
           RemapSpec * remap, XkbRF_RulePtr rule, XkbRF_GroupPtr group)
 {
     char *str, *tok;
-    register int nread;
+    register int nread, i;
     FileSpec tmp;
     _Xstrtokparams strtok_buf;
     Bool append = FALSE;
@@ -397,8 +398,6 @@ CheckLine(InputLine * line,
                 return FALSE;
             group->name = Xstrdup(gname);
             group->words = Xstrdup(words);
-
-            int i;
             for (i = 1, words = group->words; *words; words++) {
                 if (*words == ' ') {
                     *words++ = '\0';
@@ -462,7 +461,7 @@ CheckLine(InputLine * line,
     rule->geometry = Xstrdup(tmp.name[GEOMETRY]);
 
     rule->layout_num = rule->variant_num = 0;
-    for (int i = 0; i < nread; i++) {
+    for (i = 0; i < nread; i++) {
         if (remap->remap[i].index) {
             if (remap->remap[i].word == LAYOUT)
                 rule->layout_num = remap->remap[i].index;
@@ -490,7 +489,9 @@ _Concat(char *str1, const char *str2)
 static void
 squeeze_spaces(char *p1)
 {
-    for (char *p2 = p1; *p2; p2++) {
+    char *p2;
+
+    for (p2 = p1; *p2; p2++) {
         *p1 = *p2;
         if (*p1 != ' ')
             p1++;
@@ -516,6 +517,7 @@ MakeMultiDefs(XkbRF_MultiDefsPtr mdefs, XkbRF_VarDefsPtr defs)
         else {
             char *p;
             char *layout;
+            int i;
 
             layout = Xstrdup(defs->layout);
             if (layout == NULL)
@@ -523,7 +525,7 @@ MakeMultiDefs(XkbRF_MultiDefsPtr mdefs, XkbRF_VarDefsPtr defs)
             squeeze_spaces(layout);
             mdefs->layout[1] = layout;
             p = layout;
-            for (int i = 2; i <= XkbNumKbdGroups; i++) {
+            for (i = 2; i <= XkbNumKbdGroups; i++) {
                 if ((p = strchr(p, ','))) {
                     *p++ = '\0';
                     mdefs->layout[i] = p;
@@ -544,6 +546,7 @@ MakeMultiDefs(XkbRF_MultiDefsPtr mdefs, XkbRF_VarDefsPtr defs)
         else {
             char *p;
             char *variant;
+            int i;
 
             variant = Xstrdup(defs->variant);
             if (variant == NULL)
@@ -551,7 +554,7 @@ MakeMultiDefs(XkbRF_MultiDefsPtr mdefs, XkbRF_VarDefsPtr defs)
             squeeze_spaces(variant);
             mdefs->variant[1] = variant;
             p = variant;
-            for (int i = 2; i <= XkbNumKbdGroups; i++) {
+            for (i = 2; i <= XkbNumKbdGroups; i++) {
                 if ((p = strchr(p, ','))) {
                     *p++ = '\0';
                     mdefs->variant[i] = p;
