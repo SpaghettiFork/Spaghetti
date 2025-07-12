@@ -37,7 +37,6 @@
 #include <X11/Xproto.h>
 
 #include "xkb/xkbfmisc_priv.h"
-#include "xkb/xkbout_priv.h"
 
 #include "misc.h"
 #include "inputstr.h"
