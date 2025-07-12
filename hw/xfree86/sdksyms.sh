@@ -271,6 +271,7 @@ cat > sdksyms.c << EOF
 #include "window.h"
 #include "windowstr.h"
 #include "xace.h"
+#include "xkbfile.h"
 #include "xkbsrv.h"
 #include "xkbstr.h"
 #include "xkbrules.h"
