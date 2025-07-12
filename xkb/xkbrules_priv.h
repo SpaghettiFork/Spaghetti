@@ -18,6 +18,4 @@ Bool XkbRF_GetComponents(XkbRF_RulesPtr rules,
 
 Bool XkbRF_LoadRules(FILE *file, XkbRF_RulesPtr rules);
 
-XkbRF_RulesPtr XkbRF_Create(void);
-
 #endif /* _XSERVER_XKB_XKBRULES_PRIV_H */
