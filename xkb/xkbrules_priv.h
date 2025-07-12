@@ -6,7 +6,6 @@
 #define _XSERVER_XKB_XKBRULES_PRIV_H
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <X11/Xdefs.h>
 
 #include "include/xkbrules.h"
@@ -51,10 +50,7 @@ Bool XkbRF_GetComponents(XkbRF_RulesPtr rules,
 
 Bool XkbRF_LoadRules(FILE *file, XkbRF_RulesPtr rules);
 
-static inline XkbRF_RulesPtr XkbRF_Create(void)
-{
-    return calloc(1, sizeof(XkbRF_RulesRec));
-}
+XkbRF_RulesPtr XkbRF_Create(void);
 
 void XkbRF_Free(XkbRF_RulesPtr rules, Bool freeRules);
 
