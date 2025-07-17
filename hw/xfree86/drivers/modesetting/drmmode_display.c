@@ -1574,9 +1574,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
             output->funcs->dpms(output, DPMSModeOn);
         }
 
-        /* if we only tested the mode previously, really set it now */
-        if (can_test)
-            drmmode_crtc_set_mode(crtc, FALSE);
         ms->pending_modeset = FALSE;
     }
 
