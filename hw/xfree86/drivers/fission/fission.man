@@ -1,19 +1,19 @@
 .\" shorthand for double quote that works everywhere.
 .ds q \N'34'
-.TH MODESETTING @drivermansuffix@ @vendorversion@
+.TH FISSION @drivermansuffix@ @vendorversion@
 .SH NAME
-modesetting \- video driver for framebuffer device
+fission \- video driver for framebuffer device
 .SH SYNOPSIS
 .nf
 .B "Section \*qDevice\*q"
 .BI "  Identifier \*q"  devname \*q
-.B  "  Driver \*qmodesetting\*q"
+.B  "  Driver \*qfission\*q"
 .BI "  BusID  \*qpci:" bus : dev : func \*q
 \ \ ...
 .B EndSection
 .fi
 .SH DESCRIPTION
-.B modesetting
+.B fission
 is an @xservername@ driver for KMS devices.  This driver supports
 TrueColor visuals at framebuffer depths of 15, 16, 24, and 30. RandR
 1.2 is supported for multi-head configurations. Acceleration is available
@@ -23,9 +23,10 @@ KMS drivers' preference (unless the framebuffer is 24 bits per pixel, in
 which case the shadow framebuffer is always used).
 .SH SUPPORTED HARDWARE
 The
-.B modesetting
-driver supports all hardware where a KMS driver is available.
-modesetting uses the Linux DRM KMS ioctls and dumb object create/map.
+.B fission
+driver supports all hardware where an atomic
+modesetting capable KMS driver is available.
+fission uses the Linux DRM KMS ioctls and dumb object create/map.
 .SH CONFIGURATION DETAILS
 Please refer to
 .BR @xconfigfile@ (@filemansuffix@)
@@ -34,7 +35,7 @@ This section only covers configuration details specific to this driver.
 .PP
 For this driver it is not required to specify modes in the screen
 section of the config file.  The
-.B modesetting
+.B fission
 driver can pick up the currently used video mode from the kernel
 driver and will use it if there are no video modes configured.
 .PP
@@ -55,22 +56,8 @@ The framebuffer device to use. Default: /dev/dri/card0.
 .BI "Option \*qShadowFB\*q \*q" boolean \*q
 Enable or disable use of the shadow framebuffer layer.  Default: on.
 .TP
-.BI "Option \*qDoubleShadow\*q \*q" boolean \*q
-Double-buffer shadow updates. When enabled, the driver will keep two copies of
-the shadow framebuffer. When the shadow framebuffer is flushed, the old and new
-versions of the shadow are compared, and only tiles that have actually changed
-are uploaded to the device. This is an optimization for server-class GPUs with
-a remote display function (typically VNC), where remote updates are triggered
-by any framebuffer write, so minimizing the amount of data uploaded is crucial.
-This defaults to enabled for ASPEED and Matrox G200 devices, and disabled
-otherwise.
-.TP
 .BI "Option \*qAccelMethod\*q \*q" string \*q
 One of \*qglamor\*q or \*qnone\*q.  Default: glamor.
-.TP
-.BI "Option \*qPageFlip\*q \*q" boolean \*q
-Enable DRI3 page flipping.  The default is
-.B on.
 .TP
 .BI "Option \*qVariableRefresh\*q \*q" boolean \*q
 Enables support for enabling variable refresh on the Screen's CRTCs
@@ -94,16 +81,6 @@ preferrable results if the displays in a multi-display setup mirror or clone
 each other.  The default is
 .B off.
 .TP
-.BI "Option \*qZaphodHeads\*q \*q" string \*q
-Specify the RandR output(s) to use with zaphod mode for a particular driver
-instance.  If you use this option you must use this option for all instances
-of the driver.
-.br
-For example:
-.B
-Option \*qZaphodHeads\*q \*qLVDS,VGA-0\*q
-will assign xrandr outputs LVDS and VGA-0 to this instance of the driver.
-.TP
 .BI "Option \*qUseGammaLUT\*q \*q" boolean \*q
 Enable or disable use of the GAMMA_LUT property, when available.
 When enabled, this option allows the driver to use gamma ramps with more
@@ -121,14 +98,10 @@ applications will still have the discretion to not use tearing prevention.
 The default is
 .B on.
 .TP
-.BI "Option \*qAtomic\*q \*q" boolean \*q
-Enable atomic modesetting when supported.  The default is
-.B off.
-.TP
 .SH "SEE ALSO"
 .BR @xservername@ (@appmansuffix@),
 .BR @xconfigfile@ (@filemansuffix@),
 .BR Xserver (@appmansuffix@),
 .BR X (@miscmansuffix@)
 .SH AUTHORS
-Authors include: Dave Airlie
+Authors include: Dave Airlie, notbabaisyou

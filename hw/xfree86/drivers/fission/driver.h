@@ -59,14 +59,11 @@ typedef enum {
     OPTION_DEVICE_PATH,
     OPTION_SHADOW_FB,
     OPTION_ACCEL_METHOD,
-    OPTION_PAGEFLIP,
-    OPTION_ZAPHOD_HEADS,
-    OPTION_DOUBLE_SHADOW,
-    OPTION_ATOMIC,
     OPTION_VARIABLE_REFRESH,
     OPTION_USE_GAMMA_LUT,
     OPTION_ASYNC_FLIP_SECONDARIES,
     OPTION_TEARFREE,
+    OPTION_NO_LEGACY_FEATURES
 } modesettingOpts;
 
 typedef struct
@@ -103,15 +100,18 @@ struct ms_drm_queue {
 
 typedef struct _modesettingRec {
     int fd;
-    Bool fd_passed;
-
     int Chipset;
+
     EntityInfoPtr pEnt;
 
+    Bool fd_passed;
     Bool noAccel;
+
     CloseScreenProcPtr CloseScreen;
     CreateWindowProcPtr CreateWindow;
+
     unsigned int SaveGeneration;
+    Bool no_legacy;
 
     CreateScreenResourcesProcPtr createScreenResources;
     ScreenBlockHandlerProcPtr BlockHandler;
@@ -126,8 +126,6 @@ typedef struct _modesettingRec {
      * Page flipping stuff.
      *  @{
      */
-    Bool atomic_modeset_capable;
-    Bool atomic_modeset;
     Bool pending_modeset;
     /** @} */
 

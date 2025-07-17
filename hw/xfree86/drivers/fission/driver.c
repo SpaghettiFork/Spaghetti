@@ -115,9 +115,9 @@ static Bool ms_platform_probe(DriverPtr driver,
                               intptr_t match_data);
 #endif
 
-_X_EXPORT DriverRec modesetting = {
+_X_EXPORT DriverRec fission = {
     1,
-    "modesetting",
+    "fission",
     Identify,
     Probe,
     AvailableOptions,
@@ -141,14 +141,11 @@ static const OptionInfoRec Options[] = {
     {OPTION_DEVICE_PATH, "kmsdev", OPTV_STRING, {0}, FALSE},
     {OPTION_SHADOW_FB, "ShadowFB", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_ACCEL_METHOD, "AccelMethod", OPTV_STRING, {0}, FALSE},
-    {OPTION_PAGEFLIP, "PageFlip", OPTV_BOOLEAN, {0}, FALSE},
-    {OPTION_ZAPHOD_HEADS, "ZaphodHeads", OPTV_STRING, {0}, FALSE},
-    {OPTION_DOUBLE_SHADOW, "DoubleShadow", OPTV_BOOLEAN, {0}, FALSE},
-    {OPTION_ATOMIC, "Atomic", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_VARIABLE_REFRESH, "VariableRefresh", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_USE_GAMMA_LUT, "UseGammaLUT", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_ASYNC_FLIP_SECONDARIES, "AsyncFlipSecondaries", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_TEARFREE, "TearFree", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_NO_LEGACY_FEATURES, "NoLegacy", OPTV_BOOLEAN, {0}, FALSE},
     {-1, NULL, OPTV_NONE, {0}, FALSE}
 };
 
@@ -157,7 +154,7 @@ int ms_entity_index = -1;
 static MODULESETUPPROTO(Setup);
 
 static XF86ModuleVersionInfo VersRec = {
-    .modname      = "modesetting",
+    .modname      = "fission",
     .vendor       = MODULEVENDORSTRING,
     ._modinfo1_   = MODINFOSTRING1,
     ._modinfo2_   = MODINFOSTRING2,
@@ -184,7 +181,7 @@ Setup(void *module, void *opts, int *errmaj, int *errmin)
      */
     if (!setupDone) {
         setupDone = 1;
-        xf86AddDriver(&modesetting, module, HaveDriverFuncs);
+        xf86AddDriver(&fission, module, HaveDriverFuncs);
 
         /*
          * The return value must be non-NULL on success even though there
@@ -202,7 +199,7 @@ Setup(void *module, void *opts, int *errmaj, int *errmin)
 static void
 Identify(int flags)
 {
-    xf86PrintChipsets("modesetting", "Driver for Modesetting Kernel Drivers",
+    xf86PrintChipsets("fission", "Driver for Atomic Modesetting Kernel Drivers",
                       Chipsets);
 }
 
@@ -367,7 +364,7 @@ static void
 ms_setup_scrn_hooks(ScrnInfoPtr scrn)
 {
     scrn->driverVersion = 1;
-    scrn->driverName = "modesetting";
+    scrn->driverName = "fission";
     scrn->name = "modeset";
 
     scrn->Probe = NULL;
@@ -481,7 +478,7 @@ Probe(DriverPtr drv, int flags)
      * Find the config file Device sections that match this
      * driver, and return if there are none.
      */
-    if ((numDevSections = xf86MatchDevice("modesetting", &devSections)) <= 0) {
+    if ((numDevSections = xf86MatchDevice("fission", &devSections)) <= 0) {
         return FALSE;
     }
 
@@ -1190,40 +1187,6 @@ try_enable_glamor(ScrnInfoPtr pScrn)
 }
 
 static Bool
-msShouldDoubleShadow(ScrnInfoPtr pScrn, modesettingPtr ms)
-{
-    Bool ret = FALSE, asked;
-    int from;
-    drmVersionPtr v;
-
-    if (!ms->drmmode.shadow_enable)
-        return FALSE;
-
-    if ((v = drmGetVersion(ms->fd))) {
-        if (!strcmp(v->name, "mgag200") ||
-            !strcmp(v->name, "ast")) /* XXX || rn50 */
-            ret = TRUE;
-
-        drmFreeVersion(v);
-    }
-    else
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "Failed to query DRM version.\n");
-
-    asked = xf86GetOptValBool(ms->drmmode.Options, OPTION_DOUBLE_SHADOW, &ret);
-
-    if (asked)
-        from = X_CONFIG;
-    else
-        from = X_INFO;
-
-    xf86DrvMsg(pScrn->scrnIndex, from,
-               "Double-buffered shadow updates: %s\n", ret ? "on" : "off");
-
-    return ret;
-}
-
-static Bool
 ms_get_drm_master_fd(ScrnInfoPtr pScrn)
 {
     EntityInfoPtr pEnt;
@@ -1391,6 +1354,10 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         ms->drmmode.sw_cursor = TRUE;
     }
 
+    if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_NO_LEGACY_FEATURES, FALSE)) {
+        ms->no_legacy = TRUE;
+    }
+
     ms->max_cursor_width = 64;
     ms->max_cursor_height = 64;
     ret = drmGetCap(ms->fd, DRM_CAP_CURSOR_WIDTH, &value);
@@ -1426,8 +1393,6 @@ PreInit(ScrnInfoPtr pScrn, int flags)
                    prefer_shadow ? "YES" : "NO",
                    ms->drmmode.force_24_32 ? "FORCE" :
                    ms->drmmode.shadow_enable ? "YES" : "NO");
-
-        ms->drmmode.shadow_enable2 = msShouldDoubleShadow(pScrn, ms);
     } else {
         if (!pScrn->is_gpu) {
             MessageType from = xf86GetOptValBool(ms->drmmode.Options, OPTION_VARIABLE_REFRESH,
@@ -1443,9 +1408,6 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         }
     }
 
-    ms->drmmode.pageflip =
-        xf86ReturnOptValBool(ms->drmmode.Options, OPTION_PAGEFLIP, TRUE);
-
     pScrn->capabilities = 0;
     ret = drmGetCap(ms->fd, DRM_CAP_PRIME, &value);
     if (ret == 0) {
@@ -1460,24 +1422,24 @@ PreInit(ScrnInfoPtr pScrn, int flags)
 #endif
     }
 
-    /*
-     * Use "atomic modesetting disable" request to detect if the kms driver is
-     * atomic capable, regardless if we will actually use atomic modesetting.
-     * This is effectively a no-op, we only care about the return status code.
-     */
-    ret = drmSetClientCap(ms->fd, DRM_CLIENT_CAP_ATOMIC, 0);
-    ms->atomic_modeset_capable = (ret == 0);
-
-    if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_ATOMIC, FALSE)) {
-        ret = drmSetClientCap(ms->fd, DRM_CLIENT_CAP_ATOMIC, 2);
-        ms->atomic_modeset = (ret == 0);
-        if (!ms->atomic_modeset)
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING, "Atomic modesetting not supported\n");
-    } else {
-        ms->atomic_modeset = FALSE;
+    ret = drmSetClientCap(ms->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
+    if (ret)
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "Universal planes are not available, bailing.\n");
+        goto fail;
     }
-    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-               "Atomic modesetting %sabled\n", ms->atomic_modeset ? "en" : "dis");
+
+    /*
+     * Enable atomic modesetting as this is the only supported mode here.
+     */
+    ret = drmSetClientCap(ms->fd, DRM_CLIENT_CAP_ATOMIC, 2);
+    if (ret)
+    {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+            "Atomic modesetting is not available, bailing.\n");
+        goto fail;
+    }
 
     /* TearFree requires glamor and, if PageFlip is enabled, universal planes */
     if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_TEARFREE, TRUE)) {
@@ -1485,15 +1447,8 @@ PreInit(ScrnInfoPtr pScrn, int flags)
             xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                        "TearFree cannot synchronize PRIME; use 'PRIME Synchronization' instead\n");
         } else if (ms->drmmode.glamor) {
-            /* Atomic modesetting implicitly enables universal planes */
-            if (!ms->drmmode.pageflip || ms->atomic_modeset ||
-                !drmSetClientCap(ms->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
-                ms->drmmode.tearfree_enable = TRUE;
-                xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TearFree: enabled\n");
-            } else {
-                xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                           "TearFree requires either universal planes, or setting 'Option \"PageFlip\" \"off\"'\n");
-            }
+            ms->drmmode.tearfree_enable = TRUE;
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TearFree: enabled\n");
         } else {
             xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                        "TearFree requires Glamor acceleration\n");
@@ -1571,84 +1526,12 @@ msShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
 /* somewhat arbitrary tile size, in pixels */
 #define TILE 16
 
-static int
-msUpdateIntersect(modesettingPtr ms, shadowBufPtr pBuf, BoxPtr box,
-                  xRectangle *prect)
-{
-    int i, dirty = 0, stride = pBuf->pPixmap->devKind, cpp = ms->drmmode.cpp;
-    int width = (box->x2 - box->x1) * cpp;
-    unsigned char *old, *new;
-
-    old = ms->drmmode.shadow_fb2;
-    old += (box->y1 * stride) + (box->x1 * cpp);
-    new = ms->drmmode.shadow_fb;
-    new += (box->y1 * stride) + (box->x1 * cpp);
-
-    for (i = box->y2 - box->y1 - 1; i >= 0; i--) {
-        unsigned char *o = old + i * stride,
-                      *n = new + i * stride;
-        if (memcmp(o, n, width) != 0) {
-            dirty = 1;
-            memcpy(o, n, width);
-        }
-    }
-
-    if (dirty) {
-        prect->x = box->x1;
-        prect->y = box->y1;
-        prect->width = box->x2 - box->x1;
-        prect->height = box->y2 - box->y1;
-    }
-
-    return dirty;
-}
-
 static void
 msUpdatePacked(ScreenPtr pScreen, shadowBufPtr pBuf)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     modesettingPtr ms = modesettingPTR(pScrn);
     Bool use_3224 = ms->drmmode.force_24_32 && pScrn->bitsPerPixel == 32;
-
-    if (ms->drmmode.shadow_enable2 && ms->drmmode.shadow_fb2) do {
-        RegionPtr damage = DamageRegion(pBuf->pDamage), tiles;
-        BoxPtr extents = RegionExtents(damage);
-        xRectangle *prect;
-        int nrects;
-        int i, j, tx1, tx2, ty1, ty2;
-
-        tx1 = extents->x1 / TILE;
-        tx2 = (extents->x2 + TILE - 1) / TILE;
-        ty1 = extents->y1 / TILE;
-        ty2 = (extents->y2 + TILE - 1) / TILE;
-
-        nrects = (tx2 - tx1) * (ty2 - ty1);
-        if (!(prect = calloc(nrects, sizeof(xRectangle))))
-            break;
-
-        nrects = 0;
-        for (j = ty2 - 1; j >= ty1; j--) {
-            for (i = tx2 - 1; i >= tx1; i--) {
-                BoxRec box;
-
-                box.x1 = max(i * TILE, extents->x1);
-                box.y1 = max(j * TILE, extents->y1);
-                box.x2 = min((i+1) * TILE, extents->x2);
-                box.y2 = min((j+1) * TILE, extents->y2);
-
-                if (RegionContainsRect(damage, &box) != rgnOUT) {
-                    if (msUpdateIntersect(ms, pBuf, &box, prect + nrects)) {
-                        nrects++;
-                    }
-                }
-            }
-        }
-
-        tiles = RegionFromRects(nrects, prect, CT_NONE);
-        RegionIntersect(damage, damage, tiles);
-        RegionDestroy(tiles);
-        free(prect);
-    } while (0);
 
     if (use_3224)
         ms->shadow.Update32to24(pScreen, pBuf);
@@ -1665,10 +1548,6 @@ msEnableSharedPixmapFlipping(RRCrtcPtr crtc, PixmapPtr front, PixmapPtr back)
     xf86CrtcPtr xf86Crtc = crtc->devPrivate;
 
     if (!xf86Crtc)
-        return FALSE;
-
-    /* Not supported if we can't flip */
-    if (!ms->drmmode.pageflip)
         return FALSE;
 
     /* Not currently supported with reverse PRIME */
@@ -1828,12 +1707,6 @@ CreateScreenResources(ScreenPtr pScreen)
 
     if (ms->drmmode.shadow_enable)
         pixels = ms->drmmode.shadow_fb;
-
-    if (ms->drmmode.shadow_enable2) {
-        ms->drmmode.shadow_fb2 = calloc(1, pScrn->displayWidth * pScrn->virtualY * ((pScrn->bitsPerPixel + 7) >> 3));
-        if (!ms->drmmode.shadow_fb2)
-            ms->drmmode.shadow_enable2 = FALSE;
-    }
 
     if (!pScreen->ModifyPixmapHeader(rootPixmap, -1, -1, -1, -1, -1, pixels))
         FatalError("Couldn't adjust screen pixmap\n");
@@ -2121,20 +1994,17 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     xf86SetSilkenMouse(pScreen);
     miDCInitialize(pScreen, xf86GetPointerScreenFuncs());
 
-    /* If pageflip is enabled hook the screen's cursor-sprite (swcursor) funcs.
-     * So that we can disable page-flipping on fallback to a swcursor. */
-    if (ms->drmmode.pageflip) {
-        miPointerScreenPtr PointPriv =
-            dixLookupPrivate(&pScreen->devPrivates, miPointerScreenKey);
+    /* Pageflipping is always enabled. */
+    miPointerScreenPtr PointPriv =
+        dixLookupPrivate(&pScreen->devPrivates, miPointerScreenKey);
 
-        if (!dixRegisterScreenPrivateKey(&ms->drmmode.spritePrivateKeyRec,
-                                         pScreen, PRIVATE_DEVICE,
-                                         sizeof(msSpritePrivRec)))
-            return FALSE;
+    if (!dixRegisterScreenPrivateKey(&ms->drmmode.spritePrivateKeyRec,
+                                     pScreen, PRIVATE_DEVICE,
+                                     sizeof(msSpritePrivRec)))
+        return FALSE;
 
-        ms->SpriteFuncs = PointPriv->spriteFuncs;
-        PointPriv->spriteFuncs = &drmmode_sprite_funcs;
-    }
+    ms->SpriteFuncs = PointPriv->spriteFuncs;
+    PointPriv->spriteFuncs = &drmmode_sprite_funcs;
 
     /* Need to extend HWcursor support to handle mask interleave */
     if (!ms->drmmode.sw_cursor)
@@ -2177,10 +2047,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if (!drmmode_setup_colormap(pScreen, pScrn))
         return FALSE;
 
-    if (ms->atomic_modeset)
-        xf86DPMSInit(pScreen, drmmode_set_dpms, 0);
-    else
-        xf86DPMSInit(pScreen, xf86DPMSSet, 0);
+    xf86DPMSInit(pScreen, drmmode_set_dpms, 0);
 
 #ifdef GLAMOR_HAS_GBM
     if (ms->drmmode.glamor) {
@@ -2206,9 +2073,17 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef GLAMOR_HAS_GBM
     if (ms->drmmode.glamor) {
-        if (!(ms->drmmode.dri2_enable = ms_dri2_screen_init(pScreen))) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                       "Failed to initialize the DRI2 extension.\n");
+        if (ms->no_legacy)
+        {
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+                           "DRI2 extension was not initialized.\n");
+        }
+        else
+        {
+            if (!(ms->drmmode.dri2_enable = ms_dri2_screen_init(pScreen))) {
+                xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                           "Failed to initialize the DRI2 extension.\n");
+            }
         }
 
         /* enable reverse prime if we are a GPU screen, and accelerated, and not
@@ -2360,21 +2235,17 @@ CloseScreen(ScreenPtr pScreen)
         ms->shadow.Remove(pScreen, pScreen->GetScreenPixmap(pScreen));
         free(ms->drmmode.shadow_fb);
         ms->drmmode.shadow_fb = NULL;
-        free(ms->drmmode.shadow_fb2);
-        ms->drmmode.shadow_fb2 = NULL;
     }
 
     drmmode_uevent_fini(pScrn, &ms->drmmode);
 
     drmmode_free_bos(pScrn, &ms->drmmode);
 
-    if (ms->drmmode.pageflip) {
-        miPointerScreenPtr PointPriv =
-            dixLookupPrivate(&pScreen->devPrivates, miPointerScreenKey);
+    miPointerScreenPtr PointPriv =
+        dixLookupPrivate(&pScreen->devPrivates, miPointerScreenKey);
 
-        if (PointPriv->spriteFuncs == &drmmode_sprite_funcs)
-            PointPriv->spriteFuncs = ms->SpriteFuncs;        
-    }
+    if (PointPriv->spriteFuncs == &drmmode_sprite_funcs)
+        PointPriv->spriteFuncs = ms->SpriteFuncs;
 
     if (pScrn->vtSema) {
         LeaveVT(pScrn);

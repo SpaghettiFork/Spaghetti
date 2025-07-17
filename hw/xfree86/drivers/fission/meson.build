@@ -1,4 +1,4 @@
-modesetting_srcs = [
+fission_srcs = [
     'dri2.c',
     'driver.c',
     'drmmode_display.c',
@@ -9,8 +9,8 @@ modesetting_srcs = [
 ]
 
 shared_module(
-    'modesetting_drv',
-    modesetting_srcs,
+    'fission_drv',
+    fission_srcs,
     name_prefix: '',
 
     include_directories: [inc, xorg_inc],
@@ -35,15 +35,15 @@ symbol_test_args += join_paths(xorg_build_root, 'dixmods', 'libglx.so')
 if gbm_dep.found()
     symbol_test_args += join_paths(xorg_build_root, 'glamor_egl', 'libglamoregl.so')
 endif
-symbol_test_args += join_paths(xorg_build_root, 'drivers', 'modesetting', 'modesetting_drv.so')
+symbol_test_args += join_paths(xorg_build_root, 'drivers', 'fission', 'fission_drv.so')
 
 install_man(configure_file(
-    input: 'modesetting.man',
-    output: 'modesetting.4',
+    input: 'fission.man',
+    output: 'fission.4',
     configuration: manpage_config,
 ))
 
-test('modesetting symbol test',
+test('fission symbol test',
     xorg_symbol_test,
     args: symbol_test_args,
 )
