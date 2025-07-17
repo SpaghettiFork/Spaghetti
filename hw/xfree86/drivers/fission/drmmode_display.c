@@ -483,7 +483,6 @@ drmmode_ConvertToKMode(ScrnInfoPtr scrn,
 static int
 drmmode_atomic_add_property(drmModeAtomicReqPtr req, uint32_t obj, uint32_t prop, uint64_t value)
 {
-    ErrorF("Adding to %p: %x %x %lx\n", req, obj, prop, value);
     return drmModeAtomicAddProperty(req, obj, prop, value);
 }
 
