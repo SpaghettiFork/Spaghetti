@@ -167,7 +167,7 @@ static XF86ModuleVersionInfo VersRec = {
     .moduleclass  = MOD_CLASS_VIDEODRV,
 };
 
-_X_EXPORT XF86ModuleData modesettingModuleData = {
+_X_EXPORT XF86ModuleData fissionModuleData = {
     .vers = &VersRec,
     .setup = Setup
 };
