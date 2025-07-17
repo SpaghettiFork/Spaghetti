@@ -62,7 +62,6 @@ typedef enum {
     OPTION_PAGEFLIP,
     OPTION_ZAPHOD_HEADS,
     OPTION_DOUBLE_SHADOW,
-    OPTION_ATOMIC,
     OPTION_VARIABLE_REFRESH,
     OPTION_USE_GAMMA_LUT,
     OPTION_ASYNC_FLIP_SECONDARIES,
@@ -127,7 +126,6 @@ typedef struct _modesettingRec {
      *  @{
      */
     Bool atomic_modeset_capable;
-    Bool atomic_modeset;
     Bool pending_modeset;
     /** @} */
 
