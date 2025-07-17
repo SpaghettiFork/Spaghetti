@@ -268,7 +268,7 @@ get_drawable_modifiers(DrawablePtr draw, uint32_t format,
     Bool async_flip;
 
     if (!present_can_window_flip((WindowPtr) draw) ||
-        !ms->drmmode.pageflip || ms->drmmode.dri2_flipping || !scrn->vtSema) {
+        ms->drmmode.dri2_flipping || !scrn->vtSema) {
         *num_modifiers = 0;
         *modifiers = NULL;
         return TRUE;
@@ -282,27 +282,6 @@ get_drawable_modifiers(DrawablePtr draw, uint32_t format,
     return TRUE;
 }
 #endif
-
-static Bool
-drmmode_zaphod_string_matches(ScrnInfoPtr scrn, const char *s, char *output_name)
-{
-    char **token = xstrtokenize(s, ", \t\n\r");
-    Bool ret = FALSE;
-
-    if (!token)
-        return FALSE;
-
-    for (int i = 0; token[i]; i++) {
-        if (strcmp(token[i], output_name) == 0)
-            ret = TRUE;
-
-        free(token[i]);
-    }
-
-    free(token);
-
-    return ret;
-}
 
 static uint64_t
 drmmode_prop_get_value(drmmode_prop_info_ptr info,
@@ -485,6 +464,13 @@ drmmode_ConvertToKMode(ScrnInfoPtr scrn,
 
 
 static int
+drmmode_atomic_add_property(drmModeAtomicReqPtr req, uint32_t obj, uint32_t prop, uint64_t value)
+{
+    ErrorF("Adding to %p: %x %x %lx\n", req, obj, prop, value);
+    return drmModeAtomicAddProperty(req, obj, prop, value);
+}
+
+static int
 plane_add_prop(drmModeAtomicReq *req, drmmode_crtc_private_ptr drmmode_crtc,
                enum drmmode_plane_property prop, uint64_t val)
 {
@@ -494,7 +480,7 @@ plane_add_prop(drmModeAtomicReq *req, drmmode_crtc_private_ptr drmmode_crtc,
     if (!info)
         return -1;
 
-    ret = drmModeAtomicAddProperty(req, drmmode_crtc->plane_id,
+    ret = drmmode_atomic_add_property(req, drmmode_crtc->plane_id,
                                    info->prop_id, val);
     return (ret <= 0) ? -1 : 0;
 }
@@ -536,7 +522,7 @@ crtc_add_prop(drmModeAtomicReq *req, drmmode_crtc_private_ptr drmmode_crtc,
     if (!info)
         return -1;
 
-    ret = drmModeAtomicAddProperty(req, drmmode_crtc->mode_crtc->crtc_id,
+    ret = drmmode_atomic_add_property(req, drmmode_crtc->mode_crtc->crtc_id,
                                    info->prop_id, val);
     return (ret <= 0) ? -1 : 0;
 }
@@ -551,7 +537,7 @@ connector_add_prop(drmModeAtomicReq *req, drmmode_output_private_ptr drmmode_out
     if (!info)
         return -1;
 
-    ret = drmModeAtomicAddProperty(req, drmmode_output->output_id,
+    ret = drmmode_atomic_add_property(req, drmmode_output->output_id,
                                    info->prop_id, val);
     return (ret <= 0) ? -1 : 0;
 }
@@ -657,14 +643,6 @@ drm_mode_destroy(xf86CrtcPtr crtc, drmmode_mode_ptr mode)
     free(mode);
 }
 
-static int
-drmmode_crtc_can_test_mode(xf86CrtcPtr crtc)
-{
-    modesettingPtr ms = modesettingPTR(crtc->scrn);
-
-    return ms->atomic_modeset;
-}
-
 Bool
 drmmode_crtc_get_fb_id(xf86CrtcPtr crtc, uint32_t *fb_id, int *x, int *y)
 {
@@ -722,8 +700,6 @@ drmmode_set_dpms(ScrnInfoPtr scrn, int dpms, int flags)
     int ret = 0;
     int i;
 
-    assert(ms->atomic_modeset);
-
     if (!req)
         return;
 
@@ -766,30 +742,49 @@ drmmode_set_dpms(ScrnInfoPtr scrn, int dpms, int flags)
 }
 
 static int
-drmmode_output_disable(xf86OutputPtr output)
+drmmode_output_dpms_atomic(xf86OutputPtr output, int mode)
 {
     modesettingPtr ms = modesettingPTR(output->scrn);
     drmmode_output_private_ptr drmmode_output = output->driver_private;
     xf86CrtcPtr crtc = drmmode_output->current_crtc;
-    drmModeAtomicReq *req = drmModeAtomicAlloc();
+    drmModeAtomicReq *req;
     uint32_t flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
     int ret = 0;
 
-    assert(ms->atomic_modeset);
+    if (mode == DPMSModeOn && !crtc)
+        return 1;
+
+    req = drmModeAtomicAlloc();
 
     if (!req)
         return 1;
 
-    ret |= connector_add_prop(req, drmmode_output,
-                              DRMMODE_CONNECTOR_CRTC_ID, 0);
     if (crtc)
-        ret |= crtc_add_dpms_props(req, crtc, DPMSModeOff, NULL);
+        ret |= crtc_add_dpms_props(req, crtc, mode, NULL);
+
+    if (mode == DPMSModeOn) {
+        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+        drmModeModeInfo kmode;
+
+        drmmode_ConvertToKMode(crtc->scrn, &kmode, &crtc->mode);
+        ret |= drm_mode_ensure_blob(crtc, &kmode);
+
+        ret |= connector_add_prop(req, drmmode_output,
+                                  DRMMODE_CONNECTOR_CRTC_ID,
+                                  drmmode_crtc->mode_crtc->crtc_id);
+        ret |= crtc_add_prop(req, drmmode_crtc,
+                             DRMMODE_CRTC_ACTIVE, 1);
+        ret |= crtc_add_prop(req, drmmode_crtc,
+                             DRMMODE_CRTC_MODE_ID,
+                             drmmode_crtc->current_mode->blob_id);
+    } else {
+        ret |= connector_add_prop(req, drmmode_output,
+                                  DRMMODE_CONNECTOR_CRTC_ID, 0);
+    }
+
 
     if (ret == 0)
         ret = drmModeAtomicCommit(ms->fd, req, flags, NULL);
-
-    if (ret == 0)
-        drmmode_output->current_crtc = NULL;
 
     drmModeAtomicFree(req);
     return ret;
@@ -803,8 +798,6 @@ drmmode_crtc_disable(xf86CrtcPtr crtc)
     drmModeAtomicReq *req = drmModeAtomicAlloc();
     uint32_t flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
     int ret = 0;
-
-    assert(ms->atomic_modeset);
 
     if (!req)
         return 1;
@@ -855,81 +848,70 @@ drmmode_set_ctm(xf86CrtcPtr crtc, const struct drm_color_ctm *ctm)
 }
 
 static int
-drmmode_crtc_set_mode(xf86CrtcPtr crtc, Bool test_only)
+drmmode_set_mode_atomic(ScrnInfoPtr scrn, modesettingPtr ms, Bool test_only)
 {
-    modesettingPtr ms = modesettingPTR(crtc->scrn);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(crtc->scrn);
-    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    drmmode_ptr drmmode = drmmode_crtc->drmmode;
-    drmModeModeInfo kmode;
-    int output_count = 0;
-    uint32_t *output_ids = NULL;
-    uint32_t fb_id;
-    int x, y;
-    int i, ret = 0;
-    const struct drm_color_ctm *ctm = NULL;
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+    drmModeAtomicReq *req;
+    uint32_t flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
+    int i, j, ret = 0;
 
-    if (!drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y))
+    req = drmModeAtomicAlloc();
+    if (!req)
         return 1;
 
-#ifdef GLAMOR_HAS_GBM
-    /* Make sure any pending drawing will be visible in a new scanout buffer */
-    if (drmmode->glamor)
-        glamor_finish(crtc->scrn->pScreen);
-#endif
+    for (i = 0; i < xf86_config->num_crtc; i++) {
+        xf86CrtcPtr crtc = xf86_config->crtc[i];
+        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+        Bool active = crtc->enabled;
+        uint32_t fb_id;
+        int x, y;
+        drmModeModeInfo kmode;
 
-    if (ms->atomic_modeset) {
-        drmModeAtomicReq *req = drmModeAtomicAlloc();
-        Bool active;
-        uint32_t flags = DRM_MODE_ATOMIC_ALLOW_MODESET;
+        if (active) {
+            /* XXX this probably doesn't belong here */
+            if (test_only && !crtc->mode.HDisplay)
+                memcpy(&crtc->mode, &crtc->desiredMode, sizeof(crtc->mode));
 
-        if (!req)
-            return 1;
-
-        ret |= crtc_add_dpms_props(req, crtc, DPMSModeOn, &active);
-        ret |= plane_add_props(req, crtc, active ? fb_id : 0, x, y);
-
-        /* Orphaned CRTCs need to be disabled right now in atomic mode */
-        for (i = 0; i < xf86_config->num_crtc; i++) {
-            xf86CrtcPtr other_crtc = xf86_config->crtc[i];
-            drmmode_crtc_private_ptr other_drmmode_crtc = other_crtc->driver_private;
-            int lost_outputs = 0;
-            int remaining_outputs = 0;
-            int j;
-
-            if (other_crtc == crtc)
-                continue;
-
-            for (j = 0; j < xf86_config->num_output; j++) {
-                xf86OutputPtr output = xf86_config->output[j];
-                drmmode_output_private_ptr drmmode_output = output->driver_private;
-
-                if (drmmode_output->current_crtc == other_crtc) {
-                    if (output->crtc == crtc)
-                        lost_outputs++;
-                    else
-                        remaining_outputs++;
-                }
-            }
-
-            if (lost_outputs > 0 && remaining_outputs == 0) {
-                ret |= crtc_add_prop(req, other_drmmode_crtc,
-                                     DRMMODE_CRTC_ACTIVE, 0);
-                ret |= crtc_add_prop(req, other_drmmode_crtc,
-                                     DRMMODE_CRTC_MODE_ID, 0);
-            }
+            drmmode_ConvertToKMode(crtc->scrn, &kmode, &crtc->mode);
+            ret |= drm_mode_ensure_blob(crtc, &kmode);
         }
 
-        if (test_only)
-            flags |= DRM_MODE_ATOMIC_TEST_ONLY;
+        ret |= !drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y);
+        ret |= crtc_add_prop(req, drmmode_crtc,
+                             DRMMODE_CRTC_ACTIVE, active);
+        ret |= crtc_add_prop(req, drmmode_crtc,
+                             DRMMODE_CRTC_MODE_ID,
+                             active ? drmmode_crtc->current_mode->blob_id : 0);
+        ret |= plane_add_props(req, crtc, active ? fb_id : 0, x, y);
+    }
 
-        if (ret == 0)
-            ret = drmModeAtomicCommit(ms->fd, req, flags, NULL);
+    for (i = 0; i < xf86_config->num_output; i++) {
+        xf86OutputPtr output = xf86_config->output[i];
+        drmmode_output_private_ptr drmmode_output = output->driver_private;
+        drmmode_crtc_private_ptr drm_crtc =
+            output->crtc ? output->crtc->driver_private : NULL;
 
-        if (ret == 0 && !test_only) {
-            for (i = 0; i < xf86_config->num_output; i++) {
-                xf86OutputPtr output = xf86_config->output[i];
-                drmmode_output_private_ptr drmmode_output = output->driver_private;
+        if (drmmode_output->output_id == -1)
+            continue;
+
+        ret |= connector_add_prop(req, drmmode_output,
+                                  DRMMODE_CONNECTOR_CRTC_ID,
+                                  drm_crtc ? drm_crtc->mode_crtc->crtc_id : 0);
+    }
+
+    if (test_only)
+        flags |= DRM_MODE_ATOMIC_TEST_ONLY;
+
+    if (ret == 0)
+        ret = drmModeAtomicCommit(ms->fd, req, flags, NULL);
+
+    if (ret == 0 && !test_only) {
+        for (i = 0; i < xf86_config->num_crtc; i++) {
+            xf86CrtcPtr crtc = xf86_config->crtc[i];
+            for (j = 0; i < xf86_config->num_output; i++) {
+                xf86OutputPtr output = xf86_config->output[j];
+                drmmode_output_private_ptr drmmode_output =
+                    output->driver_private;
 
                 if (output->crtc == crtc)
                     drmmode_output->current_crtc = crtc;
@@ -937,43 +919,18 @@ drmmode_crtc_set_mode(xf86CrtcPtr crtc, Bool test_only)
                     drmmode_output->current_crtc = NULL;
             }
         }
-
-        drmModeAtomicFree(req);
-        return ret;
     }
 
-    output_ids = calloc(xf86_config->num_output, sizeof(uint32_t));
-    if (!output_ids)
-        return -1;
-
-    for (i = 0; i < xf86_config->num_output; i++) {
-        xf86OutputPtr output = xf86_config->output[i];
-        drmmode_output_private_ptr drmmode_output;
-
-        if (output->crtc != crtc)
-            continue;
-
-        drmmode_output = output->driver_private;
-        if (drmmode_output->output_id == -1)
-            continue;
-        output_ids[output_count] = drmmode_output->output_id;
-        output_count++;
-
-        ctm = &drmmode_output->ctm;
-    }
-
-    drmmode_ConvertToKMode(crtc->scrn, &kmode, &crtc->mode);
-    ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                         fb_id, x, y, output_ids, output_count, &kmode);
-    if (!ret && !ms->atomic_modeset) {
-        drmmode_crtc->src_x = x;
-        drmmode_crtc->src_y = y;
-    }
-
-    drmmode_set_ctm(crtc, ctm);
-
-    free(output_ids);
+    drmModeAtomicFree(req);
     return ret;
+}
+
+static int
+drmmode_crtc_set_mode(xf86CrtcPtr crtc, Bool test_only)
+{
+    modesettingPtr ms = modesettingPTR(crtc->scrn);
+
+    return drmmode_set_mode_atomic(crtc->scrn, ms, test_only);
 }
 
 int
@@ -981,45 +938,20 @@ drmmode_crtc_flip(xf86CrtcPtr crtc, uint32_t fb_id, int x, int y,
                   uint32_t flags, void *data)
 {
     modesettingPtr ms = modesettingPTR(crtc->scrn);
-    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    int ret;
+    drmModeAtomicReq *req = drmModeAtomicAlloc();
 
-    if (ms->atomic_modeset) {
-        drmModeAtomicReq *req = drmModeAtomicAlloc();
+    if (!req)
+        return 1;
 
-        if (!req)
-            return 1;
+    int ret = plane_add_props(req, crtc, fb_id, x, y);
 
-        ret = plane_add_props(req, crtc, fb_id, x, y);
-        flags |= DRM_MODE_ATOMIC_NONBLOCK;
-        if (ret == 0)
-            ret = drmModeAtomicCommit(ms->fd, req, flags, data);
-        drmModeAtomicFree(req);
-        return ret;
-    }
+    flags |= DRM_MODE_ATOMIC_NONBLOCK;
 
-    /* The frame buffer source coordinates may change when switching between the
-     * primary frame buffer and a per-CRTC frame buffer. Set the correct source
-     * coordinates if they differ for this flip.
-     */
-    if (drmmode_crtc->src_x != x || drmmode_crtc->src_y != y) {
-        ret = drmModeSetPlane(ms->fd, drmmode_crtc->plane_id,
-                              drmmode_crtc->mode_crtc->crtc_id, fb_id, 0,
-                              0, 0, crtc->mode.HDisplay, crtc->mode.VDisplay,
-                              x << 16, y << 16, crtc->mode.HDisplay << 16,
-                              crtc->mode.VDisplay << 16);
-        if (ret) {
-            xf86DrvMsg(crtc->scrn->scrnIndex, X_WARNING,
-                       "error changing fb src coordinates for flip: %d\n", ret);
-            return ret;
-        }
+    if (ret == 0)
+        ret = drmModeAtomicCommit(ms->fd, req, flags, data);
 
-        drmmode_crtc->src_x = x;
-        drmmode_crtc->src_y = y;
-    }
-
-    return drmModePageFlip(ms->fd, drmmode_crtc->mode_crtc->crtc_id,
-                           fb_id, flags, data);
+    drmModeAtomicFree(req);
+    return ret;
 }
 
 int
@@ -1488,19 +1420,13 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 {
     modesettingPtr ms = modesettingPTR(crtc->scrn);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
     /* XXX Check if DPMS mode is already the right one */
 
     drmmode_crtc->dpms_mode = mode;
 
-    if (ms->atomic_modeset) {
-        if (mode != DPMSModeOn && !ms->pending_modeset)
-            drmmode_crtc_disable(crtc);
-    } else if (crtc->enabled == FALSE) {
-        drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                       0, 0, 0, NULL, 0, NULL);
-    }
+    if (mode != DPMSModeOn && !ms->pending_modeset)
+        drmmode_crtc_disable(crtc);
 }
 
 #ifdef GLAMOR_HAS_GBM
@@ -1712,7 +1638,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
     Rotation saved_rotation;
     DisplayModeRec saved_mode;
     Bool ret = TRUE;
-    Bool can_test;
     int i;
 
     if (mode)
@@ -1740,14 +1665,14 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
         if (!ret)
             goto done;
 
-        can_test = drmmode_crtc_can_test_mode(crtc);
-        if (drmmode_crtc_set_mode(crtc, can_test)) {
+        if (drmmode_crtc_set_mode(crtc, TRUE)) {
             xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
                        "failed to set mode: %s\n", strerror(errno));
             ret = FALSE;
             goto done;
-        } else
+        } else {
             ret = TRUE;
+        }
 
         if (crtc->scrn->pScreen)
             xf86CrtcSetScreenSubpixelOrder(crtc->scrn->pScreen);
@@ -1774,8 +1699,8 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
         }
 
         /* if we only tested the mode previously, really set it now */
-        if (can_test)
-            drmmode_crtc_set_mode(crtc, FALSE);
+        drmmode_crtc_set_mode(crtc, FALSE);
+
         ms->pending_modeset = FALSE;
     }
 
@@ -2276,10 +2201,6 @@ drmmode_crtc_destroy(xf86CrtcPtr crtc)
 {
     drmmode_mode_ptr iterator, next;
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    modesettingPtr ms = modesettingPTR(crtc->scrn);
-
-    if (!ms->atomic_modeset)
-        return;
 
     drmmode_prop_info_free(drmmode_crtc->props_plane, DRMMODE_PLANE__COUNT);
     xorg_list_for_each_entry_safe(iterator, next, &drmmode_crtc->mode_list, entry) {
@@ -2814,15 +2735,6 @@ koutput_get_prop_idx(int fd, drmModeConnectorPtr koutput,
     return idx;
 }
 
-static int
-koutput_get_prop_id(int fd, drmModeConnectorPtr koutput,
-        int type, const char *name)
-{
-    int idx = koutput_get_prop_idx(fd, koutput, type, name);
-
-    return (idx > -1) ? koutput->props[idx] : -1;
-}
-
 static drmModePropertyBlobPtr
 koutput_get_prop_blob(int fd, drmModeConnectorPtr koutput, const char *name)
 {
@@ -3003,7 +2915,6 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
 {
     modesettingPtr ms = modesettingPTR(output->scrn);
     drmmode_output_private_ptr drmmode_output = output->driver_private;
-    drmmode_ptr drmmode = drmmode_output->drmmode;
     xf86CrtcPtr crtc = output->crtc;
     drmModeConnectorPtr koutput = drmmode_output->mode_output;
 
@@ -3011,16 +2922,10 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
         return;
 
     /* XXX Check if DPMS mode is already the right one */
-
     drmmode_output->dpms = mode;
 
-    if (ms->atomic_modeset) {
-        if (mode != DPMSModeOn && !ms->pending_modeset)
-            drmmode_output_disable(output);
-    } else {
-        drmModeConnectorSetProperty(drmmode->fd, koutput->connector_id,
-                                    drmmode_output->dpms_enum_id, mode);
-    }
+    if (!ms->pending_modeset)
+        drmmode_output_dpms_atomic(output, mode);
 
     if (crtc) {
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
@@ -3037,8 +2942,6 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
                 drmmode_FiniSharedPixmapFlipping(crtc, drmmode_crtc->drmmode);
         }
     }
-
-    return;
 }
 
 static Bool
@@ -3444,7 +3347,6 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
     int i;
     Bool nonDesktop = FALSE;
     drmModePropertyBlobPtr path_blob = NULL;
-    const char *s;
     drmModeObjectPropertiesPtr props;
     static const drmmode_prop_info_rec connector_props[] = {
         [DRMMODE_CONNECTOR_CRTC_ID] = { .name = "CRTC_ID", },
@@ -3495,15 +3397,10 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
     }
 
     if (xf86IsEntityShared(pScrn->entityList[0])) {
-        if ((s = xf86GetOptValString(drmmode->Options, OPTION_ZAPHOD_HEADS))) {
-            if (!drmmode_zaphod_string_matches(pScrn, s, name))
-                goto out_free_encoders;
-        } else {
-            if (!drmmode->is_secondary && (num != 0))
-                goto out_free_encoders;
-            else if (drmmode->is_secondary && (num != 1))
-                goto out_free_encoders;
-        }
+        if (!drmmode->is_secondary && (num != 0))
+            goto out_free_encoders;
+        else if (drmmode->is_secondary && (num != 1))
+            goto out_free_encoders;
     }
 
     output = xf86OutputCreate(pScrn, &drmmode_output_funcs, name);
@@ -3537,22 +3434,19 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
     /* work out the possible clones later */
     output->possible_clones = 0;
 
-    if (ms->atomic_modeset) {
-        if (!drmmode_prop_info_copy(drmmode_output->props_connector,
+    if (!drmmode_prop_info_copy(drmmode_output->props_connector,
                                     connector_props, DRMMODE_CONNECTOR__COUNT,
-                                    0)) {
-            goto out_free_encoders;
-        }
-        props = drmModeObjectGetProperties(drmmode->fd,
-                                           drmmode_output->output_id,
-                                           DRM_MODE_OBJECT_CONNECTOR);
-        drmmode_prop_info_update(drmmode, drmmode_output->props_connector,
-                                 DRMMODE_CONNECTOR__COUNT, props);
-    } else {
-        drmmode_output->dpms_enum_id =
-            koutput_get_prop_id(drmmode->fd, koutput, DRM_MODE_PROP_ENUM,
-                                "DPMS");
+                                    0))
+    {
+        goto out_free_encoders;
     }
+
+    props = drmModeObjectGetProperties(drmmode->fd,
+                                drmmode_output->output_id,
+                                DRM_MODE_OBJECT_CONNECTOR);
+
+    drmmode_prop_info_update(drmmode, drmmode_output->props_connector,
+                        DRMMODE_CONNECTOR__COUNT, props);
 
     if (dynamic) {
         output->randr_output = RROutputCreate(xf86ScrnToScreen(pScrn), output->name, strlen(output->name), output);
@@ -3674,13 +3568,12 @@ drmmode_glamor_handle_new_screen_pixmap(drmmode_ptr drmmode)
 static Bool
 drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 {
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     modesettingPtr ms = modesettingPTR(scrn);
     drmmode_ptr drmmode = &ms->drmmode;
     drmmode_bo old_front;
     ScreenPtr screen = xf86ScrnToScreen(scrn);
     uint32_t old_fb_id;
-    int i, pitch, old_width, old_height, old_pitch;
+    int pitch, old_width, old_height, old_pitch;
     int cpp = (scrn->bitsPerPixel + 7) / 8;
     int kcpp = (drmmode->kbpp + 7) / 8;
     PixmapPtr ppix = screen->GetScreenPixmap(screen);
@@ -3724,13 +3617,6 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
         drmmode->shadow_fb = new_pixels;
     }
 
-    if (drmmode->shadow_enable2) {
-        uint32_t size = scrn->displayWidth * scrn->virtualY * cpp;
-        void *fb2 = calloc(1, size);
-        free(drmmode->shadow_fb2);
-        drmmode->shadow_fb2 = fb2;
-    }
-
     screen->ModifyPixmapHeader(ppix, width, height, -1, -1,
                                scrn->displayWidth * cpp, new_pixels);
 
@@ -3739,15 +3625,8 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
 
     drmmode_clear_pixmap(ppix);
 
-    for (i = 0; i < xf86_config->num_crtc; i++) {
-        xf86CrtcPtr crtc = xf86_config->crtc[i];
-
-        if (!crtc->enabled)
-            continue;
-
-        drmmode_set_mode_major(crtc, &crtc->mode,
-                               crtc->rotation, crtc->x, crtc->y);
-    }
+    if (drmmode_set_mode_atomic(scrn, ms, FALSE))
+        goto fail;
 
     if (old_fb_id)
         drmModeRmFB(drmmode->fd, old_fb_id);
@@ -3828,9 +3707,7 @@ drmmode_create_lease(RRLeasePtr lease, int *fd)
     drmmode_lease_private_ptr   lease_private;
 
     nobjects = ncrtc + noutput;
-
-    if (ms->atomic_modeset)
-        nobjects += ncrtc; /* account for planes as well */
+    nobjects += ncrtc; /* account for planes as well */
 
     if (nobjects == 0)
         return BadValue;
@@ -3854,8 +3731,7 @@ drmmode_create_lease(RRLeasePtr lease, int *fd)
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
         objects[i++] = drmmode_crtc->mode_crtc->crtc_id;
-        if (ms->atomic_modeset)
-            objects[i++] = drmmode_crtc->plane_id;
+        objects[i++] = drmmode_crtc->plane_id;
     }
 
     /* Add connector ids */
@@ -4004,82 +3880,9 @@ Bool
 drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode, Bool set_hw,
                           Bool ign_err)
 {
-    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
-    Bool success = TRUE;
-    int c;
+    modesettingPtr ms = modesettingPTR(pScrn);
 
-    drmmmode_prepare_modeset(pScrn);
-
-    for (c = 0; c < config->num_crtc; c++) {
-        xf86CrtcPtr crtc = config->crtc[c];
-        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-        xf86OutputPtr output = NULL;
-        int o;
-
-        /* Skip disabled CRTCs */
-        if (!crtc->enabled) {
-            if (set_hw) {
-                drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                               0, 0, 0, NULL, 0, NULL);
-            }
-            continue;
-        }
-
-        if (config->output[config->compat_output]->crtc == crtc)
-            output = config->output[config->compat_output];
-        else {
-            for (o = 0; o < config->num_output; o++)
-                if (config->output[o]->crtc == crtc) {
-                    output = config->output[o];
-                    break;
-                }
-        }
-        /* paranoia */
-        if (!output)
-            continue;
-
-        /* Mark that we'll need to re-set the mode for sure */
-        memset(&crtc->mode, 0, sizeof(crtc->mode));
-        if (!crtc->desiredMode.CrtcHDisplay) {
-            DisplayModePtr mode =
-                xf86OutputFindClosestMode(output, pScrn->currentMode);
-
-            if (!mode)
-                return FALSE;
-            crtc->desiredMode = *mode;
-            crtc->desiredRotation = RR_Rotate_0;
-            crtc->desiredX = 0;
-            crtc->desiredY = 0;
-        }
-
-        if (set_hw) {
-            if (!crtc->funcs->
-                set_mode_major(crtc, &crtc->desiredMode, crtc->desiredRotation,
-                               crtc->desiredX, crtc->desiredY)) {
-                if (!ign_err)
-                    return FALSE;
-                else {
-                    success = FALSE;
-                    crtc->enabled = FALSE;
-                    xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                               "Failed to set the desired mode on connector %s\n",
-                               output->name);
-                }
-            }
-        } else {
-            crtc->mode = crtc->desiredMode;
-            crtc->rotation = crtc->desiredRotation;
-            crtc->x = crtc->desiredX;
-            crtc->y = crtc->desiredY;
-            if (!xf86CrtcRotate(crtc))
-                return FALSE;
-        }
-    }
-
-    /* Validate leases on VT re-entry */
-    drmmode_validate_leases(pScrn);
-
-    return success;
+    return !drmmode_set_mode_atomic(pScrn, ms, /* test_only = */ !set_hw);
 }
 
 static void

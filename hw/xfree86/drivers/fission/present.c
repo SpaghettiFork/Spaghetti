@@ -248,9 +248,6 @@ ms_present_check_unflip(RRCrtcPtr crtc,
     int i;
     struct gbm_bo *gbm;
 
-    if (!ms->drmmode.pageflip)
-        return FALSE;
-
     if (ms->drmmode.dri2_flipping)
         return FALSE;
 
@@ -270,14 +267,6 @@ ms_present_check_unflip(RRCrtcPtr crtc,
 
     /* We can't do pageflipping if all the CRTCs are off. */
     if (num_crtcs_on == 0)
-        return FALSE;
-
-    /*
-     * Check stride, can't change that reliably on flip on some drivers, unless
-     * the kms driver is atomic_modeset_capable.
-     */
-    if (!ms->atomic_modeset_capable &&
-        pixmap->devKind != drmmode_bo_get_pitch(&ms->drmmode.front_bo))
         return FALSE;
 
     if (!ms->drmmode.glamor)
@@ -513,7 +502,10 @@ ms_present_screen_init(ScreenPtr screen)
     uint64_t value;
     int ret;
 
-    ret = drmGetCap(ms->fd, DRM_CAP_ASYNC_PAGE_FLIP, &value);
+#ifndef DRM_CAP_ATOMIC_ASYNC_PAGE_FLIP
+#define DRM_CAP_ATOMIC_ASYNC_PAGE_FLIP 0x15
+#endif
+    ret = drmGetCap(ms->fd, DRM_CAP_ATOMIC_ASYNC_PAGE_FLIP, &value);
     if (ret == 0 && value == 1) {
         ms_present_screen_info.capabilities |= PresentCapabilityAsync;
         ms->drmmode.can_async_flip = TRUE;
