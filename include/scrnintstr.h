@@ -604,6 +604,9 @@ typedef struct _Screen {
     SetScreenPixmapProcPtr SetScreenPixmap;
     NameWindowPixmapProcPtr NameWindowPixmap;
 
+    /* This field is used by the 470 proprietary nvidia DDX driver, and should always be NULL */
+    PixmapPtr pScratchPixmap;   /* scratch pixmap "pool" (unused / NULL in modern servers) */ 
+    
     unsigned int totalPixmapSize;
 
     MarkWindowProcPtr MarkWindow;
