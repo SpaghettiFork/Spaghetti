@@ -1383,17 +1383,6 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         ms->no_legacy = TRUE;
     }
 
-    ms->max_cursor_width = 64;
-    ms->max_cursor_height = 64;
-    ret = drmGetCap(ms->fd, DRM_CAP_CURSOR_WIDTH, &value);
-    if (!ret) {
-        ms->max_cursor_width = value;
-    }
-    ret = drmGetCap(ms->fd, DRM_CAP_CURSOR_HEIGHT, &value);
-    if (!ret) {
-        ms->max_cursor_height = value;
-    }
-
     try_enable_glamor(pScrn);
 
     if (!ms->drmmode.glamor) {
@@ -1946,6 +1935,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
     /* HW dependent - FIXME */
     pScrn->displayWidth = pScrn->virtualX;
+
     if (!drmmode_create_initial_bos(pScrn, &ms->drmmode))
         return FALSE;
 
@@ -2032,9 +2022,14 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     ms->SpriteFuncs = PointPriv->spriteFuncs;
     PointPriv->spriteFuncs = &drmmode_sprite_funcs;
 
+    /* Get the maximum cursor size. */
+    drmmode_cursor_dim_rec cursor_dim = { 0 };
+    if (!drmmode_get_largest_cursor(pScrn, &cursor_dim))
+        return FALSE;
+
     /* Need to extend HWcursor support to handle mask interleave */
     if (!ms->drmmode.sw_cursor)
-        xf86_cursors_init(pScreen, ms->max_cursor_width, ms->max_cursor_height,
+        xf86_cursors_init(pScreen, cursor_dim.width, cursor_dim.height,
                           HARDWARE_CURSOR_SOURCE_MASK_INTERLEAVE_64 |
                           HARDWARE_CURSOR_UPDATE_UNHIDDEN |
                           HARDWARE_CURSOR_ARGB);
