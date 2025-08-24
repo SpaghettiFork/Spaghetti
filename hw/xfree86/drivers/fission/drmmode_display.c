@@ -1294,9 +1294,9 @@ drmmode_SharedPixmapFlip(PixmapPtr frontTarget, xf86CrtcPtr crtc,
                            drmmode_SharedPixmapVBlankEventHandler,
                            drmmode_SharedPixmapVBlankEventAbort);
 
-    if (drmModePageFlip(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                        ppriv_front->fb_id, DRM_MODE_PAGE_FLIP_EVENT,
-                        (void *)(intptr_t) ppriv_front->flip_seq) < 0) {
+    if (drmmode_crtc_flip(crtc, ppriv_front->fb_id,
+                          0, 0, DRM_MODE_PAGE_FLIP_EVENT, 
+                          (void *)(intptr_t) ppriv_front->flip_seq)) {
         ms_drm_abort_seq(crtc->scrn, ppriv_front->flip_seq);
         return FALSE;
     }
