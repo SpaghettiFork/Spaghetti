@@ -98,9 +98,13 @@ static Bool ScreenInit(ScreenPtr pScreen, int argc, char **argv);
 static Bool PreInit(ScrnInfoPtr pScrn, int flags);
 
 static Bool Probe(DriverPtr drv, int flags);
+
+#ifdef XSERVER_LIBPCIACCESS
 static Bool ms_pci_probe(DriverPtr driver,
                          int entity_num, struct pci_device *device,
                          intptr_t match_data);
+#endif
+
 static Bool ms_driver_func(ScrnInfoPtr scrn, xorgDriverFuncOp op, void *data);
 
 /* window wrapper functions used to get the notification when
@@ -141,8 +145,13 @@ _X_EXPORT DriverRec fission = {
     NULL,
     0,
     ms_driver_func,
+#ifdef XSERVER_LIBPCIACCESS
     ms_device_match,
     ms_pci_probe,
+#else
+    NULL,
+    NULL,
+#endif
 #ifdef XSERVER_PLATFORM_BUS
     ms_platform_probe,
 #endif
@@ -311,6 +320,7 @@ probe_hw(const char *dev, struct xf86_platform_device *platform_dev)
     return FALSE;
 }
 
+#ifdef XSERVER_LIBPCIACCESS
 static char *
 ms_DRICreatePCIBusID(const struct pci_device *dev)
 {
@@ -353,6 +363,7 @@ probe_hw_pci(const char *dev, struct pci_device *pdev)
     free(devid);
     return ret;
 }
+#endif
 
 static const OptionInfoRec *
 AvailableOptions(int chipid, int busid)
@@ -1206,14 +1217,11 @@ try_enable_glamor(ScrnInfoPtr pScrn)
 static Bool
 ms_get_drm_master_fd(ScrnInfoPtr pScrn)
 {
-    EntityInfoPtr pEnt;
-    modesettingPtr ms;
-    modesettingEntPtr ms_ent;
-
-    ms = modesettingPTR(pScrn);
-    ms_ent = ms_ent_priv(pScrn);
-
-    pEnt = ms->pEnt;
+    modesettingPtr ms = modesettingPTR(pScrn);
+    modesettingEntPtr ms_ent = ms_ent_priv(pScrn);
+#if defined(XSERVER_PLATFORM_BUS) || defined(XSERVER_LIBPCIACCESS)
+    EntityInfoPtr pEnt = ms->pEnt;
+#endif
 
     if (ms_ent->fd) {
         xf86DrvMsg(pScrn->scrnIndex, X_INFO,
