@@ -78,7 +78,6 @@ __stdcall unsigned long GetTickCount(void);
 #include <X11/Xtrans/Xtrans.h>
 
 #include "os/audit.h"
-#include "os/client_priv.h"
 
 #include "input.h"
 #include "dixfont.h"
@@ -1548,22 +1547,6 @@ os_move_fd(int fd)
     return newfd;
 }
 #endif
-
-void
-AbortServer(void)
-{
-#ifdef XF86BIGFONT
-    XF86BigfontCleanup();
-#endif
-    CloseWellKnownConnections();
-    OsCleanup(TRUE);
-    AbortDevices();
-    ddxGiveUp(EXIT_ERR_ABORT);
-    fflush(stderr);
-    if (CoreDump)
-        OsAbort();
-    exit(1);
-}
 
 /* Exported version for binary compatibility with modules which call it */
 #undef Ones

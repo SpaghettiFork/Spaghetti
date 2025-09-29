@@ -91,6 +91,7 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include "dix/dix_priv.h"
 #include "dix/input_priv.h"
 #include "os/audit.h"
+#include "os/client_priv.h"
 #include "os/ddx_priv.h"
 #include "os/fmt.h"
 #include "os/osdep.h"
@@ -812,6 +813,26 @@ LogHdrMessageVerb(MessageType type, int verb, const char *msg_format,
     va_start(hdr_args, hdr_format);
     LogVHdrMessageVerb(type, verb, msg_format, msg_args, hdr_format, hdr_args);
     va_end(hdr_args);
+}
+
+void
+AbortServer(void)
+    _X_NORETURN;
+
+void
+AbortServer(void)
+{
+#ifdef XF86BIGFONT
+    XF86BigfontCleanup();
+#endif
+    CloseWellKnownConnections();
+    OsCleanup(TRUE);
+    AbortDevices();
+    ddxGiveUp(EXIT_ERR_ABORT);
+    fflush(stderr);
+    if (CoreDump)
+        OsAbort();
+    exit(1);
 }
 
 #define AUDIT_PREFIX "AUDIT: %s: %ld: "
