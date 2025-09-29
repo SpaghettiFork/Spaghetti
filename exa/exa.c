@@ -36,6 +36,7 @@
 #include "exa.h"
 
 DevPrivateKeyRec exaScreenPrivateKeyRec;
+DevPrivateKeyRec exaPixmapPrivateKeyRec;
 
 #ifdef MITSHM
 static ShmFuncs exaShmFuncs = { NULL, NULL };
@@ -945,8 +946,7 @@ exaDriverInit(ScreenPtr pScreen, ExaDriverPtr pScreenInfo)
      * Hookup offscreen pixmaps
      */
     if (pExaScr->info->flags & EXA_OFFSCREEN_PIXMAPS) {
-        if (!dixRegisterScreenSpecificPrivateKey
-            (pScreen, &pExaScr->pixmapPrivateKeyRec, PRIVATE_PIXMAP,
+        if (!dixRegisterPrivateKey(&exaPixmapPrivateKeyRec, PRIVATE_PIXMAP,
              sizeof(ExaPixmapPrivRec))) {
             LogMessage(X_WARNING,
                        "EXA(%d): Failed to allocate pixmap private\n",
