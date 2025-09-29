@@ -4720,8 +4720,11 @@ CoreEnterLeaveEvent(DeviceIntPtr mouse,
         xKeymapEvent ke = {
             .type = KeymapNotify
         };
+
+#ifdef XACE
         ClientPtr client = grab ? rClient(grab) : wClient(pWin);
         int rc;
+#endif
 
         rc = XaceHookDeviceAccess(client, keybd, DixReadAccess);
         if (rc == Success)
@@ -4831,7 +4834,10 @@ CoreFocusEvent(DeviceIntPtr dev, int type, int mode, int detail, WindowPtr pWin)
         xKeymapEvent ke = {
             .type = KeymapNotify
         };
+
+#ifdef XACE
         ClientPtr client = wClient(pWin);
+#endif
         int rc;
 
         rc = XaceHookDeviceAccess(client, dev, DixReadAccess);
