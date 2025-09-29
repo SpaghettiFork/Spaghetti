@@ -651,7 +651,9 @@ ProcXF86BigfontDispatch(ClientPtr client)
 static int _X_COLD
 SProcXF86BigfontQueryVersion(ClientPtr client)
 {
-    REQUEST(xXF86BigfontQueryVersionReq);
+#define UNUSED(x) (void)(x)
+    UNUSED(xXF86BigfontQueryVersionReq);
+#undef UNUSED
     return ProcXF86BigfontQueryVersion(client);
 }
 
