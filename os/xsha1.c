@@ -1,4 +1,6 @@
-/* Copyright © 2007 Carl Worth
+/* SPDX-License-Identifier: MIT
+ *
+ * Copyright © 2007 Carl Worth
  * Copyright © 2009 Jeremy Huddleston, Julien Cristau, and Matthieu Herrb
  * Copyright © 2009-2010 Mikhail Gusarov
  * Copyright © 2012 Yaakov Selkowitz and Keith Packard
@@ -13,7 +15,7 @@
  * The above copyright notice and this permission notice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
@@ -254,13 +256,43 @@ x_sha1_final(void *ctx, unsigned char result[20])
 
 #else                           /* Use OpenSSL's libcrypto */
 
+#include <openssl/opensslv.h>
+#if OPENSSL_VERSION_MAJOR >= 3
+#define USE_EVP
+#endif
+
+#ifdef USE_EVP
+#include <openssl/evp.h>
+#else
 #include <stddef.h>             /* buggy openssl/sha.h wants size_t */
 #include <openssl/sha.h>
+#endif
+
+#ifdef USE_EVP
+static EVP_MD *sha1 = NULL;
+#endif
 
 void *
 x_sha1_init(void)
 {
     int ret;
+#ifdef USE_EVP
+    EVP_MD_CTX *ctx;
+
+    if (sha1 == NULL) {
+        sha1 = EVP_MD_fetch(NULL, "SHA1", NULL);
+        if (sha1 == NULL)
+            return NULL;
+    }
+    ctx = EVP_MD_CTX_new();
+    if (ctx == NULL)
+        return NULL;
+    ret = EVP_DigestInit_ex2(ctx, sha1, NULL);
+    if (!ret) {
+        EVP_MD_CTX_free(ctx);
+        return NULL;
+    }
+#else
     SHA_CTX *ctx = malloc(sizeof(*ctx));
 
     if (!ctx)
@@ -270,6 +302,7 @@ x_sha1_init(void)
         free(ctx);
         return NULL;
     }
+#endif
     return ctx;
 }
 
@@ -277,11 +310,19 @@ int
 x_sha1_update(void *ctx, void *data, int size)
 {
     int ret;
+#ifdef USE_EVP
+    EVP_MD_CTX *sha_ctx = ctx;
+
+    ret = EVP_DigestUpdate(sha_ctx, data, size);
+    if (!ret)
+        EVP_MD_CTX_free(sha_ctx);
+#else
     SHA_CTX *sha_ctx = ctx;
 
     ret = SHA1_Update(sha_ctx, data, size);
     if (!ret)
         free(sha_ctx);
+#endif
     return ret;
 }
 
@@ -289,10 +330,18 @@ int
 x_sha1_final(void *ctx, unsigned char result[20])
 {
     int ret;
+#ifdef USE_EVP
+    EVP_MD_CTX *sha_ctx = ctx;
+    unsigned int result_len = 20; /* size of result buffer */
+
+    ret = EVP_DigestFinal_ex(sha_ctx, result, &result_len);
+    EVP_MD_CTX_free(sha_ctx);
+#else
     SHA_CTX *sha_ctx = ctx;
 
     ret = SHA1_Final(result, sha_ctx);
     free(sha_ctx);
+#endif
     return ret;
 }
 
