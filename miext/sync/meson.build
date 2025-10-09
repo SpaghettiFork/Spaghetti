@@ -23,6 +23,6 @@ libxserver_miext_sync = static_library('libxserver_miext_sync',
     ],
 )
 
-if build_xorg
+if build_xorg or xshmfence_dep.found()
     install_data(hdrs_miext_sync, install_dir: xorgsdkdir)
 endif
