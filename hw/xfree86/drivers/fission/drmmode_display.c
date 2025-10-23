@@ -2462,7 +2462,8 @@ drmmode_crtc_probe_size_hint(xf86CrtcPtr crtc, int num)
         [DRMMODE_PLANE_CRTC_Y] = { .name = "CRTC_Y", },
         [DRMMODE_PLANE_CRTC_W] = { .name = "CRTC_W", },
         [DRMMODE_PLANE_CRTC_H] = { .name = "CRTC_H", },
-        [DRMMODE_PLANE_SIZE_HINTS] = { .name = "SIZE_HINTS" }
+        [DRMMODE_PLANE_SIZE_HINTS] = { .name = "SIZE_HINTS" },
+        [DRMMODE_PLANE_Z_POS] = { .name = "zpos" }
     };
     drmmode_prop_info_rec tmp_props[DRMMODE_PLANE__COUNT];
 
@@ -2538,8 +2539,8 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
     drmModePlaneRes *kplane_res;
     drmModePlane *kplane, *best_kplane = NULL;
     drmModeObjectProperties *props;
-    uint32_t i, type, blob_id, async_blob_id;
-    int current_crtc, best_plane = 0;
+    uint32_t i, type, blob_id, async_blob_id, z_pos;
+    int current_crtc, best_primary_plane = 0, best_overlay_plane = 0;
 
     static drmmode_prop_enum_info_rec plane_type_enums[] = {
         [DRMMODE_PLANE_TYPE_PRIMARY] = {
@@ -2570,7 +2571,8 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
         [DRMMODE_PLANE_CRTC_Y] = { .name = "CRTC_Y", },
         [DRMMODE_PLANE_CRTC_W] = { .name = "CRTC_W", },
         [DRMMODE_PLANE_CRTC_H] = { .name = "CRTC_H", },
-        [DRMMODE_PLANE_SIZE_HINTS] = { .name = "SIZE_HINTS" }
+        [DRMMODE_PLANE_SIZE_HINTS] = { .name = "SIZE_HINTS" },
+        [DRMMODE_PLANE_Z_POS] = { .name = "zpos" }
     };
     drmmode_prop_info_rec tmp_props[DRMMODE_PLANE__COUNT];
 
@@ -2620,50 +2622,91 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
         type = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_TYPE],
                                       props, DRMMODE_PLANE_TYPE__COUNT);
 
-        if (type != DRMMODE_PLANE_TYPE_PRIMARY) {
-            drmModeFreePlane(kplane);
-            drmModeFreeObjectProperties(props);
-            continue;
-        }
-
-        /* Check if plane is already on this CRTC */
-        current_crtc = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_CRTC_ID],
+        switch (type) {
+            case DRMMODE_PLANE_TYPE_PRIMARY: {
+                /* Check if plane is already on this CRTC */
+                current_crtc = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_CRTC_ID],
                                               props, 0);
-        if (current_crtc == drmmode_crtc->mode_crtc->crtc_id) {
-            if (best_plane) {
-                drmModeFreePlane(best_kplane);
-                drmmode_prop_info_free(drmmode_crtc->props_plane, DRMMODE_PLANE__COUNT);
+                if (current_crtc == drmmode_crtc->mode_crtc->crtc_id) {
+                    if (best_primary_plane) {
+                        drmModeFreePlane(best_kplane);
+                        drmmode_prop_info_free(drmmode_crtc->props_plane, DRMMODE_PLANE__COUNT);
+                    }
+                    best_primary_plane = plane_id;
+                    best_kplane = kplane;
+                    blob_id = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_IN_FORMATS],
+                                                      props, 0);
+                    async_blob_id = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_IN_FORMATS_ASYNC],
+                                                            props, 0);
+                    drmmode_prop_info_copy(drmmode_crtc->props_plane, tmp_props,
+                                           DRMMODE_PLANE__COUNT, 1);
+                    drmModeFreeObjectProperties(props);
+                    break;
+                }
+
+                if (!best_primary_plane) {
+                    best_primary_plane = plane_id;
+                    best_kplane = kplane;
+                    blob_id = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_IN_FORMATS],
+                                                      props, 0);
+                    async_blob_id = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_IN_FORMATS_ASYNC],
+                                                      props, 0);
+                    drmmode_prop_info_copy(drmmode_crtc->props_plane, tmp_props,
+                                                      DRMMODE_PLANE__COUNT, 1);
+                } else {
+                    drmModeFreePlane(kplane);
+                }
+
+                drmModeFreeObjectProperties(props);
+                break;
             }
-            best_plane = plane_id;
-            best_kplane = kplane;
-            blob_id = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_IN_FORMATS],
-                                             props, 0);
-            async_blob_id = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_IN_FORMATS_ASYNC],
-                                                   props, 0);
-            drmmode_prop_info_copy(drmmode_crtc->props_plane, tmp_props,
-                                   DRMMODE_PLANE__COUNT, 1);
-            drmModeFreeObjectProperties(props);
-            break;
-        }
 
-        if (!best_plane) {
-            best_plane = plane_id;
-            best_kplane = kplane;
-            blob_id = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_IN_FORMATS],
-                                             props, 0);
-            async_blob_id = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_IN_FORMATS_ASYNC],
-                                                   props, 0);
-            drmmode_prop_info_copy(drmmode_crtc->props_plane, tmp_props,
-                                   DRMMODE_PLANE__COUNT, 1);
-        } else {
-            drmModeFreePlane(kplane);
-        }
+            case DRMMODE_PLANE_TYPE_OVERLAY: {
+                /* Check if we've already chosen the overlay plane. */
+                if (best_overlay_plane) {
+                    drmModeFreePlane(kplane);
+                    drmModeFreeObjectProperties(props);
+                    break;                   
+                }
 
-        drmModeFreeObjectProperties(props);
+                /* Check if plane is already on this CRTC */
+                current_crtc = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_CRTC_ID],
+                                                       props, 0);
+
+                if (current_crtc == drmmode_crtc->mode_crtc->crtc_id) {
+                    drmModeFreePlane(kplane);
+                    drmModeFreeObjectProperties(props);
+                    break;
+                }
+
+                z_pos = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_Z_POS],
+                                                props, 0);
+
+                /* We need to make sure that we aren't picking an underlay. */
+                if (!z_pos) {
+                    drmModeFreePlane(kplane);
+                    drmModeFreeObjectProperties(props);
+                    break;                    
+                }
+                    
+                best_overlay_plane = plane_id;
+                drmModeFreeObjectProperties(props);
+                break;
+            }
+
+            default: {
+                drmModeFreePlane(kplane);
+                drmModeFreeObjectProperties(props);
+                continue;
+            }
+        }
     }
 
     /* Set the PRIMARY plane. */
-    drmmode_crtc->planes.primary_plane = best_plane;
+    drmmode_crtc->planes.primary_plane = best_primary_plane;
+
+    /* Set the OVERLAY plane, if available. */
+    drmmode_crtc->planes.overlay_plane = best_overlay_plane;
 
     if (best_kplane) {
         drmmode_crtc->num_formats = best_kplane->count_formats;

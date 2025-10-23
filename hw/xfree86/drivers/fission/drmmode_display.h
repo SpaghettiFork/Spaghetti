@@ -70,6 +70,7 @@ enum drmmode_plane_property {
     DRMMODE_PLANE_CRTC_W,
     DRMMODE_PLANE_CRTC_H,
     DRMMODE_PLANE_SIZE_HINTS,
+    DRMMODE_PLANE_Z_POS,
     DRMMODE_PLANE__COUNT
 };
 
