@@ -149,7 +149,6 @@ typedef struct {
     Bool flip_bo_import_failed;
 
     Bool can_async_flip;
-    Bool async_flip_secondaries;
     Bool dri2_enable;
     Bool present_enable;
 
@@ -204,8 +203,8 @@ typedef struct {
 } drmmode_cursor_rec, *drmmode_cursor_ptr;
 
 typedef struct {
-    uint32_t primary_plane;
-    uint32_t overlay_plane;
+    uint32_t primary;
+    uint32_t overlay;
 } drmmode_planes_rec, *drmmode_planes_ptr;
 
 typedef struct {
@@ -338,7 +337,7 @@ Bool drmmode_SharedPixmapFlip(PixmapPtr frontTarget, xf86CrtcPtr crtc,
                               drmmode_ptr drmmode);
 void drmmode_DisableSharedPixmapFlipping(xf86CrtcPtr crtc, drmmode_ptr drmmode);
 
-extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp);
+extern Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, Bool* overlay_available, int cpp);
 extern Bool drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode);
 void drmmode_adjust_frame(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int x, int y);
 extern Bool drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode,

@@ -96,6 +96,13 @@ ms_drain_drm_events(ScreenPtr screen)
 
 #ifdef GLAMOR_HAS_GBM
 
+enum queue_flip_status {
+    QUEUE_FLIP_SUCCESS,
+    QUEUE_FLIP_ALLOC_FAILED,
+    QUEUE_FLIP_QUEUE_ALLOC_FAILED,
+    QUEUE_FLIP_DRM_FLUSH_FAILED
+};
+
 /*
  * Event data for an in progress flip.
  * This contains a pointer to the vblank event,
@@ -215,13 +222,6 @@ do_queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc, uint32_t flags,
     return FALSE;
 }
 
-enum queue_flip_status {
-    QUEUE_FLIP_SUCCESS,
-    QUEUE_FLIP_ALLOC_FAILED,
-    QUEUE_FLIP_QUEUE_ALLOC_FAILED,
-    QUEUE_FLIP_DRM_FLUSH_FAILED,
-};
-
 static int
 queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc,
                    struct ms_flipdata *flipdata, uint32_t plane,
@@ -252,12 +252,11 @@ queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc,
     /* take a reference on flipdata for use in flip */
     flipdata->flip_count++;
 
-    if (do_queue_flip_on_crtc(screen, crtc, flags, seq, *flipdata->fb_id,
+    if (do_queue_flip_on_crtc(screen, crtc, flags, seq, ms->drmmode.fb_id,
                               plane, crtc->x, crtc->y))
         return QUEUE_FLIP_DRM_FLUSH_FAILED;
-
-    /* The page flip succeeded. */
-    return QUEUE_FLIP_SUCCESS;
+    else
+        return QUEUE_FLIP_SUCCESS;
 }
 
 
@@ -336,6 +335,7 @@ ms_do_pageflip(ScreenPtr screen,
                void *event,
                xf86CrtcPtr ref_crtc,
                Bool async,
+               Bool overlay,
                ms_pageflip_handler_proc pageflip_handler,
                ms_pageflip_abort_proc pageflip_abort,
                const char *log_prefix)
@@ -344,7 +344,7 @@ ms_do_pageflip(ScreenPtr screen,
     modesettingPtr ms = modesettingPTR(scrn);
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
     drmmode_bo new_front_bo;
-    uint32_t flags;
+    uint32_t flags, crtc_plane;
     int i;
     struct ms_flipdata *flipdata;
 
@@ -413,31 +413,27 @@ ms_do_pageflip(ScreenPtr screen,
     for (i = 0; i < config->num_crtc; i++) {
         enum queue_flip_status flip_status;
         xf86CrtcPtr crtc = config->crtc[i];
+        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
         if (!xf86_crtc_on(crtc))
             continue;
 
-        flags = DRM_MODE_PAGE_FLIP_EVENT;
-        if (ms->drmmode.can_async_flip && async)
-            flags |= DRM_MODE_PAGE_FLIP_ASYNC;
+        if (overlay && ms->overlay_available)
+            flags = DRM_MODE_ATOMIC_NONBLOCK;
+        else if (ms->drmmode.can_async_flip && async)
+            flags = DRM_MODE_PAGE_FLIP_ASYNC;
+        else
+            flags = DRM_MODE_PAGE_FLIP_EVENT;
 
-        /*
-         * If this is not the reference crtc used for flip timing and flip event
-         * delivery and timestamping, ie. not the one whose presentation timing
-         * we do really care about, and async flips are possible, and requested
-         * by an xorg.conf option, then we flip this "secondary" crtc without
-         * sync to vblank. This may cause tearing on such "secondary" outputs,
-         * but it will prevent throttling of multi-display flips to the refresh
-         * cycle of any of the secondary crtcs, avoiding periodic slowdowns and
-         * judder caused by unsynchronized outputs. This is especially useful for
-         * outputs in a "clone-mode" or "mirror-mode" configuration.
-         */
-        if (ms->drmmode.can_async_flip && ms->drmmode.async_flip_secondaries &&
-            ref_crtc && crtc != ref_crtc)
-            flags |= DRM_MODE_PAGE_FLIP_ASYNC;
+        
+        if (overlay && ms->overlay_available) {
+            crtc_plane = drmmode_crtc->planes.overlay;
+        } else {
+            crtc_plane = drmmode_crtc->planes.primary;
+        }
 
-        flip_status = queue_flip_on_crtc(screen, crtc, flipdata,
-                                         drmmode_crtc->planes.primary_plane,
+        flip_status = queue_flip_on_crtc(screen, crtc,
+                                         flipdata, crtc_plane,
                                          ref_crtc, flags);
 
         switch (flip_status) {
@@ -499,5 +495,4 @@ error_free_event:
     free(event);
     return FALSE;
 }
-
-#endif
+#endif /* GLAMOR_HAS_GBM */

@@ -106,10 +106,10 @@ static Bool ctm_is_identity(const struct drm_color_ctm *ctm)
 static inline uint32_t
 get_overlay_plane(drmmode_crtc_private_ptr crtc)
 {
-    if (crtc->planes.overlay_plane)
-        return crtc->planes.overlay_plane;
+    if (crtc->planes.overlay)
+        return crtc->planes.overlay;
     else
-        return crtc->planes.primary_plane;
+        return crtc->planes.primary;
 }
 
 static inline uint32_t *
@@ -757,7 +757,7 @@ drmmode_set_dpms(ScrnInfoPtr scrn, int dpms, int flags)
             if (!drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y))
                 continue;
 
-            ret |= plane_add_props(req, crtc, fb_id, drmmode_crtc->planes.primary_plane, x, y);
+            ret |= plane_add_props(req, crtc, fb_id, drmmode_crtc->planes.primary, x, y);
             drmmode_crtc->need_modeset = FALSE;
         }
     }
@@ -912,7 +912,7 @@ drmmode_set_mode_atomic(ScrnInfoPtr scrn, modesettingPtr ms, Bool test_only)
         ret |= crtc_add_prop(req, drmmode_crtc,
                              DRMMODE_CRTC_MODE_ID,
                              active ? drmmode_crtc->current_mode->blob_id : 0);
-        ret |= plane_add_props(req, crtc, active ? fb_id : 0, drmmode_crtc->planes.primary_plane, x, y);
+        ret |= plane_add_props(req, crtc, active ? fb_id : 0, drmmode_crtc->planes.primary, x, y);
     }
 
     for (i = 0; i < xf86_config->num_output; i++) {
@@ -973,7 +973,7 @@ drmmode_crtc_flip(xf86CrtcPtr crtc, uint32_t fb_id, int x, int y,
     if (!req)
         return 1;
 
-    int ret = plane_add_props(req, crtc, fb_id, plane_id, x, y);
+    int ret = plane_add_props(req, crtc, fb_id, plane, x, y);
 
     if (ret == 0)
         ret = drmModeAtomicCommit(ms->fd, req, flags, data);
@@ -1525,16 +1525,7 @@ drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
     PixmapPtr src, dst;
     int fbcon_id = 0;
     GCPtr gc;
-    int src_x, src_y, src_w, src_h, crtc_x, crtc_y, crtc_w, crtc_h;
-    int fbcon_id, fb_width, fb_height, fb_pitch, fb_depth, fb_bpp;
     int i;
-    Bool ret = FALSE;
-
-    if (!drmmode_crtc->planes.primary_plane)
-        return FALSE;
-
-    if (!(fbcon_id = drmmode_crtc->mode_crtc->buffer_id))
-        return FALSE;
 
     for (i = 0; i < xf86_config->num_crtc; i++) {
         drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[i]->driver_private;
@@ -1554,61 +1545,7 @@ drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         return;
     }
 
-    props = drmModeObjectGetProperties(drmmode->fd,
-                                       drmmode_crtc->planes.primary_plane,
-                                       DRM_MODE_OBJECT_PLANE);
-    if (!props) {
-        xf86DrvMsg(drmmode->scrn->scrnIndex, X_ERROR,
-                   "couldn't get plane properties\n");
-        return FALSE;
-    }
-
-    src_x = drmmode_prop_get_value(&props_plane[DRMMODE_PLANE_SRC_X],
-                                   props, 0) >> 16;
-    src_y = drmmode_prop_get_value(&props_plane[DRMMODE_PLANE_SRC_Y],
-                                   props, 0) >> 16;
-    src_w = drmmode_prop_get_value(&props_plane[DRMMODE_PLANE_SRC_W],
-                                   props, 0) >> 16;
-    src_h = drmmode_prop_get_value(&props_plane[DRMMODE_PLANE_SRC_H],
-                                   props, 0) >> 16;
-    crtc_x = drmmode_prop_get_value(&props_plane[DRMMODE_PLANE_CRTC_X],
-                                    props, 0) + crtc->x;
-    crtc_y = drmmode_prop_get_value(&props_plane[DRMMODE_PLANE_CRTC_Y],
-                                    props, 0) + crtc->y;
-    crtc_w = drmmode_prop_get_value(&props_plane[DRMMODE_PLANE_CRTC_W],
-                                    props, 0);
-    crtc_h = drmmode_prop_get_value(&props_plane[DRMMODE_PLANE_CRTC_H],
-                                    props, 0);
-    drmModeFreeObjectProperties(props);
-
-    if (!src_w || !src_h || src_w != crtc_w || src_h != crtc_h ||
-        crtc_x + crtc_w > screen_pixmap->drawable.width ||
-        crtc_y + crtc_h > screen_pixmap->drawable.height)
-        return FALSE;
-
-    fbcon = drmModeGetFB(drmmode->fd, fbcon_id);
-    if (!fbcon)
-        return FALSE;
-
-    fb_width = fbcon->width;
-    fb_height = fbcon->height;
-    fb_pitch = fbcon->pitch;
-    fb_depth = fbcon->depth;
-    fb_bpp = fbcon->bpp;
-
-    bo = dumb_get_bo_from_fd(drmmode->fd, fbcon->handle, fbcon->pitch,
-                                 fbcon->pitch * fbcon->height);
-    drmModeFreeFB(fbcon);
-    if (!bo)
-        return FALSE;
-
-    if (dumb_bo_map(drmmode->fd, bo) < 0)
-        goto out;
-
-    src = drmmode_create_pixmap_header(pScreen, fb_width,
-                                       fb_height, fb_depth,
-                                       fb_bpp, fb_pitch,
-                                       bo->ptr);
+    src = create_pixmap_for_fbcon(drmmode, pScrn, fbcon_id);
     if (!src)
         return;
 
@@ -2312,10 +2249,10 @@ is_plane_assigned(ScrnInfoPtr scrn, int plane_id)
         xf86CrtcPtr iter = xf86_config->crtc[c];
         drmmode_crtc_private_ptr drmmode_crtc = iter->driver_private;
 
-        if (drmmode_crtc->planes.primary_plane == plane_id)
+        if (drmmode_crtc->planes.primary == plane_id)
             return TRUE;
 
-        if (drmmode_crtc->planes.overlay_plane == plane_id)
+        if (drmmode_crtc->planes.overlay == plane_id)
             return TRUE;
     }
 
@@ -2703,10 +2640,10 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
     }
 
     /* Set the PRIMARY plane. */
-    drmmode_crtc->planes.primary_plane = best_primary_plane;
+    drmmode_crtc->planes.primary = best_primary_plane;
 
     /* Set the OVERLAY plane, if available. */
-    drmmode_crtc->planes.overlay_plane = best_overlay_plane;
+    drmmode_crtc->planes.overlay = best_overlay_plane;
 
     if (best_kplane) {
         drmmode_crtc->num_formats = best_kplane->count_formats;
@@ -2780,7 +2717,8 @@ drmmode_crtc_vrr_init(int drm_fd, xf86CrtcPtr crtc)
 }
 
 static unsigned int
-drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res, drmmode_cursor_dim_rec fallback, int num)
+drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, Bool* overlay_available,
+                  drmModeResPtr mode_res, drmmode_cursor_dim_rec fallback, int num)
 {
     xf86CrtcPtr crtc;
     drmmode_crtc_private_ptr drmmode_crtc;
@@ -2865,6 +2803,11 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
         drmmode_crtc->props[DRMMODE_CRTC_CTM].prop_id) {
         drmmode->use_ctm = TRUE;
     }
+
+    /* If one or more CRTCs is missing an overlay plane,
+     * don't use overlays at all to avoid issues. */
+    if (!drmmode_crtc->planes.overlay)
+        *overlay_available = FALSE;
 
     return 1;
 }
@@ -4008,7 +3951,7 @@ drmmode_create_lease(RRLeasePtr lease, int *fd)
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
         objects[i++] = drmmode_crtc->mode_crtc->crtc_id;
-        objects[i++] = drmmode_crtc->planes.primary_plane;
+        objects[i++] = drmmode_crtc->planes.primary;
     }
 
     /* Add connector ids */
@@ -4063,7 +4006,7 @@ static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 };
 
 Bool
-drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
+drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, Bool* overlay_available, int cpp)
 {
     modesettingEntPtr ms_ent = ms_ent_priv(pScrn);
     int i;
@@ -4118,7 +4061,8 @@ drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
     for (i = 0; i < mode_res->count_crtcs; i++)
         if (!xf86IsEntityShared(pScrn->entityList[0]) ||
             (crtcs_needed && !(ms_ent->assigned_crtcs & (1 << i))))
-            crtcs_needed -= drmmode_crtc_init(pScrn, drmmode, mode_res, fallback, i);
+            crtcs_needed -= drmmode_crtc_init(pScrn, drmmode, overlay_available,
+                                              mode_res, fallback, i);
 
     /* All ZaphodHeads outputs provided with matching crtcs? */
     if (xf86IsEntityShared(pScrn->entityList[0]) && (crtcs_needed > 0))
@@ -4130,7 +4074,7 @@ drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
     drmmode_clones_init(pScrn, drmmode, mode_res);
 
     drmModeFreeResources(mode_res);
-    xf86ProviderSetup(pScrn, NULL, "modesetting");
+    xf86ProviderSetup(pScrn, NULL, "fission");
 
     xf86InitialConfiguration(pScrn, TRUE);
 

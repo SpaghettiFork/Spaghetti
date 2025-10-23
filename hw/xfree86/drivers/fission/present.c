@@ -392,10 +392,11 @@ ms_present_flip(RRCrtcPtr crtc,
         ms_present_set_screen_vrr(scrn, TRUE);
     }
 
-    ret = ms_do_pageflip(screen, pixmap, event, xf86_crtc, !sync_flip,
+    ret = ms_do_pageflip(screen, pixmap, event, xf86_crtc,
+                         !sync_flip, ms->overlay_available,
                          ms_present_flip_handler, ms_present_flip_abort,
-                         "Present-flip");
-    if (ret)
+                         "OVERLAY-PRESENT");
+    if (ret) 
         ms->drmmode.present_flipping = TRUE;
 
     return ret;
@@ -425,7 +426,8 @@ ms_present_unflip(ScreenPtr screen, uint64_t event_id)
         event->event_id = event_id;
         event->unflip = TRUE;
 
-        if (ms_do_pageflip(screen, pixmap, event, NULL, FALSE,
+        if (ms_do_pageflip(screen, pixmap, event,
+                           NULL, FALSE, FALSE,
                            ms_present_flip_handler, ms_present_flip_abort,
                            "Present-unflip")) {
             return;
@@ -439,16 +441,7 @@ ms_present_unflip(ScreenPtr screen, uint64_t event_id)
 	    if (!crtc->enabled)
 	        continue;
 
-	    /* info->drmmode.fb_id still points to the FB for the last flipped BO.
-	     * Clear it, drmmode_set_mode_major will re-create it
-	     */
-	    if (drmmode_crtc->drmmode->fb_id) {
-		    drmModeRmFB(drmmode_crtc->drmmode->fd,
-			        drmmode_crtc->drmmode->fb_id);
-		    drmmode_crtc->drmmode->fb_id = 0;
-	    }
-
-	    if (drmmode_crtc->dpms_mode == DPMSModeOn)
+        if (drmmode_crtc->dpms_mode == DPMSModeOn)
 	        crtc->funcs->set_mode_major(crtc, &crtc->mode, crtc->rotation,
 					                    crtc->x, crtc->y);
 	    else

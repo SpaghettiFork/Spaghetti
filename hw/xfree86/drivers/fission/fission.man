@@ -59,6 +59,9 @@ Enable or disable use of the shadow framebuffer layer.  Default: on.
 .BI "Option \*qAccelMethod\*q \*q" string \*q
 One of \*qglamor\*q or \*qnone\*q.  Default: glamor.
 .TP
+.BI "Option \*qOverlays\*q \*q" boolean \*q
+Enables the use of overlays for DRI3 page-flipping.  Default: on.
+.TP
 .BI "Option \*qVariableRefresh\*q \*q" boolean \*q
 Enables support for enabling variable refresh on the Screen's CRTCs
 when an suitable application is flipping via the Present extension.

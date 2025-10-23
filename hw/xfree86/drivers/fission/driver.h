@@ -78,8 +78,8 @@ typedef enum {
     OPTION_ACCEL_METHOD,
     OPTION_VARIABLE_REFRESH,
     OPTION_USE_GAMMA_LUT,
-    OPTION_ASYNC_FLIP_SECONDARIES,
-    OPTION_NO_LEGACY_FEATURES
+    OPTION_NO_LEGACY_FEATURES,
+    OPTION_OVERLAYS
 } modesettingOpts;
 
 typedef struct
@@ -143,6 +143,7 @@ typedef struct _modesettingRec {
      *  @{
      */
     Bool pending_modeset;
+    Bool overlay_available;
     /** @} */
 
     DamagePtr damage;
@@ -252,11 +253,13 @@ typedef void (*ms_pageflip_handler_proc)(modesettingPtr ms,
 
 typedef void (*ms_pageflip_abort_proc)(modesettingPtr ms, void *data);
 
+
 Bool ms_do_pageflip(ScreenPtr screen,
                     PixmapPtr new_front,
                     void *event,
                     xf86CrtcPtr ref_crtc,
                     Bool async,
+                    Bool overlay,
                     ms_pageflip_handler_proc pageflip_handler,
                     ms_pageflip_abort_proc pageflip_abort,
                     const char *log_prefix);

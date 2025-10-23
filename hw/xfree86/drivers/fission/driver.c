@@ -169,8 +169,8 @@ static const OptionInfoRec Options[] = {
     {OPTION_ACCEL_METHOD, "AccelMethod", OPTV_STRING, {0}, FALSE},
     {OPTION_VARIABLE_REFRESH, "VariableRefresh", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_USE_GAMMA_LUT, "UseGammaLUT", OPTV_BOOLEAN, {0}, FALSE},
-    {OPTION_ASYNC_FLIP_SECONDARIES, "AsyncFlipSecondaries", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_NO_LEGACY_FEATURES, "NoLegacy", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_OVERLAYS, "Overlays", OPTV_BOOLEAN, {0}, FALSE},
     {-1, NULL, OPTV_NONE, {0}, FALSE}
 };
 
@@ -708,7 +708,6 @@ dispatch_dirty_pixmap(ScrnInfoPtr scrn, xf86CrtcPtr crtc, PixmapPtr ppix)
     modesettingPtr ms = modesettingPTR(scrn);
     msPixmapPrivPtr ppriv = msGetPixmapPriv(&ms->drmmode, ppix);
     DamagePtr damage = ppriv->secondary_damage;
-    int fb_id = ppriv->fb_id;
 
     dispatch_dirty_region(scrn, crtc, ppix, damage, ppriv->fb_id, 0, 0);
 
@@ -1302,6 +1301,10 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         ms->no_legacy = TRUE;
     }
 
+    if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_OVERLAYS, TRUE)) {
+        ms->overlay_available = TRUE;
+    }
+
     try_enable_glamor(pScrn);
 
     if (!ms->drmmode.glamor) {
@@ -1332,12 +1335,6 @@ PreInit(ScrnInfoPtr pScrn, int flags)
                                                  &ms->vrr_support) ? X_CONFIG : X_DEFAULT;
             xf86DrvMsg(pScrn->scrnIndex, from, "VariableRefresh: %sabled\n",
                        ms->vrr_support ? "en" : "dis");
-
-            ms->drmmode.async_flip_secondaries = FALSE;
-            from = xf86GetOptValBool(ms->drmmode.Options, OPTION_ASYNC_FLIP_SECONDARIES,
-                                     &ms->drmmode.async_flip_secondaries) ? X_CONFIG : X_DEFAULT;
-            xf86DrvMsg(pScrn->scrnIndex, from, "AsyncFlipSecondaries: %sabled\n",
-                       ms->drmmode.async_flip_secondaries ? "en" : "dis");
         }
     }
 
@@ -1379,10 +1376,13 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     if (ret == 0 && value != 0)
         ms->kms_has_modifiers = TRUE;
 
-    if (drmmode_pre_init(pScrn, &ms->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
+    if (drmmode_pre_init(pScrn, &ms->drmmode, &ms->overlay_available, pScrn->bitsPerPixel / 8) == FALSE) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "KMS setup failed\n");
         goto fail;
     }
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+        "Overlays: %s\n", ms->overlay_available ? "ENABLED" : "DISABLED");
 
     /*
      * If the driver can do gamma correction, it should call xf86SetGamma() here.
