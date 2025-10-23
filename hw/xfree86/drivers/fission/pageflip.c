@@ -194,9 +194,9 @@ ms_pageflip_abort(void *data)
 
 static Bool
 do_queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc, uint32_t flags,
-                      uint32_t seq, uint32_t fb_id, int x, int y)
+                      uint32_t seq, uint32_t fb_id, uint32_t plane, int x, int y)
 {
-    while (drmmode_crtc_flip(crtc, fb_id, x, y, flags, (void *)(long)seq)) {
+    while (drmmode_crtc_flip(crtc, fb_id, x, y, plane, flags, (void *)(long)seq)) {
         /* We may have failed because the event queue was full.  Flush it
          * and retry.  If there was nothing to flush, then we failed for
          * some other reason and should just return an error.
@@ -224,7 +224,7 @@ enum queue_flip_status {
 
 static int
 queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc,
-                   struct ms_flipdata *flipdata,
+                   struct ms_flipdata *flipdata, uint32_t plane,
                    xf86CrtcPtr ref_crtc, uint32_t flags)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -252,8 +252,8 @@ queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc,
     /* take a reference on flipdata for use in flip */
     flipdata->flip_count++;
 
-    if (do_queue_flip_on_crtc(screen, crtc, flags, seq, ms->drmmode.fb_id,
-                              crtc->x, crtc->y))
+    if (do_queue_flip_on_crtc(screen, crtc, flags, seq, *flipdata->fb_id,
+                              plane, crtc->x, crtc->y))
         return QUEUE_FLIP_DRM_FLUSH_FAILED;
 
     /* The page flip succeeded. */
@@ -437,6 +437,7 @@ ms_do_pageflip(ScreenPtr screen,
             flags |= DRM_MODE_PAGE_FLIP_ASYNC;
 
         flip_status = queue_flip_on_crtc(screen, crtc, flipdata,
+                                         drmmode_crtc->planes.primary_plane,
                                          ref_crtc, flags);
 
         switch (flip_status) {

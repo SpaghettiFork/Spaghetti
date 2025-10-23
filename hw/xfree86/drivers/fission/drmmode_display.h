@@ -203,6 +203,11 @@ typedef struct {
 } drmmode_cursor_rec, *drmmode_cursor_ptr;
 
 typedef struct {
+    uint32_t primary_plane;
+    uint32_t overlay_plane;
+} drmmode_planes_rec, *drmmode_planes_ptr;
+
+typedef struct {
     drmmode_ptr drmmode;
     drmModeCrtcPtr mode_crtc;
     uint32_t vblank_pipe;
@@ -213,7 +218,7 @@ typedef struct {
 
     drmmode_prop_info_rec props[DRMMODE_CRTC__COUNT];
     drmmode_prop_info_rec props_plane[DRMMODE_PLANE__COUNT];
-    uint32_t plane_id;
+    drmmode_planes_rec planes;
     drmmode_mode_ptr current_mode;
     uint32_t num_formats;
     drmmode_format_rec *formats;
@@ -355,7 +360,7 @@ void drmmode_copy_damage(xf86CrtcPtr crtc, PixmapPtr dst, RegionPtr damage,
                          Bool empty);
 
 int drmmode_crtc_flip(xf86CrtcPtr crtc, uint32_t fb_id, int x, int y,
-                      uint32_t flags, void *data);
+                      uint32_t plane, uint32_t flags, void *data);
 
 Bool drmmode_crtc_get_fb_id(xf86CrtcPtr crtc, uint32_t *fb_id, int *x, int *y);
 
