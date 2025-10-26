@@ -138,9 +138,10 @@ dri3_fd_from_pixmap(PixmapPtr pixmap, CARD16 *stride, CARD32 *size)
     num_fds = info->fds_from_pixmap(screen, pixmap, fds, strides, offsets,
                                     &modifier);
     if (num_fds != 1 || offsets[0] != 0) {
-        int i;
-        for (i = 0; i < num_fds; i++)
+        for (int i = 0; i < num_fds; i++) {
+            BUG_RETURN_VAL(i >= ARRAY_SIZE(fds), -1);
             close(fds[i]);
+        }
         return -1;
     }
 
