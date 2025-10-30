@@ -42,4 +42,6 @@ typedef struct _syncFdScreenFuncs {
 extern _X_EXPORT Bool miSyncFdScreenInit(ScreenPtr pScreen,
                                          const SyncFdScreenFuncsRec *funcs);
 
+extern _X_EXPORT void miSyncFdScreenClose(ScreenPtr pScreen);
+
 #endif /* _MISYNCFD_H_ */
