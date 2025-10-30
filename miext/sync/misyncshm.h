@@ -25,4 +25,6 @@
 
 extern _X_EXPORT Bool miSyncShmScreenInit(ScreenPtr pScreen);
 
+extern _X_EXPORT Bool miSyncShmScreenDestroy(ScreenPtr pScreen);
+
 #endif /* _MISYNCSHM_H_ */
