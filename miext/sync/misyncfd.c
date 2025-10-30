@@ -97,3 +97,9 @@ Bool miSyncFdScreenInit(ScreenPtr pScreen,
 
     return TRUE;
 }
+
+void miSyncFdScreenClose(ScreenPtr pScreen)
+{
+    free(dixLookupPrivate(&pScreen->devPrivates, &syncFdScreenPrivateKey));
+    dixSetPrivate(&pScreen->devPrivates, &syncFdScreenPrivateKey, NULL);
+}
