@@ -159,6 +159,8 @@ typedef struct _modesettingRec {
 
 #ifdef GLAMOR_HAS_GBM
     /* glamor API */
+    XF86VideoAdaptorPtr glamor_adaptor;
+
     struct {
         Bool (*back_pixmap_from_fd)(PixmapPtr, int, CARD16, CARD16, CARD16,
                                     CARD8, CARD8);
