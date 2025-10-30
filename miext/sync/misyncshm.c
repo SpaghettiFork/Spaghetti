@@ -187,11 +187,9 @@ Bool miSyncShmScreenInit(ScreenPtr pScreen)
 
 Bool miSyncShmScreenDestroy(ScreenPtr pScreen)
 {
-    if (!pScreen)
-        return FALSE;
-
-    dixFreePrivates(pScreen->devPrivates, PRIVATE_SYNC_FENCE);
-    dixFreePrivates(pScreen->devPrivates, PRIVATE_SCREEN);
+    /* Fairly ugly hack. */
+    _dixFiniPrivates(NULL, PRIVATE_SYNC_FENCE);
+    miSyncFdScreenClose(pScreen);
 
     return TRUE;
 }
