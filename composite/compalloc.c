@@ -526,6 +526,15 @@ compUnredirectOneSubwindow(WindowPtr pParent, WindowPtr pWin)
     return Success;
 }
 
+static unsigned
+compGetBackgroundState(WindowPtr pWin)
+{
+    while (pWin->backgroundState == ParentRelative)
+        pWin = pWin->parent;
+
+    return pWin->backgroundState;
+}
+
 static PixmapPtr
 compNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
 {
@@ -542,7 +551,8 @@ compNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
     pPixmap->screen_x = x;
     pPixmap->screen_y = y;
 
-    if (pParent->drawable.depth == pWin->drawable.depth) {
+    if (pParent->drawable.depth == pWin->drawable.depth)
+    {
         GCPtr pGC = GetScratchGC(pWin->drawable.depth, pScreen);
 
         if (pGC) {
@@ -560,7 +570,8 @@ compNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
             FreeScratchGC(pGC);
         }
     }
-    else {
+    else if (compGetBackgroundState(pWin) == None)
+    {
         PictFormatPtr pSrcFormat = PictureWindowFormat(pParent);
         PictFormatPtr pDstFormat = PictureWindowFormat(pWin);
         XID inferiors = IncludeInferiors;
@@ -592,6 +603,7 @@ compNewPixmap(WindowPtr pWin, int x, int y, int w, int h)
         if (pDstPicture)
             FreePicture(pDstPicture, 0);
     }
+
     return pPixmap;
 }
 
