@@ -223,6 +223,9 @@ glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
     else
         pixmap = fbCreatePixmap(screen, 0, 0, depth, usage);
 
+    if (!pixmap)
+        return NullPixmap;
+
     pixmap_priv = glamor_get_pixmap_private(pixmap);
 
     pixmap_priv->is_cbcr = (GLAMOR_CREATE_FORMAT_CBCR & usage) == GLAMOR_CREATE_FORMAT_CBCR;
