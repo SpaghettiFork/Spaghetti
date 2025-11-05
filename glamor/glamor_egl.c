@@ -58,7 +58,8 @@
 static const char* ALLOWLIST_DMA_BUF_CAPABLE[] =
 {
     "Intel",
-    "zink"
+    "zink",
+    "radeonsi"
 };
 
 struct glamor_egl_screen_private {
