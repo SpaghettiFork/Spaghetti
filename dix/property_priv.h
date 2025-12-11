@@ -65,9 +65,4 @@ typedef struct _PropertyStateRec {
 
 extern CallbackListPtr PropertyStateCallback;
 
-int dixLookupProperty(PropertyPtr *result, WindowPtr pWin, Atom proprty,
-                      ClientPtr pClient, Mask access_mode);
-
-void DeleteAllWindowProperties(WindowPtr pWin);
-
 #endif /* _XSERVER_PROPERTY_PRIV_H */
