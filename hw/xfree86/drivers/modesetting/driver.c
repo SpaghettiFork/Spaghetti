@@ -481,7 +481,6 @@ Probe(DriverPtr drv, int flags)
     GDevPtr *devSections;
     Bool foundScreen = FALSE;
     const char *dev;
-    ScrnInfoPtr scrn = NULL;
 
     /* For now, just bail out for PROBE_DETECT. */
     if (flags & PROBE_DETECT)
@@ -496,11 +495,15 @@ Probe(DriverPtr drv, int flags)
     }
 
     for (i = 0; i < numDevSections; i++) {
-        int entity_num;
+        int entity_num = -1;
+        ScrnInfoPtr scrn = NULL;
         dev = xf86FindOptionValue(devSections[i]->options, "kmsdev");
-        if (probe_hw(dev, NULL)) {
 
+        if (probe_hw(dev, NULL)) {
             entity_num = xf86ClaimFbSlot(drv, 0, devSections[i], TRUE);
+        }
+
+        if (entity_num != -1) {
             scrn = xf86ConfigFbEntity(scrn, 0, entity_num, NULL, NULL, NULL, NULL);
         }
 
