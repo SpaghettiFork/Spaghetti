@@ -118,8 +118,4 @@ glamor_sync_close(ScreenPtr screen)
         if (screen_funcs)
                 screen_funcs->CreateFence = glamor->saved_procs.sync_screen_funcs.CreateFence;
 #endif
-
-#ifdef HAVE_XSHMFENCE
-	miSyncShmScreenDestroy(screen);
-#endif
 }

@@ -34,6 +34,7 @@ static DevPrivateKeyRec syncFdScreenPrivateKey;
 
 typedef struct _SyncFdScreenPrivate {
     SyncFdScreenFuncsRec        funcs;
+    CloseScreenProcPtr          CloseScreen;
 } SyncFdScreenPrivateRec, *SyncFdScreenPrivatePtr;
 
 static inline SyncFdScreenPrivatePtr sync_fd_screen_priv(ScreenPtr pScreen)
@@ -66,6 +67,17 @@ miSyncFDFromFence(DrawablePtr pDraw, SyncFence *pFence)
     return (*priv->funcs.GetFenceFd)(pDraw->pScreen, pFence);
 }
 
+static Bool
+miSyncFdCloseScreen(ScreenPtr pScreen)
+{
+    SyncFdScreenPrivatePtr      priv = sync_fd_screen_priv(pScreen);
+
+    pScreen->CloseScreen = priv->CloseScreen;
+    free(priv);
+
+    return (*pScreen->CloseScreen) (pScreen);
+}
+
 Bool miSyncFdScreenInit(ScreenPtr pScreen,
                                   const SyncFdScreenFuncsRec *funcs)
 {
@@ -93,13 +105,10 @@ Bool miSyncFdScreenInit(ScreenPtr pScreen,
 
     priv->funcs = *funcs;
 
+    priv->CloseScreen = pScreen->CloseScreen;
+    pScreen->CloseScreen = miSyncFdCloseScreen;
+
     dixSetPrivate(&pScreen->devPrivates, &syncFdScreenPrivateKey, priv);
 
     return TRUE;
-}
-
-void miSyncFdScreenClose(ScreenPtr pScreen)
-{
-    free(dixLookupPrivate(&pScreen->devPrivates, &syncFdScreenPrivateKey));
-    dixSetPrivate(&pScreen->devPrivates, &syncFdScreenPrivateKey, NULL);
 }
