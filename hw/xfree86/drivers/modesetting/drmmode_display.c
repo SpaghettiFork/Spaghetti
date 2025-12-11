@@ -802,9 +802,24 @@ drmmode_create_bo(drmmode_ptr drmmode, drmmode_bo *bo,
             break;
         }
 
+#ifdef GBM_BO_WITH_MODIFIERS2
+        uint64_t *modifiers;
+        uint32_t num_modifiers =
+                get_modifiers_set(drmmode->scrn, format, &modifiers, FALSE, TRUE, TRUE);
+
+        bo->gbm = gbm_bo_create_with_modifiers2(drmmode->gbm, 
+                                                width, height, format,
+                                                modifiers, num_modifiers,
+                                                GBM_BO_USE_RENDERING | GBM_BO_USE_SCANOUT);
+        bo->used_modifiers = (bo->gbm && num_modifiers);
+        
+        if (modifiers)
+            free(modifiers);
+#else
         bo->gbm = gbm_bo_create(drmmode->gbm, width, height, format,
                                 GBM_BO_USE_RENDERING | GBM_BO_USE_SCANOUT);
         bo->used_modifiers = FALSE;
+#endif
         return bo->gbm != NULL;
     }
 #endif
@@ -1982,8 +1997,13 @@ populate_format_modifiers(xf86CrtcPtr crtc, const drmModePlane *kplane,
 
             if ((i < mod->offset) || (i > mod->offset + 63))
                 continue;
+
             if (!(mod->formats & (1 << (i - mod->offset))))
                 continue;
+            
+            /* We should never arrive on this. */
+            if (mod->modifier == DRM_FORMAT_MOD_INVALID)
+                break;
 
             num_modifiers++;
             tmp = realloc(modifiers, num_modifiers * sizeof(modifiers[0]));
