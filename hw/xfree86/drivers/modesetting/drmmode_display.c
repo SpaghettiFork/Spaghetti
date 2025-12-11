@@ -226,11 +226,11 @@ get_modifiers_set(ScrnInfoPtr scrn, uint32_t format, uint64_t **modifiers,
             for (j = 0; j < iter->num_modifiers; j++) {
                 Bool found = FALSE;
 
-		/* Don't choose multi-plane formats for our screen pixmap.
-		 * These will get used with frontbuffer rendering, which will
-		 * lead to worse-than-tearing with multi-plane formats, as the
-		 * primary and auxiliary planes go out of sync. */
-		if (exclude_multiplane &&
+                /* Don't choose multi-plane formats for our screen pixmap.
+                 * These will get used with frontbuffer rendering, which will
+                 * lead to worse-than-tearing with multi-plane formats, as the
+                 * primary and auxiliary planes go out of sync. */
+                if (exclude_multiplane &&
                     gbm_device_get_format_modifier_plane_count(drmmode->gbm,
                                                                format,
                                                                iter->modifiers[j]) > 1) {
