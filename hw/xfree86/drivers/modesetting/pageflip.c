@@ -171,7 +171,10 @@ ms_pageflip_abort(void *data)
     modesettingPtr ms = modesettingPTR(scrn);
 
     if (flipdata->flip_count == 1)
+    {
         flipdata->abort_handler(ms, flipdata->event);
+        drmModeRmFB(ms->fd, flipdata->old_fb_id);
+    }
 
     ms_pageflip_free(flip);
 }
