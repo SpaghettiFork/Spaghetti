@@ -215,11 +215,20 @@ dix_main(int argc, char *argv[], char *envp[])
         for (i = 0; i < screenInfo.numScreens; i++) {
             ScreenPtr pScreen = screenInfo.screens[i];
 
+            /* Let all screens register the necessary privates */
+
             if (!PixmapScreenInit(pScreen))
                 FatalError("failed to create screen pixmap properties");
             if (pScreen->CreateScreenResources &&
                 !(*pScreen->CreateScreenResources) (pScreen))
                 FatalError("failed to create screen resources");
+        }
+
+        for (i = 0; i < screenInfo.numScreens; i++) {
+            ScreenPtr pScreen = screenInfo.screens[i];
+
+            /* Then use these privates to initialize root windows etc */
+
             if (!CreateGCperDepth(i))
                 FatalError("failed to create scratch GCs");
             if (!CreateDefaultStipple(i))
