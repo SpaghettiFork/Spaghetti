@@ -201,7 +201,11 @@ ShmCloseScreen(ScreenPtr pScreen)
     pScreen->CloseScreen = screen_priv->CloseScreen;
     dixSetPrivate(&pScreen->devPrivates, shmScrPrivateKey, NULL);
     free(screen_priv);
-    return (*pScreen->CloseScreen) (pScreen);
+
+    if (!pScreen->CloseScreen)
+        return TRUE;
+    else
+        return (*pScreen->CloseScreen) (pScreen);
 }
 
 static ShmScrPrivateRec *
