@@ -62,11 +62,6 @@ enum drmmode_plane_type {
     DRMMODE_PLANE_TYPE__COUNT
 };
 
-enum drmmode_connector_property {
-    DRMMODE_CONNECTOR_CRTC_ID,
-    DRMMODE_CONNECTOR__COUNT
-};
-
 enum drmmode_crtc_property {
     DRMMODE_CRTC_ACTIVE,
     DRMMODE_CRTC_MODE_ID,
@@ -255,7 +250,6 @@ typedef struct {
     int dpms;
     int num_props;
     drmmode_prop_ptr props;
-    drmmode_prop_info_rec props_connector[DRMMODE_CONNECTOR__COUNT];
     int enc_mask;
     int enc_clone_mask;
     xf86CrtcPtr current_crtc;
