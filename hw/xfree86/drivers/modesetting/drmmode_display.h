@@ -79,6 +79,8 @@ typedef struct {
     struct gbm_bo *gbm;
     Bool used_modifiers;
     Bool owned_gbm;
+    void *gbm_map_data;
+    void *gbm_ptr;
 #endif
 } drmmode_bo;
 
