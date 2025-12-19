@@ -2084,6 +2084,7 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
         [DRMMODE_PLANE_CRTC_ID] = { .name = "CRTC_ID", },
         [DRMMODE_PLANE_IN_FORMATS] = { .name = "IN_FORMATS", },
         [DRMMODE_PLANE_IN_FORMATS_ASYNC] = { .name = "IN_FORMATS_ASYNC", },
+        [DRMMODE_PLANE_SIZE_HINTS] = { .name = "SIZE_HINTS" },
         [DRMMODE_PLANE_SRC_X] = { .name = "SRC_X", },
         [DRMMODE_PLANE_SRC_Y] = { .name = "SRC_Y", },
         [DRMMODE_PLANE_SRC_W] = { .name = "SRC_W", },
