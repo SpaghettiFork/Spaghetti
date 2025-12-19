@@ -185,11 +185,21 @@ typedef struct {
 } drmmode_tearfree_rec, *drmmode_tearfree_ptr;
 
 typedef struct {
+    uint16_t width, height;
+} drmmode_cursor_dim_rec, *drmmode_cursor_dim_ptr;
+
+typedef struct {
+    uint16_t num_dimensions;
+    drmmode_cursor_dim_rec* dimensions;
+    struct dumb_bo *bo;
+} drmmode_cursor_rec, *drmmode_cursor_ptr;
+
+typedef struct {
     drmmode_ptr drmmode;
     drmModeCrtcPtr mode_crtc;
     uint32_t vblank_pipe;
     int dpms_mode;
-    struct dumb_bo *cursor_bo;
+    drmmode_cursor_rec cursor;
     Bool cursor_up;
     uint16_t lut_r[256], lut_g[256], lut_b[256];
 
