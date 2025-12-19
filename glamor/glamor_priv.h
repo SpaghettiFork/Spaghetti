@@ -399,11 +399,13 @@ typedef struct glamor_pixmap_private {
     Bool prepared;
 #ifdef GLAMOR_HAS_GBM
     struct gbm_bo *bo;
+#ifdef GLAMOR_HAS_GBM_MAP
+    void *map_data;
+    Bool bo_mapped;
+#endif
     Bool owned_bo;
     Bool used_modifiers;
-    Bool bo_mapped;
     Bool exporting;
-    void *map_data;
 #endif
     /** block width of this large pixmap. */
     int block_w;

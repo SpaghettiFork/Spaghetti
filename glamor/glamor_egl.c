@@ -942,8 +942,11 @@ glamor_egl_exchange_buffers(PixmapPtr front, PixmapPtr back)
     GLAMOR_EXCHANGE(back_priv->bo, front_priv->bo);
     GLAMOR_EXCHANGE(back_priv->owned_bo, front_priv->owned_bo);
     GLAMOR_EXCHANGE(back_priv->used_modifiers, front_priv->used_modifiers);
+
+#ifdef GLAMOR_HAS_GBM_MAP
     GLAMOR_EXCHANGE(back_priv->bo_mapped, front_priv->bo_mapped);
     GLAMOR_EXCHANGE(back_priv->map_data, front_priv->map_data);
+#endif
 
     GLAMOR_EXCHANGE(back->devPrivate.ptr, front->devPrivate.ptr);
     GLAMOR_EXCHANGE(back->devKind, front->devKind);
