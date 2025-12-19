@@ -2280,15 +2280,15 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
     drmmode_crtc->plane_id = best_plane;
     if (best_kplane) {
         drmmode_crtc->num_formats = best_kplane->count_formats;
-        drmmode_crtc->formats = calloc(best_kplane->count_formats,
-                                       sizeof(drmmode_format_rec));
+        drmmode_crtc->formats = xnfcalloc(best_kplane->count_formats,
+                                          sizeof(drmmode_format_rec));
         if (!populate_format_modifiers(crtc, best_kplane,
                                        drmmode_crtc->formats, blob_id)) {
             for (i = 0; i < best_kplane->count_formats; i++)
                 drmmode_crtc->formats[i].format = best_kplane->formats[i];
         } else {
-            drmmode_crtc->formats_async = calloc(best_kplane->count_formats,
-                                                 sizeof(drmmode_format_rec));
+            drmmode_crtc->formats_async = xnfcalloc(best_kplane->count_formats,
+                                                    sizeof(drmmode_format_rec));
             if (!populate_format_modifiers(crtc, best_kplane,
                                            drmmode_crtc->formats_async, async_blob_id)) {
                 free(drmmode_crtc->formats_async);
