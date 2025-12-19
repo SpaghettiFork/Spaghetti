@@ -11,11 +11,12 @@ Yet _another_ fork of the X.Org Display Server.
 ## Goals
 
 - Maintain ABI compatibility
-- Provide continued support for users either stuck with closed source drivers or legacy pre-OpenGL 2.1 hardware.
+- Provide continued support for users either stuck with closed source drivers or legacy pre-OpenGL 3.3 hardware.
 - Provide a stopgap until either Wayland finally reaches feature parity or a superior display server comes to fruition.
 - Introduce additional features and fixes.
 - Security hardening of the server.
 - Introduction of Meatball, an implementation of Wayland on X11 based upon 12to11.
+- Introduction of Fission, an improved version of modesetting designed for the Atomic Kernel Modesetting future.
 
 ## Credits.
 
