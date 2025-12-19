@@ -91,7 +91,7 @@ glamor_prep_drawable_box(DrawablePtr drawable, glamor_access_t access, BoxPtr bo
         RegionInit(&priv->prepare_region, box, 1);
 
         if (!priv->exporting && priv->bo) {
-            const struct gbm_bo *gbm = priv->bo;
+            struct gbm_bo *gbm = priv->bo;
             uint32_t stride;
 
             if ((pixmap->devPrivate.ptr = gbm_bo_map(gbm, 0, 0, pixmap->drawable.width,
