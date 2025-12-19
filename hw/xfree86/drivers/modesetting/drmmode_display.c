@@ -1435,7 +1435,7 @@ drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
-    uint32_t handle = drmmode_crtc->cursor_bo->handle;
+    uint32_t handle = drmmode_crtc->cursor.bo->handle;
     CursorPtr cursor = xf86CurrentCursor(crtc->scrn->pScreen);
     int ret = -EINVAL;
 
@@ -1492,7 +1492,7 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
     uint32_t *ptr;
 
     /* cursor should be mapped already */
-    ptr = (uint32_t *) (drmmode_crtc->cursor_bo->ptr);
+    ptr = (uint32_t *) (drmmode_crtc->cursor->bo->ptr);
 
     /* FIXME deal with rotation */
     if (crtc->rotation == RR_Rotate_0) {
@@ -4020,7 +4020,7 @@ static void drmmode_probe_cursor_size(xf86CrtcPtr crtc)
 {
     modesettingPtr ms = modesettingPTR(crtc->scrn);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    uint32_t handle = drmmode_crtc->cursor_bo->handle;
+    uint32_t handle = drmmode_crtc->cursor->bo->handle;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
     int width, height, size;
 
@@ -4091,7 +4091,7 @@ drmmode_create_initial_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         xf86CrtcPtr crtc = xf86_config->crtc[i];
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-        drmmode_crtc->cursor_bo =
+        drmmode_crtc->cursor->bo =
             dumb_bo_create(drmmode->fd, width, height, bpp);
     }
 
@@ -4136,7 +4136,7 @@ drmmode_map_cursor_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         xf86CrtcPtr crtc = xf86_config->crtc[i];
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-        ret = dumb_bo_map(drmmode->fd, drmmode_crtc->cursor_bo);
+        ret = dumb_bo_map(drmmode->fd, drmmode_crtc->cursor.bo);
         if (ret)
             return FALSE;
     }
@@ -4160,7 +4160,7 @@ drmmode_free_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         xf86CrtcPtr crtc = xf86_config->crtc[i];
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-        dumb_bo_destroy(drmmode->fd, drmmode_crtc->cursor_bo);
+        dumb_bo_destroy(drmmode->fd, drmmode_crtc->cursor.bo);
         drmmode_destroy_tearfree_shadow(crtc);
     }
 }
