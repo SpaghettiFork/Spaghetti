@@ -506,7 +506,6 @@ drmmode_crtc_get_fb_id(xf86CrtcPtr crtc, uint32_t *fb_id, int *x, int *y)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
     drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
-    int ret;
 
     *fb_id = 0;
 
@@ -534,16 +533,6 @@ drmmode_crtc_get_fb_id(xf86CrtcPtr crtc, uint32_t *fb_id, int *x, int *y)
         *fb_id = drmmode->fb_id;
         *x = crtc->x;
         *y = crtc->y;
-    }
-
-    if (*fb_id == 0) {
-        ret = drmmode_bo_import(drmmode, &drmmode->front_bo,
-                                &drmmode->fb_id);
-        if (ret < 0) {
-            ErrorF("failed to add fb %d\n", ret);
-            return FALSE;
-        }
-        *fb_id = drmmode->fb_id;
     }
 
     return TRUE;
@@ -4217,6 +4206,10 @@ drmmode_create_initial_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
     if (!drmmode_create_bo(drmmode, &drmmode->front_bo, width, height, bpp))
         return FALSE;
+
+    if (drmmode_bo_import(drmmode, &drmmode->front_bo, &drmmode->fb_id) < 0)
+        return FALSE;
+
     pScrn->displayWidth = drmmode_bo_get_pitch(&drmmode->front_bo) / cpp;
 
     bpp = 32;
