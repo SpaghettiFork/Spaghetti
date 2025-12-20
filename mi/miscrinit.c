@@ -60,6 +60,17 @@ typedef struct {
     int ysize;
 } miScreenInitParmsRec, *miScreenInitParmsPtr;
 
+/* per-screen private data */
+static DevPrivateKeyRec miScreenPrivKeyRec;
+
+#define miScreenPrivKey (&miScreenPrivKeyRec)
+
+typedef struct {
+    CloseScreenProcPtr CloseScreen;
+} miScreenRec, *miScreenPtr;
+
+#define miGetScreenPriv(s) ((miScreenPtr)(dixLookupPrivate(&(s)->devPrivates, miScreenPrivKey)))
+
 #define DEFAULTZEROLINEBIAS (OCTANT2 | OCTANT3 | OCTANT4 | OCTANT5)
 
 /* this plugs into pScreen->ModifyPixmapHeader */
@@ -126,7 +137,18 @@ miModifyPixmapHeader(PixmapPtr pPixmap, int width, int height, int depth,
 static Bool
 miCloseScreen(ScreenPtr pScreen)
 {
-    return ((*pScreen->DestroyPixmap) ((PixmapPtr) pScreen->devPrivate));
+    miScreenPtr pScreenPriv = miGetScreenPriv(pScreen);
+
+    ((*pScreen->DestroyPixmap) ((PixmapPtr) pScreen->devPrivate));
+
+    pScreen->CloseScreen = pScreenPriv->CloseScreen;
+
+    free(pScreenPriv);
+
+    if (pScreen->CloseScreen)
+        return (*pScreen->CloseScreen) (pScreen);
+
+    return TRUE;
 }
 
 static Bool
@@ -235,6 +257,17 @@ miScreenInit(ScreenPtr pScreen, void *pbits,  /* pointer to screen bits */
              VisualRec * visuals        /* supported visuals */
     )
 {
+   miScreenPtr pScreenPriv;
+
+    if (!dixRegisterPrivateKey(&miScreenPrivKeyRec, PRIVATE_SCREEN, 0))
+        return FALSE;
+
+    pScreenPriv = calloc(1, sizeof(miScreenRec));
+    if (!pScreenPriv)
+        return FALSE;
+
+    dixSetPrivate(&pScreen->devPrivates, miScreenPrivKey, pScreenPriv);
+
     pScreen->width = xsize;
     pScreen->height = ysize;
     pScreen->mmWidth = (xsize * 254 + dpix * 5) / (dpix * 10);
@@ -259,6 +292,7 @@ miScreenInit(ScreenPtr pScreen, void *pbits,  /* pointer to screen bits */
 #ifdef MITSHM
         ShmRegisterFbFuncs(pScreen);
 #endif
+        pScreenPriv->CloseScreen = pScreen->CloseScreen;
         pScreen->CloseScreen = miCloseScreen;
     }
     /* else CloseScreen */
