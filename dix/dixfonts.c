@@ -693,9 +693,8 @@ doListFontsAndAliases(ClientPtr client, LFclosurePtr c)
                     c->saved = c->current;
                     c->haveSaved = TRUE;
                     free(c->savedName);
-                    c->savedName = malloc(namelen + 1);
-                    if (c->savedName)
-                        memcpy(c->savedName, name, namelen + 1);
+                    c->savedName = XNFalloc(namelen + 1);
+                    memcpy(c->savedName, name, namelen + 1);
                     c->savedNameLen = namelen;
                     aliascount = 20;
                 }

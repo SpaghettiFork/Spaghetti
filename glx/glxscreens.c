@@ -339,7 +339,7 @@ __glXScreenInit(__GLXscreen * pGlxScreen, ScreenPtr pScreen)
     pGlxScreen->numFBConfigs = i;
 
     pGlxScreen->visuals =
-        calloc(pGlxScreen->numFBConfigs, sizeof(__GLXconfig *));
+        XNFcallocarray(pGlxScreen->numFBConfigs, sizeof(__GLXconfig *));
 
     /* First, try to choose featureful FBconfigs for the existing X visuals.
      * Note that if multiple X visuals end up with the same FBconfig being
