@@ -2356,8 +2356,7 @@ CloseScreen(ScreenPtr pScreen)
         ms->drmmode.shadow_fb2 = NULL;
     }
 
-    if (!ms->drmmode.sw_cursor)
-        xf86_cursors_fini(pScreen);
+    xf86_cursors_fini(pScreen);
 
     drmmode_uevent_fini(pScrn, &ms->drmmode);
 
