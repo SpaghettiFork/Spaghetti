@@ -1341,7 +1341,6 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     pEnt = xf86GetEntityInfo(pScrn->entityList[0]);
 
     ms = modesettingPTR(pScrn);
-    ms->SaveGeneration = -1;
     ms->pEnt = pEnt;
     ms->drmmode.is_secondary = FALSE;
     pScrn->displayWidth = 640;  /* default it */
