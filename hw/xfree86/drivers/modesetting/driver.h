@@ -102,16 +102,14 @@ struct ms_drm_queue {
 
 typedef struct _modesettingRec {
     int fd;
-    Bool fd_passed;
-
     int Chipset;
-    EntityInfoPtr pEnt;
 
+    Bool fd_passed;
     Bool noAccel;
+
+    EntityInfoPtr pEnt;
     CloseScreenProcPtr CloseScreen;
     CreateWindowProcPtr CreateWindow;
-    unsigned int SaveGeneration;
-
     CreateScreenResourcesProcPtr createScreenResources;
     ScreenBlockHandlerProcPtr BlockHandler;
     miPointerSpriteFuncPtr SpriteFuncs;
@@ -126,7 +124,9 @@ typedef struct _modesettingRec {
      *  @{
      */
     Bool atomic_modeset_capable;
+    Bool universal_planes;
     Bool pending_modeset;
+    Bool kms_has_modifiers;
     /** @} */
 
     DamagePtr damage;
@@ -134,8 +134,6 @@ typedef struct _modesettingRec {
 
     Bool has_queue_sequence;
     Bool tried_queue_sequence;
-
-    Bool kms_has_modifiers;
 
     /* VRR support */
     Bool vrr_support;
