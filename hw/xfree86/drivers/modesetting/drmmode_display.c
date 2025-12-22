@@ -2812,6 +2812,8 @@ drmmode_output_create_resources(xf86OutputPtr output)
     drmModePropertyPtr drmmode_prop;
     int i, j, err;
 
+    BUG_RETURN(drmmode_output->props != NULL);
+
     drmmode_output->props =
         calloc(mode_output->count_props, sizeof(drmmode_prop_rec));
     if (!drmmode_output->props)
