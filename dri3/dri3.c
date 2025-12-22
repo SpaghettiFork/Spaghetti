@@ -36,6 +36,9 @@ dri3_close_screen(ScreenPtr screen)
 
     unwrap(screen_priv, screen, CloseScreen);
 
+    if (screen_priv->formats)
+        free(screen_priv->formats);
+
     free(screen_priv);
     return (*screen->CloseScreen) (screen);
 }
