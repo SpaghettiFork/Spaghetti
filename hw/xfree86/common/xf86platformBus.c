@@ -60,7 +60,31 @@ int platformSlotClaimed;
 
 int xf86_num_platform_devices;
 
+/**
+ * These kernel devices should be allowed
+ * to attach to modesetting by default.
+ */
+static const char* DEVICE_ALLOWLIST[] =
+{
+    "hyperv_drm",
+    "simpledrm",
+    "vesadrm",
+    "efidrm",
+    "ofdrm"
+};
+
 struct xf86_platform_device *xf86_platform_devices;
+
+static inline
+Bool xf86_is_device_allowed(char* driver)
+{
+    const int size = sizeof(DEVICE_ALLOWLIST) / sizeof(DEVICE_ALLOWLIST[0]);
+    for (int idx = 0; idx < size; idx++)
+        if (strcmp(driver, DEVICE_ALLOWLIST[idx]) == 0)
+            return TRUE;
+
+    return FALSE;
+}
 
 int
 xf86_add_platform_device(struct OdevAttributes *attribs, Bool unowned)
@@ -579,16 +603,8 @@ xf86platformProbeDev(DriverPtr drvp)
                 /* for non-seat0 servers assume first device is the master */
                 if (ServerIsNotSeat0()) {
                     break;
-                } else {
-                    /* Accept the device if the driver is hyperv_drm */
-                    if (strcmp(xf86_platform_devices[j].attribs->driver, "hyperv_drm") == 0)
-                        break;
-                    /* Accept the device if the driver is ofdrm */
-                    if (strcmp(xf86_platform_devices[j].attribs->driver, "ofdrm") == 0)
-                        break;
-                    /* Accept the device if the driver is simpledrm */
-                    if (strcmp(xf86_platform_devices[j].attribs->driver, "simpledrm") == 0)
-                        break;
+                } else if (xf86_is_device_allowed(xf86_platform_devices[j].attribs->driver)) {
+                    break;
                 }
 
                 if (xf86IsPrimaryPlatform(&xf86_platform_devices[j]))
