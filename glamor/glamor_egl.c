@@ -511,7 +511,7 @@ glamor_make_pixmap_exportable(PixmapPtr pixmap, Bool modifiers_ok)
     return TRUE;
 }
 
-static struct gbm_bo *
+static inline struct gbm_bo *
 glamor_gbm_bo_from_pixmap_internal(ScreenPtr screen, PixmapPtr pixmap)
 {
     struct glamor_pixmap_private *pixmap_priv =
@@ -618,7 +618,6 @@ glamor_egl_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
     fd = gbm_bo_get_fd(bo);
     *stride = gbm_bo_get_stride(bo);
     *size = *stride * gbm_bo_get_height(bo);
-    gbm_bo_destroy(bo);
 
     return fd;
 #else

@@ -666,6 +666,7 @@ drmmode_bo_destroy(drmmode_ptr drmmode, drmmode_bo *bo)
 #ifdef GLAMOR_HAS_GBM_MAP
         if (bo->gbm_ptr) {
             gbm_bo_unmap(bo->gbm, bo->gbm_map_data);
+            bo->gbm_map_data = NULL;
             bo->gbm_ptr = NULL;
         }
 #endif
@@ -3285,6 +3286,14 @@ drmmode_set_pixmap_bo(drmmode_ptr drmmode, PixmapPtr pixmap, drmmode_bo *bo)
     if (!drmmode->glamor)
         return TRUE;
 
+    /* Calling egl_create_textured_pixmap_from_gbm_bo in GLAMOR will
+     * destroy the GBM BO, we need to unmap pointers ahead of time. */
+    if (bo->gbm && bo->gbm_ptr) {
+        gbm_bo_unmap(bo->gbm, bo->gbm_map_data);
+        bo->gbm_ptr = NULL;
+        bo->gbm_map_data = NULL;
+    }
+
     if (!ms->glamor.egl_create_textured_pixmap_from_gbm_bo(pixmap, bo->gbm,
                                                            bo->used_modifiers)) {
         xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Failed to create pixmap\n");
@@ -3303,10 +3312,7 @@ drmmode_glamor_handle_new_screen_pixmap(drmmode_ptr drmmode)
     ScreenPtr screen = xf86ScrnToScreen(drmmode->scrn);
     PixmapPtr screen_pixmap = screen->GetScreenPixmap(screen);
 
-    if (!drmmode_set_pixmap_bo(drmmode, screen_pixmap, &drmmode->front_bo))
-        return FALSE;
-
-    return TRUE;
+    return drmmode_set_pixmap_bo(drmmode, screen_pixmap, &drmmode->front_bo);
 }
 
 static Bool
