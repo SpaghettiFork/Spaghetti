@@ -342,7 +342,7 @@ glamor_finish_access_gc(GCPtr gc)
     }
 }
 
-void
+inline void
 glamor_finish_access_pixmap(PixmapPtr pixmap)
 {
     glamor_finish_access(&pixmap->drawable);
