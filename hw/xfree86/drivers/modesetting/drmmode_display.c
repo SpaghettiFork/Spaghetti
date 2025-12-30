@@ -3379,6 +3379,7 @@ drmmode_set_pixmap_bo(drmmode_ptr drmmode, PixmapPtr pixmap, drmmode_bo *bo)
     if (!drmmode->glamor)
         return TRUE;
 
+#ifdef GLAMOR_HAS_GBM_MAP
     /* Calling egl_create_textured_pixmap_from_gbm_bo in GLAMOR will
      * destroy the GBM BO, we need to unmap pointers ahead of time. */
     if (bo->gbm && bo->gbm_ptr) {
@@ -3386,6 +3387,7 @@ drmmode_set_pixmap_bo(drmmode_ptr drmmode, PixmapPtr pixmap, drmmode_bo *bo)
         bo->gbm_ptr = NULL;
         bo->gbm_map_data = NULL;
     }
+#endif
 
     if (!ms->glamor.egl_create_textured_pixmap_from_gbm_bo(pixmap, bo->gbm,
                                                            bo->used_modifiers)) {
