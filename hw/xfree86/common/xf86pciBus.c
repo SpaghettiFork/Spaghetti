@@ -1190,6 +1190,9 @@ xf86VideoPtrToDriverList(struct pci_device *dev, XF86MatchedDrivers *md)
     case 0x102b:
         driverList[0] = "mga";
         break;
+    case 0x1ed5:
+        driverList[0] = "mtgpu";
+        break;
     case 0x10c8:
         driverList[0] = "neomagic";
         break;
