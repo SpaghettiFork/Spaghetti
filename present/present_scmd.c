@@ -69,7 +69,6 @@ present_check_flip(RRCrtcPtr            crtc,
     PixmapPtr                   window_pixmap;
     WindowPtr                   root = screen->root;
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
-    PresentFlipReason           tmp_reason = PRESENT_FLIP_REASON_UNKNOWN;
 
     if (crtc) {
        screen_priv = present_screen_priv(crtc->pScreen);
@@ -89,27 +88,6 @@ present_check_flip(RRCrtcPtr            crtc,
     /* Check to see if the driver supports flips at all */
     if (!screen_priv->info->flip)
         return FALSE;
-
-    /* Ask the driver for permission. Do this now to see if there's TearFree. */
-    if (screen_priv->info->version >= 1 && screen_priv->info->check_flip2) {
-        if (!(*screen_priv->info->check_flip2) (crtc, window, pixmap, sync_flip, &tmp_reason)) {
-            DebugPresent(("\td %08" PRIx32 " -> %08" PRIx32 "\n", window->drawable.id, pixmap ? pixmap->drawable.id : 0));
-            /* It's fine to return now unless the page flip failure reason is
-             * PRESENT_FLIP_REASON_BUFFER_FORMAT; we must only output that
-             * reason if all the other checks pass.
-             */
-            if (!reason || tmp_reason != PRESENT_FLIP_REASON_BUFFER_FORMAT) {
-                if (reason)
-                    *reason = tmp_reason;
-                return FALSE;
-            }
-        }
-    } else if (screen_priv->info->check_flip) {
-        if (!(*screen_priv->info->check_flip) (crtc, window, pixmap, sync_flip)) {
-            DebugPresent(("\td %08" PRIx32 " -> %08" PRIx32 "\n", window->drawable.id, pixmap ? pixmap->drawable.id : 0));
-            return FALSE;
-        }
-    }
 
     /* Make sure the window hasn't been redirected with Composite */
     window_pixmap = screen->GetWindowPixmap(window);
@@ -143,10 +121,17 @@ present_check_flip(RRCrtcPtr            crtc,
         return FALSE;
     }
 
-    if (tmp_reason == PRESENT_FLIP_REASON_BUFFER_FORMAT) {
-        if (reason)
-            *reason = tmp_reason;
-        return FALSE;
+    /* Ask the driver for permission. Do this now to see if there's TearFree. */
+    if (screen_priv->info->version >= 1 && screen_priv->info->check_flip2) {
+        if (!(*screen_priv->info->check_flip2) (crtc, window, pixmap, sync_flip, reason)) {
+            DebugPresent(("\td %08" PRIx32 " -> %08" PRIx32 "\n", window->drawable.id, pixmap ? pixmap->drawable.id : 0));
+            return FALSE;
+        }
+    } else if (screen_priv->info->check_flip) {
+        if (!(*screen_priv->info->check_flip) (crtc, window, pixmap, sync_flip)) {
+            DebugPresent(("\td %08" PRIx32 " -> %08" PRIx32 "\n", window->drawable.id, pixmap ? pixmap->drawable.id : 0));
+            return FALSE;
+        }
     }
 
     return TRUE;
