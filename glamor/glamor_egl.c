@@ -73,7 +73,6 @@ struct glamor_egl_screen_private {
     /* Screen capabilities. */
 
     Bool dmabuf_capable;
-    Bool glvnd_force_vendor;
     Bool high_priority_ctx;
 
     /* Misc. items, least used. */
@@ -1067,13 +1066,11 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
 
     glamor_ctx->make_current = glamor_egl_make_current;
 
-    /* Use dynamic logic only if vendor is not forced via xorg.conf */
-    if (!glamor_egl->glvnd_force_vendor) {
-        gbm_backend_name = gbm_device_get_backend_name(glamor_egl->gbm);
-        /* Mesa uses "drm" as backend name, in that case, just do nothing */
-        if (gbm_backend_name && strcmp(gbm_backend_name, "drm") != 0)
-            glamor_set_glvnd_vendor(screen, gbm_backend_name);
-    }
+    gbm_backend_name = gbm_device_get_backend_name(glamor_egl->gbm);
+    /* Mesa uses "drm" as backend name, in that case, just do nothing */
+    if (gbm_backend_name && strcmp(gbm_backend_name, "drm") != 0)
+        glamor_set_glvnd_vendor(screen, gbm_backend_name);
+
 #ifdef DRI3
     /* Tell the core that we have the interfaces for import/export
      * of pixmaps.
@@ -1259,12 +1256,10 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
 
 enum {
     GLAMOREGLOPT_RENDERING_API,
-    GLAMOREGLOPT_VENDOR_LIBRARY
 };
 
 static const OptionInfoRec GlamorEGLOptions[] = {
     { GLAMOREGLOPT_RENDERING_API, "RenderingAPI", OPTV_STRING, {0}, FALSE },
-    { GLAMOREGLOPT_VENDOR_LIBRARY, "GlxVendorLibrary", OPTV_STRING, {0}, FALSE },
     { -1, NULL, OPTV_NONE, {0}, FALSE },
 };
 
@@ -1277,7 +1272,6 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
     const char *api = NULL;
     Bool es_allowed = TRUE;
     Bool force_es = FALSE;
-    const char *glvnd_vendor = NULL;
 
     glamor_egl = calloc(1, sizeof(*glamor_egl));
     if (glamor_egl == NULL)
@@ -1288,11 +1282,7 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
     options = XNFalloc(sizeof(GlamorEGLOptions));
     memcpy(options, GlamorEGLOptions, sizeof(GlamorEGLOptions));
     xf86ProcessOptions(scrn->scrnIndex, scrn->options, options);
-    glvnd_vendor = xf86GetOptValString(options, GLAMOREGLOPT_VENDOR_LIBRARY);
-    if (glvnd_vendor) {
-        glamor_set_glvnd_vendor(xf86ScrnToScreen(scrn), glvnd_vendor);
-        glamor_egl->glvnd_force_vendor = TRUE;
-    }
+
     api = xf86GetOptValString(options, GLAMOREGLOPT_RENDERING_API);
     if (api && !strncasecmp(api, "es", 2))
         force_es = TRUE;
