@@ -85,7 +85,6 @@ struct EphyrHostXVars {
 
     long damage_debug_msec;
     Bool size_set_from_configure;
-    char *glvnd_vendor;
 };
 
 /* memset ( missing> ) instead of below  */
@@ -1550,49 +1549,12 @@ out:
 
 #ifdef GLAMOR
 
-#ifndef GLX_EXTENSIONS
-#define GLX_EXTENSIONS          3
-#endif
-
-#ifndef GLX_VENDOR_NAMES_EXT
-#define GLX_VENDOR_NAMES_EXT 0x20F6
-#endif
-
-/**
- * Exchange a protocol request for glXQueryServerString.
- */
-static char *
-__glXQueryServerString(CARD32 name)
-{
-    xcb_glx_query_server_string_cookie_t cookie;
-    xcb_glx_query_server_string_reply_t *reply;
-    uint32_t len;
-    char *str;
-    char *buf;
-
-    cookie = xcb_glx_query_server_string(HostX.conn, HostX.screen, name);
-    reply = xcb_glx_query_server_string_reply(HostX.conn, cookie, NULL);
-    str = xcb_glx_query_server_string_string(reply);
-
-    /* The spec doesn't mention this, but the Xorg server replies with
-     * a string already terminated with '\0'. */
-    len = xcb_glx_query_server_string_string_length(reply);
-    buf = XNFalloc(len);
-    memcpy(buf, str, len);
-    free(reply);
-
-    return buf;
-}
-
 Bool
 ephyr_glamor_init(ScreenPtr screen)
 {
     KdScreenPriv(screen);
     KdScreenInfo *kd_screen = pScreenPriv->screen;
     EphyrScrPriv *scrpriv = kd_screen->driver;
-    char *hostx_glx_exts = NULL;
-    char *glvnd_vendors = NULL;
-    _Xstrtokparams saveptr;
 
     scrpriv->glamor = ephyr_glamor_screen_init(scrpriv->win, scrpriv->vid);
     ephyr_glamor_set_window_size(scrpriv->glamor,
@@ -1602,16 +1564,6 @@ ephyr_glamor_init(ScreenPtr screen)
         FatalError("Failed to initialize glamor\n");
         return FALSE;
     }
-    hostx_glx_exts = __glXQueryServerString(GLX_EXTENSIONS);
-    if (epoxy_extension_in_string(hostx_glx_exts,"GLX_EXT_libglvnd"))
-        glvnd_vendors = __glXQueryServerString(GLX_VENDOR_NAMES_EXT);
-
-    if (glvnd_vendors) {
-        HostX.glvnd_vendor = _XStrtok(glvnd_vendors, " ", saveptr);
-        glamor_set_glvnd_vendor(screen, HostX.glvnd_vendor);
-        free(glvnd_vendors);
-    }
-    free(hostx_glx_exts);
 
     return TRUE;
 }
