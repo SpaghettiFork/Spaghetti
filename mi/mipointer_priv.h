@@ -7,7 +7,6 @@
 
 #include <X11/Xdefs.h>
 
-#include "dix/screenint_priv.h"
 #include "include/input.h"
 #include "mi/mipointer.h"
 

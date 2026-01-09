@@ -38,7 +38,6 @@
 #include <unistd.h>
 
 #include "config/hotplug_priv.h"
-#include "dix/screenint_priv.h"
 
 #include "os.h"
 #include "systemd-logind.h"
