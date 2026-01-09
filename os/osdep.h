@@ -218,7 +218,6 @@ void ListenToAllClients(void);
 /* allow DDX to force using another clock */
 void ForceClockId(clockid_t forced_clockid);
 
-Bool WaitForSomething(Bool clients_are_ready);
 void CloseDownConnection(ClientPtr client);
 
 extern int LimitClients;

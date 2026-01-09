@@ -48,6 +48,7 @@ SOFTWARE.
 #define OS_H
 
 #include "misc.h"
+
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -55,6 +56,8 @@ SOFTWARE.
 #ifdef MONOTONIC_CLOCK
 #include <time.h>
 #endif
+
+#include "log.h"
 
 #include <X11/Xfuncproto.h>
 
@@ -83,6 +86,10 @@ typedef struct _NewClientRec *NewClientPtr;
 
 #include <stdio.h>
 #include <stdarg.h>
+
+extern _X_EXPORT Bool WaitForSomething(Bool clients_are_ready);
+
+extern _X_EXPORT int ReadRequestFromClient(ClientPtr /*client */ );
 
 extern _X_EXPORT int ReadFdFromClient(ClientPtr client);
 
@@ -216,6 +223,9 @@ PrivsElevated(void);
 extern _X_EXPORT int
 GetClientFd(ClientPtr);
 
+extern _X_EXPORT Bool
+ClientIsLocal(ClientPtr client);
+
 /* stuff for ReplyCallback */
 extern _X_EXPORT CallbackListPtr ReplyCallback;
 typedef struct {
@@ -232,6 +242,23 @@ extern _X_EXPORT CallbackListPtr FlushCallback;
 
 extern _X_EXPORT int
 TimeSinceLastInputEvent(void);
+
+/* DDX */
+#ifdef DDXBEFORERESET
+extern void ddxBeforeReset(void);
+#endif
+
+extern _X_EXPORT int
+ddxProcessArgument(int /*argc */ , char * /*argv */ [], int /*i */ );
+
+extern _X_EXPORT void
+ddxUseMsg(void);
+
+extern _X_EXPORT void
+ddxGiveUp(enum ExitCode error);
+
+extern _X_EXPORT void
+ddxInputThreadInit(void);
 
 /* Function fallbacks provided by AC_REPLACE_FUNCS in configure.ac */
 

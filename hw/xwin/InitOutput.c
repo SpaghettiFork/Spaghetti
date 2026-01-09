@@ -32,12 +32,10 @@ from The Open Group.
 #include <xwin-config.h>
 #endif
 
-#include "win.h"
-
 #include "dix/dix_priv.h"
-#include "os/ddx_priv.h"
 #include "os/osdep.h"
 
+#include "win.h"
 #include "winmsg.h"
 #include "winconfig.h"
 #include "winprefs.h"

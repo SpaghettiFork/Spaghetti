@@ -29,7 +29,6 @@
 
 #include <errno.h>
 
-#include "os/ddx_priv.h"
 #include "os/osdep.h"
 
 #include "xf86.h"

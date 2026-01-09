@@ -112,7 +112,6 @@ Equipment Corporation.
 #include "include/resource.h"
 #include "os/auth.h"
 #include "os/client_priv.h"
-#include "os/ddx_priv.h"
 #include "os/osdep.h"
 #include "os/screensaver.h"
 
