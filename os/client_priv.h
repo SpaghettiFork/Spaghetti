@@ -34,7 +34,6 @@ pid_t GetClientPid(struct _Client *client);
 const char *GetClientCmdName(struct _Client *client);
 const char *GetClientCmdArgs(struct _Client *client);
 
-Bool ClientIsLocal(struct _Client *client);
 XID AuthorizationIDOfClient(struct _Client *client);
 const char *ClientAuthorized(struct _Client *client,
                              unsigned int proto_n,
@@ -43,7 +42,6 @@ const char *ClientAuthorized(struct _Client *client,
                              char *auth_string);
 Bool AddClientOnOpenFD(int fd);
 void ListenOnOpenFD(int fd, int noxauth);
-int ReadRequestFromClient(struct _Client *client);
 int WriteFdToClient(struct _Client *client, int fd, Bool do_close);
 Bool InsertFakeRequest(struct _Client *client, char *data, int count);
 void FlushAllOutput(void);
