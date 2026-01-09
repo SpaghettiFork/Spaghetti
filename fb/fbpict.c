@@ -284,6 +284,7 @@ create_bits_picture(PicturePtr pict, Bool has_clip, int *xoff, int *yoff)
     FbStride stride;
     int bpp;
     pixman_image_t *image;
+    RegionPtr clip;
 
     fbGetDrawablePixmap(pict->pDrawable, pixmap, *xoff, *yoff);
     fbGetPixmapBitsData(pixmap, bits, stride, bpp);
@@ -302,20 +303,24 @@ create_bits_picture(PicturePtr pict, Bool has_clip, int *xoff, int *yoff)
                                (pixman_write_memory_func_t) wfbWriteMemory);
 #endif
 
-    /* pCompositeClip is undefined for source pictures, so
-     * only set the clip region for pictures with drawables
-     */
-    if (has_clip) {
+    if (has_clip)
+        clip = pict->pCompositeClip;
+    else
+        /* pCompositeClip is undefined for source pictures, so
+         * only set the clip region for pictures with drawables */
+        clip = pict->clientClip;
+
+    if (clip) {
         if (pict->clientClip)
             pixman_image_set_has_client_clip(image, TRUE);
 
         if (*xoff || *yoff)
-            pixman_region_translate(pict->pCompositeClip, *xoff, *yoff);
+            pixman_region_translate(clip, *xoff, *yoff);
 
-        pixman_image_set_clip_region(image, pict->pCompositeClip);
+        pixman_image_set_clip_region(image, clip);
 
         if (*xoff || *yoff)
-            pixman_region_translate(pict->pCompositeClip, -*xoff, -*yoff);
+            pixman_region_translate(clip, -*xoff, -*yoff);
     }
 
     /* Indexed table */
