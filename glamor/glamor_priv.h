@@ -46,6 +46,9 @@
 #include <epoxy/egl.h>
 #endif
 
+#define GLAMOR_EXCHANGE(a, b) \
+    { typeof(a) __tmp; __tmp = a; a = b; b = __tmp; }
+
 #define GLAMOR_DEFAULT_PRECISION  \
     "#ifdef GL_ES\n"              \
     "precision mediump float;\n"  \

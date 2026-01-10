@@ -922,9 +922,6 @@ glamor_egl_destroy_pixmap(PixmapPtr pixmap)
 void
 glamor_egl_exchange_buffers(PixmapPtr front, PixmapPtr back)
 {
-#define GLAMOR_EXCHANGE(a, b) \
-    { typeof(a) __tmp; __tmp = a; a = b; b = __tmp; }
-
     struct glamor_pixmap_private *front_priv =
         glamor_get_pixmap_private(front);
     struct glamor_pixmap_private *back_priv =
