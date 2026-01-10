@@ -185,9 +185,8 @@ do_queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc, uint32_t flags,
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
-    int ret;
 
-    while ((ret = drmmode_crtc_flip(crtc, fb_id, x, y, flags, (void *)(long)seq))) {
+    while (drmmode_crtc_flip(crtc, fb_id, x, y, flags, (void *)(long)seq)) {
         /* We may have failed because the event queue was full.  Flush it
          * and retry.  If there was nothing to flush, then we failed for
          * some other reason and should just return an error.
@@ -203,7 +202,7 @@ do_queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc, uint32_t flags,
         }
 
         /* We flushed some events, so try again. */
-        xf86DrvMsg(crtc->scrn->scrnIndex, X_WARNING, "flip queue retry (%s)\n", strerror(ret));
+        xf86DrvMsg(crtc->scrn->scrnIndex, X_WARNING, "flip queue retry (%s)\n", strerror(errno));
     }
 
     return FALSE;
