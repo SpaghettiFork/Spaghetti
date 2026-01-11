@@ -526,7 +526,7 @@ compUnredirectOneSubwindow(WindowPtr pParent, WindowPtr pWin)
     return Success;
 }
 
-static unsigned
+static inline unsigned
 compGetBackgroundState(WindowPtr pWin)
 {
     while (pWin->backgroundState == ParentRelative)
