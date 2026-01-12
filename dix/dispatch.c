@@ -496,15 +496,12 @@ Dispatch(void)
             FlushIfCriticalOutputPending();
         }
 
-        if (!WaitForSomething(clients_are_ready()))
-            continue;
-
         /*****************
          *  Handle events in round robin fashion, doing input between
          *  each round
          *****************/
 
-        if (!dispatchException && clients_are_ready()) {
+        if (WaitForSomething(clients_are_ready())) {
             client = SmartScheduleClient();
 
             isItTimeToYield = FALSE;
@@ -525,9 +522,9 @@ Dispatch(void)
 
                 /* now, finally, deal with client requests */
                 result = ReadRequestFromClient(client);
-                if (result == 0)
+                if (result == 0) {
                     break;
-                else if (result == -1) {
+                } else if (result == -1) {
                     CloseDownClient(client);
                     break;
                 }
@@ -549,9 +546,9 @@ Dispatch(void)
                                           client->index,
                                           client->requestBuffer);
 #endif
-                if (result < 0 || result > (maxBigRequestSize << 2))
+                if (result < 0 || result > (maxBigRequestSize << 2)) {
                     result = BadLength;
-                else {
+                } else {
                     result = XaceHookDispatch(client, client->majorOp);
                     if (result == Success) {
                         currentClient = client;
@@ -560,6 +557,7 @@ Dispatch(void)
                         currentClient = NULL;
                     }
                 }
+
                 if (!SmartScheduleSignalEnable)
                     SmartScheduleTime = GetTimeInMillis();
 
@@ -573,15 +571,16 @@ Dispatch(void)
                 if (client->noClientException != Success) {
                     CloseDownClient(client);
                     break;
-                }
-                else if (result != Success) {
+                } else if (result != Success) {
                     SendErrorToClient(client, client->majorOp,
                                       client->minorOp,
                                       client->errorValue, result);
                     break;
                 }
             }
+
             FlushAllOutput();
+
             if (client == SmartLastClient)
                 client->smart_stop_tick = SmartScheduleTime;
         }
