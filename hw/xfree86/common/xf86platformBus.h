@@ -136,4 +136,11 @@ static inline void xf86MergeOutputClassOptions(int index, void **options) {}
 
 #endif
 
+#ifndef pci_device_is_boot_display
+static inline Bool pci_device_is_boot_display(struct pci_device *dev)
+{
+    return FALSE;
+}
+#endif
+
 #endif
