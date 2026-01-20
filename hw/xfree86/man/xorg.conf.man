@@ -2113,19 +2113,18 @@ Note that disabling an operation will have no effect if the operation is
 not accelerated (whether due to lack of support in the hardware or in the
 driver).
 .TP 7
-.BI "Option \*qGlxVendorLibrary\*q \*q" string \*q
-This option specifies a space-separated list of OpenGL vendor libraries to
-use for the screen. This may be used to select an alternate implementation
-for development, debugging, or alternate feature sets.
-Default: mesa.
-.TP 7
-.BI "Option \*RenderingAPI\*q \*q" string \*q
-This option specifies an rendering API for use in conjunction with Glamor
+.BI "Option \*qRenderingAPI\*q \*q" string \*q
+This option specifies the rendering API for use in conjunction with Glamor
 accel method. You can specify OpenGL with a value "gl" and OpenGL ES with a
 value "es", and the default is both, when Glamor fallbacks to GLES if GL 2.1 is
-not available. This may be useful for embedded and old cards, where GL ES
-feature set works faster than GL feature set.
+not available. This may be useful for embedded and old cards, where an OpenGL ES
+feature set works faster than an OpenGL feature set.
 Default: gl.
+.TP 7
+.BI "Option \*qGLXGlamor\*q \*q" boolean \*q
+This option specifies if GLAMOR should load GLXGlamor which is a
+provider for accelerated GLX, being more future-proof in a post-DRI2 world.
+Default: true.
 .TP 7
 .BI "Option \*qInitPrimary\*q \*q" boolean \*q
 Use the Int10 module to initialize the primary graphics card.

@@ -48,6 +48,7 @@
 
 #include "glamor.h"
 #include "glamor_priv.h"
+#include "glxglamor.h"
 #include "dri3.h"
 
 /*
@@ -73,6 +74,7 @@ struct glamor_egl_screen_private {
 
     Bool dmabuf_capable;
     Bool high_priority_ctx;
+    Bool provider_enabled; /* if GLX provider is enabled in options */
 
     /* Misc. items, least used. */
 
@@ -1048,6 +1050,9 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
 #ifdef DRI3
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
 #endif
+#ifdef GLXEXT
+    static Bool vendor_initialized = FALSE;
+#endif
 
     glamor_egl->saved_close_screen = screen->CloseScreen;
     screen->CloseScreen = glamor_egl_close_screen;
@@ -1083,6 +1088,14 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
             xf86DrvMsg(scrn->scrnIndex, X_ERROR,
                        "Failed to initialize DRI3.\n");
         }
+    }
+#endif
+
+#ifdef GLXEXT
+    if (glamor_egl->provider_enabled && !vendor_initialized) {
+        GlxPushProvider(&glamor_provider);
+        xorgGlxCreateVendor();
+        vendor_initialized = TRUE;
     }
 #endif
 }
@@ -1238,10 +1251,12 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
 
 enum {
     GLAMOREGLOPT_RENDERING_API,
+    GLAMOREGLOPT_GLX_GLAMOR,
 };
 
 static const OptionInfoRec GlamorEGLOptions[] = {
     { GLAMOREGLOPT_RENDERING_API, "RenderingAPI", OPTV_STRING, {0}, FALSE },
+    { GLAMOREGLOPT_GLX_GLAMOR, "GLXGlamor", OPTV_BOOLEAN, {0}, FALSE },
     { -1, NULL, OPTV_NONE, {0}, FALSE },
 };
 
@@ -1264,6 +1279,9 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
     options = XNFalloc(sizeof(GlamorEGLOptions));
     memcpy(options, GlamorEGLOptions, sizeof(GlamorEGLOptions));
     xf86ProcessOptions(scrn->scrnIndex, scrn->options, options);
+
+    glamor_egl->provider_enabled = 
+        xf86ReturnOptValBool(GlamorEGLOptions, GLAMOREGLOPT_GLX_GLAMOR, TRUE);
 
     api = xf86GetOptValString(options, GLAMOREGLOPT_RENDERING_API);
     if (api && !strncasecmp(api, "es", 2))
