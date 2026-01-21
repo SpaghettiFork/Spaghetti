@@ -39,6 +39,7 @@
 
 DevPrivateKeyRec exaScreenPrivateKeyRec;
 DevPrivateKeyRec exaPixmapPrivateKeyRec;
+DevPrivateKeyRec exaGcPrivateKeyRec;
 
 #ifdef MITSHM
 static ShmFuncs exaShmFuncs = { NULL, NULL };
@@ -896,7 +897,7 @@ exaDriverInit(ScreenPtr pScreen, ExaDriverPtr pScreenInfo)
     pExaScr = ExaGetScreenPriv(pScreen);
 
     if (!dixRegisterScreenSpecificPrivateKey
-        (pScreen, &pExaScr->gcPrivateKeyRec, PRIVATE_GC, sizeof(ExaGCPrivRec))) {
+        (pScreen, &exaGcPrivateKeyRec, PRIVATE_GC, sizeof(ExaGCPrivRec))) {
         LogMessage(X_WARNING, "EXA(%d): Failed to allocate GC private\n",
                    pScreen->myNum);
         return FALSE;
