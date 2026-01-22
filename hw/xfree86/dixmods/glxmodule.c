@@ -46,6 +46,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "glx_extinit.h"
 
 static MODULESETUPPROTO(glxSetup);
+static MODULETEARDOWNPROTO(glxTearDown);
 
 static XF86ModuleVersionInfo VersRec = {
     .modname      = "glx",
@@ -62,7 +63,8 @@ static XF86ModuleVersionInfo VersRec = {
 
 _X_EXPORT XF86ModuleData glxModuleData = {
     .vers = &VersRec,
-    .setup = glxSetup
+    .setup = glxSetup,
+    .teardown = glxTearDown
 };
 
 static void *
@@ -77,12 +79,25 @@ glxSetup(void *module, void *opts, int *errmaj, int *errmin)
         return NULL;
     }
 
+    if (!create_lilo(&GLXProviders, GLX_MAX_PROVIDERS)) {
+        if (errmaj)
+            *errmaj = LDR_NOMEM;
+        return NULL;
+    }
+
+    add_lilo(&GLXProviders, &__glXDRISWRastProvider);
     setupDone = TRUE;
 
     provider = LoaderSymbol("__glXDRI2Provider");
     if (provider)
-        GlxPushProvider(provider);
+        add_lilo(&GLXProviders, provider);
     xorgGlxCreateVendor();
 
     return module;
+}
+
+static void
+glxTearDown(_X_UNUSED void* module)
+{
+    destroy_lilo(&GLXProviders);
 }
