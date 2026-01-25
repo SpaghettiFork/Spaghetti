@@ -1549,7 +1549,7 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
     max_height = get_maximum_cursor_size(drmmode_cursor, TRUE);
 
     /* Find the most compatiable size. */
-    for (i = 0; i < drmmode_cursor.num_dimensions; i++) {
+    for (i = 0; i < drmmode_cursor.num_dimensions - 1; i++) {
         drmmode_cursor_dim_rec dimensions = drmmode_cursor.dimensions[i];
 
         if (dimensions.width >= cursor->bits->width)
