@@ -340,9 +340,10 @@ typedef struct glamor_screen_private {
 
     struct glamor_saved_procs saved_procs;
     GetDrawableModifiersFuncPtr get_drawable_modifiers;
+
     int flags;
-    ScreenPtr screen;
     int dri3_enabled;
+    ScreenPtr screen;
 
     Bool suppress_gl_out_of_memory_logging;
     Bool logged_any_fbo_allocation_failure;
@@ -392,21 +393,21 @@ typedef struct glamor_pixmap_private {
      * that data on glamor_finish_access().
      */
     glamor_access_t map_access;
+    GLuint pbo;
     glamor_pixmap_fbo *fbo;
     /** current fbo's coords in the whole pixmap. */
     BoxRec box;
-    GLuint pbo;
     RegionRec prepare_region;
     Bool prepared;
 #ifdef GLAMOR_HAS_GBM
+    Bool exporting;
+    Bool owned_bo;
+    Bool used_modifiers;
     struct gbm_bo *bo;
 #ifdef GLAMOR_HAS_GBM_MAP
     void *map_data;
     Bool bo_mapped;
 #endif
-    Bool owned_bo;
-    Bool used_modifiers;
-    Bool exporting;
 #endif
     /** block width of this large pixmap. */
     int block_w;
@@ -417,6 +418,8 @@ typedef struct glamor_pixmap_private {
     int block_wcnt;
     /** block_hcnt: block count in one block column. */
     int block_hcnt;
+
+    Bool is_cbcr;
 
     /**
      * The list of boxes for the bounds of the FBOs making up the
@@ -443,8 +446,6 @@ typedef struct glamor_pixmap_private {
      * names.
      */
     glamor_pixmap_fbo **fbo_array;
-
-    Bool is_cbcr;
 } glamor_pixmap_private;
 
 extern DevPrivateKeyRec glamor_pixmap_private_key;
