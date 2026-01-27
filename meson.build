@@ -176,7 +176,6 @@ else
 endif
 
 glamor_option = get_option('glamor')
-build_meatball = get_option('meatball')
 
 hal_option = get_option('hal')
 if ['windows', 'darwin', 'cygwin'].contains(host_machine.system())
@@ -632,10 +631,6 @@ inc = include_directories(
     'xfixes',
 )
 
-meatball_inc = include_directories(
-    'meatball'
-)
-
 build_xselinux = false
 if get_option('xselinux') != 'false'
     dep_selinux = dependency('libselinux', version: libselinux_req,
@@ -754,9 +749,6 @@ subdir('Xi')
 # other
 if build_glamor
     subdir('glamor')
-endif
-if build_meatball
-    subdir('meatball')
 endif
 if build_xorg or get_option('xephyr')
     subdir('exa')
