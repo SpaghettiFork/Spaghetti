@@ -1241,6 +1241,10 @@ XkbPushLockedStateToSlaves(DeviceIntPtr master, int evtype, int key)
             master->key->xkbInfo->state.locked_mods;
         dev->key->xkbInfo->state.locked_group =
             master->key->xkbInfo->state.locked_group;
+        dev->key->xkbInfo->state.latched_mods =
+            master->key->xkbInfo->state.latched_mods;
+        dev->key->xkbInfo->state.latched_group =
+            master->key->xkbInfo->state.latched_group;
 
         _XkbApplyState(dev, genStateNotify, evtype, key);
     }
