@@ -55,17 +55,6 @@ static int glxGeneration;
 RESTYPE __glXContextRes;
 RESTYPE __glXDrawableRes;
 
-/* Queue containing all available GLX providers,
- * limited up to a maximum of eight.
- * 
- * LAST entries are assumed more optimal than FRONT
- * entries which contain the following providers by
- * default:
- * 
- * - DRISWRAST (software fallback)
- * - DRI2 (legacy GLX provider) - if available */
-LILO GLXProviders = { 0 };
-
 static DevPrivateKeyRec glxClientPrivateKeyRec;
 static GlxServerVendor *glvnd_vendor = NULL;
 
@@ -283,11 +272,13 @@ glxClientCallback(CallbackListPtr *list, void *closure, void *data)
 
 /************************************************************************/
 
-Bool
-GlxPushProvider(__GLXprovider* provider)
+static __GLXprovider *__glXProviderStack = &__glXDRISWRastProvider;
+
+void
+GlxPushProvider(__GLXprovider * provider)
 {
-    /* Should we prevent duplicates here? */
-    return add_lilo(&GLXProviders, provider);
+    provider->next = __glXProviderStack;
+    __glXProviderStack = provider;
 }
 
 static void
@@ -525,7 +516,7 @@ xorgGlxServerInit(CallbackListPtr *pcbl, void *param, void *ext)
 
     for (i = 0; i < screenInfo.numScreens; i++) {
         ScreenPtr pScreen = screenInfo.screens[i];
-        __GLXprovider *current = NULL;
+        __GLXprovider *p;
 
         if (glxServer.getVendorForScreen(NULL, pScreen) != NULL) {
             // There's already a vendor registered.
@@ -533,19 +524,18 @@ xorgGlxServerInit(CallbackListPtr *pcbl, void *param, void *ext)
             continue;
         }
 
-        /* Attempt to use GLX providers back-to-front, as the
-         * front has legacy and software backends for GLX/DRI2. */
-        LILO_FOREACH_BACK_TO_FRONT(&GLXProviders, current) {
-            __GLXscreen *glxScreen = current->screenProbe(pScreen);
+        for (p = __glXProviderStack; p != NULL; p = p->next) {
+            __GLXscreen *glxScreen = p->screenProbe(pScreen);
             if (glxScreen != NULL) {
                 LogMessage(X_INFO,
                            "GLX: Initialized %s GL provider for screen %d\n",
-                           current->name, i);
+                           p->name, i);
                 break;
             }
+
         }
 
-        if (current) {
+        if (p) {
             glxServer.setScreenVendor(pScreen, glvnd_vendor);
         } else {
             LogMessage(X_INFO,
