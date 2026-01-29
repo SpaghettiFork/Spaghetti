@@ -29,27 +29,16 @@
 /* this is separate due to sdksyms pulling in extinit.h */
 /* XXX this comment no longer makes sense i think */
 #ifdef GLXEXT
-
-#include "sp_lilo.h"
-
-/* Assume that no sane human is going to somehow
- * be using eight or more GLX providers at once. */
-#define GLX_MAX_PROVIDERS 8
-
 typedef struct __GLXprovider __GLXprovider;
 typedef struct __GLXscreen __GLXscreen;
-struct __GLXprovider
-{
+struct __GLXprovider {
     __GLXscreen *(*screenProbe) (ScreenPtr pScreen);
     const char *name;
-    /* Left in for compatibility. */
-    _X_UNUSED void* __UNUSED__;
+    __GLXprovider *next;
 };
-
 extern __GLXprovider __glXDRISWRastProvider;
-extern LILO GLXProviders;
 
-Bool GlxPushProvider(__GLXprovider* provider);
+void GlxPushProvider(__GLXprovider * provider);
 Bool xorgGlxCreateVendor(void);
 #else
 static inline Bool xorgGlxCreateVendor(void) { return TRUE; }

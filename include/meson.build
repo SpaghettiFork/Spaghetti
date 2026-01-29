@@ -489,7 +489,6 @@ if build_xorg
             'scrnintstr.h',
             'selection.h',
             'servermd.h',
-            'sp_lilo.h',
             'validate.h',
             'displaymode.h',
             'window.h',
