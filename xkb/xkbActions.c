@@ -50,6 +50,7 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "inpututils.h"
 
 #define EXTENSION_EVENT_BASE 64
+#define XKB_FILTER_NULL _X_UNLIKELY(filter == 0)
 
 DevPrivateKeyRec xkbDevicePrivateKeyRec;
 
@@ -186,6 +187,9 @@ static int
 _XkbFilterSetState(XkbSrvInfoPtr xkbi,
                    XkbFilterPtr filter, unsigned keycode, XkbAction *pAction)
 {
+    if (XKB_FILTER_NULL)
+        return 0;
+
     if (filter->keycode == 0) { /* initial press */
         AccessXCancelRepeatKey(xkbi, keycode);
         filter->keycode = keycode;
@@ -234,6 +238,8 @@ static int
 _XkbFilterLatchState(XkbSrvInfoPtr xkbi,
                      XkbFilterPtr filter, unsigned keycode, XkbAction *pAction)
 {
+    if (XKB_FILTER_NULL)
+        return 0;
 
     if (filter->keycode == 0) { /* initial press */
         AccessXCancelRepeatKey(xkbi,keycode);
@@ -361,6 +367,9 @@ static int
 _XkbFilterLockState(XkbSrvInfoPtr xkbi,
                     XkbFilterPtr filter, unsigned keycode, XkbAction *pAction)
 {
+    if (XKB_FILTER_NULL)
+        return 0;
+
     if (filter->keycode == 0) /* initial press */
         AccessXCancelRepeatKey(xkbi, keycode);
 
@@ -398,6 +407,8 @@ static int
 _XkbFilterISOLock(XkbSrvInfoPtr xkbi,
                   XkbFilterPtr filter, unsigned keycode, XkbAction *pAction)
 {
+    if (XKB_FILTER_NULL)
+        return 0;
 
     if (filter->keycode == 0) { /* initial press */
         CARD8 flags = pAction->iso.flags;
@@ -529,6 +540,9 @@ _XkbFilterPointerMove(XkbSrvInfoPtr xkbi,
     int x, y;
     Bool accel;
 
+    if (XKB_FILTER_NULL)
+        return 0;
+
     if (filter->keycode == 0) { /* initial press */
         filter->keycode = keycode;
         filter->active = 1;
@@ -567,6 +581,9 @@ static int
 _XkbFilterPointerBtn(XkbSrvInfoPtr xkbi,
                      XkbFilterPtr filter, unsigned keycode, XkbAction *pAction)
 {
+    if (XKB_FILTER_NULL)
+        return 0;
+
     if (filter->keycode == 0) { /* initial press */
         int button = pAction->btn.button;
 
@@ -689,6 +706,10 @@ _XkbFilterControls(XkbSrvInfoPtr xkbi,
     kbd = xkbi->device;
     ctrls = xkbi->desc->ctrls;
     old = *ctrls;
+
+    if (XKB_FILTER_NULL)
+        return 0;
+
     if (filter->keycode == 0) { /* initial press */
         AccessXCancelRepeatKey(xkbi, keycode);
         filter->keycode = keycode;
@@ -771,14 +792,17 @@ _XkbFilterActionMessage(XkbSrvInfoPtr xkbi,
     XkbMessageAction *pMsg;
     DeviceIntPtr kbd;
 
+    if (XKB_FILTER_NULL)
+        return 0;
+
     if ((filter->keycode != 0) && (filter->keycode != keycode))
-	return 1;
+	    return 1;
 
     /* This can happen if the key repeats, and the state (modifiers or group)
        changes meanwhile. */
     if ((filter->keycode == keycode) && pAction &&
-	(pAction->type != XkbSA_ActionMessage))
-	return 1;
+	    (pAction->type != XkbSA_ActionMessage))
+	    return 1;
 
     kbd = xkbi->device;
     if (filter->keycode == 0) { /* initial press */
@@ -842,6 +866,9 @@ _XkbFilterRedirectKey(XkbSrvInfoPtr xkbi,
     unsigned mods, mask;
     xkbDeviceInfoPtr xkbPrivPtr = XKBDEVICEINFO(xkbi->device);
     ProcessInputProc backupproc;
+
+    if (XKB_FILTER_NULL)
+        return 0;
 
     if ((filter->keycode != 0) && (filter->keycode != keycode))
         return 1;
@@ -982,6 +1009,9 @@ _XkbFilterSwitchScreen(XkbSrvInfoPtr xkbi,
     if (dev == inputInfo.keyboard)
         return 0;
 
+    if (XKB_FILTER_NULL)
+        return 0;
+
     if (filter->keycode == 0) { /* initial press */
         filter->keycode = keycode;
         filter->active = 1;
@@ -1046,6 +1076,9 @@ _XkbFilterXF86Private(XkbSrvInfoPtr xkbi,
     if (dev == inputInfo.keyboard)
         return 0;
 
+    if (XKB_FILTER_NULL)
+        return 0;
+
     if (filter->keycode == 0) { /* initial press */
         filter->keycode = keycode;
         filter->active = 1;
@@ -1066,6 +1099,9 @@ _XkbFilterDeviceBtn(XkbSrvInfoPtr xkbi,
                     XkbFilterPtr filter, unsigned keycode, XkbAction *pAction)
 {
     if (xkbi->device == inputInfo.keyboard)
+        return 0;
+
+    if (XKB_FILTER_NULL)
         return 0;
 
     if (filter->keycode == 0) { /* initial press */
@@ -1146,7 +1182,8 @@ _XkbNextFreeFilter(XkbSrvInfoPtr xkbi)
     if (xkbi->szFilters == 0) {
         xkbi->szFilters = 4;
         xkbi->filters = calloc(xkbi->szFilters, sizeof(XkbFilterRec));
-        /* 6/21/93 (ef) -- XXX! deal with allocation failure */
+        if (!xkbi->filters)
+            return NULL;
     }
     for (i = 0; i < xkbi->szFilters; i++) {
         if (!xkbi->filters[i].active) {
@@ -1157,7 +1194,9 @@ _XkbNextFreeFilter(XkbSrvInfoPtr xkbi)
     xkbi->szFilters *= 2;
     xkbi->filters = reallocarray(xkbi->filters,
                                  xkbi->szFilters, sizeof(XkbFilterRec));
-    /* 6/21/93 (ef) -- XXX! deal with allocation failure */
+    if (!xkbi->filters)
+        return NULL;
+
     memset(&xkbi->filters[xkbi->szFilters / 2], 0,
            (xkbi->szFilters / 2) * sizeof(XkbFilterRec));
     return &xkbi->filters[xkbi->szFilters / 2];
@@ -1464,11 +1503,16 @@ XkbLatchModifiers(DeviceIntPtr pXDev, CARD8 mask, CARD8 latches)
         act.type = XkbSA_LatchMods;
         act.mods.flags = 0;
         act.mods.mask = mask & latches;
+        
         filter = _XkbNextFreeFilter(xkbi);
-        _XkbFilterLatchState(xkbi, filter, SYNTHETIC_KEYCODE, &act);
-        _XkbFilterLatchState(xkbi, filter, SYNTHETIC_KEYCODE,
-                             (XkbAction *) NULL);
-        return Success;
+        if (!filter) {
+            return BadAlloc;
+        } else {
+            _XkbFilterLatchState(xkbi, filter, SYNTHETIC_KEYCODE, &act);
+            _XkbFilterLatchState(xkbi, filter, SYNTHETIC_KEYCODE,
+                                 (XkbAction *) NULL);
+            return Success;
+        }
     }
     return BadValue;
 }
@@ -1485,11 +1529,16 @@ XkbLatchGroup(DeviceIntPtr pXDev, int group)
         act.type = XkbSA_LatchGroup;
         act.group.flags = 0;
         XkbSASetGroup(&act.group, group);
+        
         filter = _XkbNextFreeFilter(xkbi);
-        _XkbFilterLatchState(xkbi, filter, SYNTHETIC_KEYCODE, &act);
-        _XkbFilterLatchState(xkbi, filter, SYNTHETIC_KEYCODE,
-                             (XkbAction *) NULL);
-        return Success;
+        if (!filter) {
+            return BadAlloc;
+        } else {
+            _XkbFilterLatchState(xkbi, filter, SYNTHETIC_KEYCODE, &act);
+            _XkbFilterLatchState(xkbi, filter, SYNTHETIC_KEYCODE,
+                                 (XkbAction *) NULL);
+            return Success;
+        }
     }
     return BadValue;
 }
