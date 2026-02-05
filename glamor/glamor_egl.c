@@ -1044,6 +1044,7 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
 #endif
 #ifdef GLXEXT
     static Bool vendor_initialized = FALSE;
+    const char *gbm_backend_name;
 #endif
 
     glamor_egl->saved_close_screen = screen->CloseScreen;
@@ -1057,15 +1058,14 @@ glamor_egl_screen_init(ScreenPtr screen, struct glamor_context *glamor_ctx)
 
     glamor_ctx->make_current = glamor_egl_make_current;
 
+#ifdef GLXEXT
     /* Use dynamic logic only if vendor is not forced via xorg.conf */
-    if (!glamor_egl->glvnd_vendor) {
-        gbm_backend_name = gbm_device_get_backend_name(glamor_egl->gbm);
-        /* Mesa uses "drm" as backend name, in that case, just do nothing */
-        if (gbm_backend_name && strcmp(gbm_backend_name, "drm") != 0)
-            glamor_set_glvnd_vendor(screen, gbm_backend_name);
-    } else {
-        glamor_set_glvnd_vendor(screen, glamor_egl->glvnd_vendor);
-    }
+    gbm_backend_name = gbm_device_get_backend_name(glamor_egl->gbm);
+    /* Mesa uses "drm" as backend name, in that case, just do nothing */
+    if (gbm_backend_name && strcmp(gbm_backend_name, "drm") != 0)
+        glamor_set_glvnd_vendor(screen, gbm_backend_name);
+#endif
+
 #ifdef DRI3
     /* Tell the core that we have the interfaces for import/export
      * of pixmaps.

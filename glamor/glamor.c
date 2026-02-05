@@ -909,6 +909,7 @@ glamor_close_screen(ScreenPtr screen)
     glamor_sync_close(screen);
     glamor_composite_glyphs_fini(screen);
     glamor_set_glvnd_vendor(screen, NULL);
+
     screen->CloseScreen = glamor_priv->saved_procs.close_screen;
 
     screen->CreateGC = glamor_priv->saved_procs.create_gc;

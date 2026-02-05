@@ -335,8 +335,9 @@ typedef struct glamor_screen_private {
     GetDrawableModifiersFuncPtr get_drawable_modifiers;
     int flags;
     int dri3_enabled;
+    
     ScreenPtr screen;
-    char *glvnd_vendor;
+    char* glvnd_vendor;
 
     Bool suppress_gl_out_of_memory_logging;
     Bool logged_any_fbo_allocation_failure;
