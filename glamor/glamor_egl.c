@@ -49,6 +49,17 @@
 #include "glxglamor.h"
 #include "dri3.h"
 
+/*
+ * These drivers are mature enough to properly
+ * work and behave with having modifiers exposed.
+ */
+static const char* ALLOWLIST_DMA_BUF_CAPABLE[] =
+{
+    "Intel",
+    "zink",
+    "radeonsi"
+};
+
 struct glamor_egl_screen_private {
     EGLDisplay display;
     EGLContext context;
@@ -1339,17 +1350,16 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
                                 "EGL_EXT_image_dma_buf_import") &&
         epoxy_has_egl_extension(glamor_egl->display,
                                 "EGL_EXT_image_dma_buf_import_modifiers")) {
-        if (xf86Info.debug != NULL)
-            glamor_egl->dmabuf_capable = !!strstr(xf86Info.debug,
-                                                  "dmabuf_capable");
-        else if (strstr((const char *)renderer, "Intel"))
-            glamor_egl->dmabuf_capable = TRUE;
-        else if (strstr((const char *)renderer, "zink"))
-            glamor_egl->dmabuf_capable = TRUE;
-        else if (strstr((const char *)renderer, "radeonsi"))
-            glamor_egl->dmabuf_capable = TRUE;
-        else
-            glamor_egl->dmabuf_capable = FALSE;
+        if (xf86Info.debug != NULL) {
+            glamor_egl->dmabuf_capable = !!strstr(xf86Info.debug, "dmabuf_capable");
+        } else {
+            for (int idx = 0; idx < ARRAY_SIZE(ALLOWLIST_DMA_BUF_CAPABLE); idx++) {
+                if (strstr((const char *)renderer, ALLOWLIST_DMA_BUF_CAPABLE[idx])) {
+                    glamor_egl->dmabuf_capable = TRUE;
+                    break;
+                }
+            }
+        }
     }
 #endif
 
