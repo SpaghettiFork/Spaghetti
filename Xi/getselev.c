@@ -131,7 +131,10 @@ ProcXGetSelectedExtensionEvents(ClientPtr client)
         total_length = (rep.all_clients_count + rep.this_client_count) *
             sizeof(XEventClass);
         rep.length = bytes_to_int32(total_length);
+        
         buf = (XEventClass *) malloc(total_length);
+        if (!buf)
+            return BadAlloc;
 
         tclient = buf;
         aclient = buf + rep.this_client_count;
