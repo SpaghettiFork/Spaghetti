@@ -247,6 +247,7 @@ typedef struct glamor_screen_private {
     Bool use_gpu_shader4;
     int max_fbo_size;
     Bool enable_gradient_shader;
+    Bool dri3_enabled;
 
     /**
      * Stores information about supported formats. Note, that this list contains all
@@ -302,6 +303,9 @@ typedef struct glamor_screen_private {
     int vbo_offset;
     int vbo_size;
     Bool vbo_mapped;
+
+    CARD32 render_nr_quads;
+
     /**
      * Pointer to glamor_get_vbo_space()'s current VBO mapping.
      *
@@ -319,7 +323,6 @@ typedef struct glamor_screen_private {
     unsigned ib_size;
 
     Bool has_source_coords, has_mask_coords;
-    int render_nr_quads;
     glamor_composite_shader composite_shader[SHADER_SOURCE_COUNT]
         [SHADER_MASK_COUNT]
         [glamor_program_alpha_count]
@@ -330,11 +333,10 @@ typedef struct glamor_screen_private {
     GLint gradient_prog[SHADER_GRADIENT_COUNT][3];
     int linear_max_nstops;
     int radial_max_nstops;
+    int flags;
 
     struct glamor_saved_procs saved_procs;
     GetDrawableModifiersFuncPtr get_drawable_modifiers;
-    int flags;
-    int dri3_enabled;
     
     ScreenPtr screen;
     char* glvnd_vendor;
