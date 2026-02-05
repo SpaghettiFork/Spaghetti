@@ -135,7 +135,7 @@ drm_format_for_depth(uint32_t depth, uint32_t bpp)
     };
 
     int idx = 0;
-    for (; idx < sizeof(drm_formats) / sizeof(struct drm_format); idx++) {
+    for (; idx < ARRAY_SIZE(drm_formats); idx++) {
         struct drm_format format = drm_formats[idx];
 
         if (format.depth == -1 && format.bpp == bpp)
