@@ -30,6 +30,7 @@
 #include "dix-config.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -1181,43 +1182,140 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 }
 
 #ifdef GLAMOR_HAS_GBM
+#ifdef LIBDRM_GETFB2
+static Bool
+depth_bpp_from_format(uint32_t pixel_format, int* depth, int* bpp)
+{
+    switch (pixel_format)
+    {
+        case DRM_FORMAT_XRGB1555:
+            *depth = 15;
+            *bpp = 16;
+            return TRUE;
+        
+        case DRM_FORMAT_RGB565:
+            *depth = 16;
+            *bpp = 16;
+            return TRUE;
+
+        case DRM_FORMAT_XRGB8888:
+            *depth = 24;
+            *bpp = 32;
+            return TRUE;
+
+        case DRM_FORMAT_XRGB2101010:
+            *depth = 30;
+            *bpp = 32;
+            return TRUE;
+
+        case DRM_FORMAT_ARGB8888:
+            *depth = 32;
+            *bpp = 32;
+            return TRUE;
+
+        default:
+            return FALSE;
+    }
+}
+#endif
+
+static int
+handles_to_fds(drmmode_ptr drmmode, uint32_t *handles, int *fds)
+{
+    int err;
+    int i;
+
+    for (i = 0; i < 4 && handles[i]; i++) {
+        err = drmPrimeHandleToFD(drmmode->fd, handles[i], O_CLOEXEC, &fds[i]);
+        if (err != 0)
+            return 0;
+    }
+
+    return i;
+}
+
 static PixmapPtr
 create_pixmap_for_fbcon(drmmode_ptr drmmode, ScrnInfoPtr pScrn, int fbcon_id)
 {
     PixmapPtr pixmap = drmmode->fbcon_pixmap;
+#if defined(LIBDRM_GETFB2)
+    drmModeFB2Ptr fbcon2;
+#else
     drmModeFBPtr fbcon;
+#endif
     ScreenPtr pScreen = xf86ScrnToScreen(pScrn);
     modesettingPtr ms = modesettingPTR(pScrn);
-    Bool ret;
+    uint32_t handles[4] = { 0, };
+    CARD32 strides[4] = { 0, }, offsets[4] = { 0, };
+    int fds[4] = { -1, -1, -1, -1 };
+    uint64_t modifier;
+    int num_fds, i;
+    int width, height;
+    int depth = 0, bpp = 0;
 
     if (pixmap)
         return pixmap;
 
+#if defined(LIBDRM_GETFB2)
+    fbcon2 = drmModeGetFB2(drmmode->fd, fbcon_id);
+    if (fbcon2 == NULL)
+        return NULL;
+
+    width = fbcon2->width;
+    height = fbcon2->height;
+    memcpy(handles, fbcon2->handles, sizeof(handles));
+    memcpy(strides, fbcon2->pitches, sizeof(strides));
+    memcpy(offsets, fbcon2->offsets, sizeof(offsets));
+    modifier = fbcon2->modifier;
+
+    if (!depth_bpp_from_format(fbcon2->pixel_format, &depth, &bpp))
+        goto out_free_fb;
+#else
     fbcon = drmModeGetFB(drmmode->fd, fbcon_id);
     if (fbcon == NULL)
         return NULL;
 
-    if (fbcon->depth != pScrn->depth ||
-        fbcon->width != pScrn->virtualX ||
-        fbcon->height != pScrn->virtualY)
+    width = fbcon->width;
+    height = fbcon->height;
+    handles[0] = fbcon->handle;
+    strides[0] = fbcon->pitch;
+    modifier = DRM_FORMAT_MOD_INVALID;
+    depth = fbcon->depth;
+    bpp = fbcon->bpp;
+#endif
+
+    if (depth != pScrn->depth ||
+        width != pScrn->virtualX ||
+        height != pScrn->virtualY)
         goto out_free_fb;
 
-    pixmap = drmmode_create_pixmap_header(pScreen, fbcon->width,
-                                          fbcon->height, fbcon->depth,
-                                          fbcon->bpp, fbcon->pitch, NULL);
-    if (!pixmap)
-        goto out_free_fb;
-
-    ret = ms->glamor.egl_create_textured_pixmap(pixmap, fbcon->handle,
-                                                fbcon->pitch);
-    if (!ret) {
-      FreePixmap(pixmap);
-      pixmap = NULL;
+    /* GBM doesn't have an import path from handles, so we make a
+     * DMA-BUF file descriptor from it and then go through that. */
+    num_fds = handles_to_fds(drmmode, handles, fds);
+    if (num_fds == 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "Failed to make prime FD for handle: %d\n", errno);
+        goto out_close_fds;
     }
 
+    pixmap = ms->glamor.glamor_pixmap_from_fds(pScreen, num_fds, fds,
+                                               width, height, strides, offsets,
+                                               depth, bpp, modifier);
+    if (!pixmap)
+        goto out_close_fds;
+
     drmmode->fbcon_pixmap = pixmap;
+out_close_fds:
+    for (i = 0; i < ARRAY_SIZE(fds); i++) {
+        if (fds[i] != -1)
+            close(fds[i]);
+    }
 out_free_fb:
+#if defined(LIBDRM_GETFB2)
+    drmModeFreeFB2(fbcon2);
+#else
     drmModeFreeFB(fbcon);
+#endif
     return pixmap;
 }
 #endif
