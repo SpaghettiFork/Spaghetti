@@ -421,8 +421,13 @@ egl_screen_probe(ScreenPtr pScreen)
         return NULL;
     }
 
-    if (!screen->base.glvnd)
-        screen->base.glvnd = strdup("mesa");
+    if (!screen->base.glvnd) {
+        if (glamor_screen->glvnd_vendor) {
+            screen->base.glvnd = strdup(glamor_screen->glvnd_vendor);
+        } else {
+            screen->base.glvnd = strdup("mesa");
+        }
+    }
 
     __glXScreenInit(base, pScreen);
     __glXsetGetProcAddress(eglGetProcAddress);
