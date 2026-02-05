@@ -77,8 +77,7 @@ struct xf86_platform_device *xf86_platform_devices;
 static inline
 Bool xf86_is_device_allowed(char* driver)
 {
-    const int size = sizeof(DEVICE_ALLOWLIST) / sizeof(DEVICE_ALLOWLIST[0]);
-    for (int idx = 0; idx < size; idx++)
+    for (int idx = 0; idx < ARRAY_SIZE(DEVICE_ALLOWLIST); idx++)
         if (strcmp(driver, DEVICE_ALLOWLIST[idx]) == 0)
             return TRUE;
 

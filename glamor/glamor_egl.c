@@ -1408,8 +1408,7 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
         if (xf86Info.debug != NULL) {
             glamor_egl->dmabuf_capable = !!strstr(xf86Info.debug, "dmabuf_capable");
         } else {
-            const int size = sizeof(ALLOWLIST_DMA_BUF_CAPABLE) / sizeof(ALLOWLIST_DMA_BUF_CAPABLE[0]);
-            for (int idx = 0; idx < size; idx++) {
+            for (int idx = 0; idx < ARRAY_SIZE(ALLOWLIST_DMA_BUF_CAPABLE); idx++) {
                 if (strstr((const char *)renderer, ALLOWLIST_DMA_BUF_CAPABLE[idx])) {
                     glamor_egl->dmabuf_capable = TRUE;
                     break;
