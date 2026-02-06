@@ -1229,8 +1229,8 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
 
     insert_mini_vector(&config, EGL_NONE);
 
-
     if (!eglBindAPI(EGL_OPENGL_ES_API)) {
+        free_mini_vector(&config);
         xf86DrvMsg(scrn->scrnIndex, X_ERROR,
                     "glamor: Failed to bind GLES API.\n");
         return FALSE;
