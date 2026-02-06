@@ -66,21 +66,6 @@
 #define GLX_RGBA_FLOAT_BIT_ARB      0x00000004
 #define GLX_SWAP_UNDEFINED_OML      0x8063
 
-struct egl_config
-{
-    EGLConfig config;
-
-    __GLXconfig base;
-};
-
-struct egl_screen
-{
-    EGLDisplay display;
-    EGLConfig *configs;
-
-    __GLXscreen base;
-};
-
 struct egl_config_meta
 {
     Bool srgb_only;
@@ -90,15 +75,10 @@ struct egl_config_meta
 };
 
 static void
-egl_screen_destroy(__GLXscreen *_screen)
+egl_screen_destroy(__GLXscreen* baseScreen)
 {
-    struct egl_screen *screen = (struct egl_screen *)_screen;
-
-    /* XXX do we leak the fbconfig list? */
-
-    free(screen->configs);
-    __glXScreenDestroy(_screen);
-    free(_screen);
+    __glXScreenDestroy(baseScreen);
+    free(baseScreen);
 }
 
 static void
@@ -143,22 +123,22 @@ egl_create_glx_drawable(ClientPtr client, __GLXscreen *screen,
      * with what GLX expects waitX and waitGL to behave like.
      * 
      * Set waitX and waitGL as NULL, the server will NO-OP them. */
+    ret->waitX = NULL;
+    ret->waitGL = NULL;
+
     return ret;
 }
 
-static struct egl_config*
+static struct __GLXconfig*
 eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
-                     EGLConfig egl_config, struct egl_config *chain)
+                     EGLConfig egl_config, struct __GLXconfig *chain)
 {
     EGLint value = 0;
     EGLint surface_type = 0;
-    struct egl_config *config = calloc(1, sizeof(struct egl_config));
-    if (!config)
+
+    __GLXconfig *glx_config = calloc(1, sizeof(__GLXconfig));
+    if (!glx_config)
         return chain;
-
-    config->config = egl_config;
-
-    struct __GLXconfig* glx_config = &config->base;
 
     eglGetConfigAttrib(display, egl_config, EGL_SURFACE_TYPE, &surface_type);
     eglGetConfigAttrib(display, egl_config, EGL_RED_SIZE, &glx_config->redBits);
@@ -178,7 +158,7 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
         if (glx_config->redBits == 8) {
             glx_config->sRGBCapable = GL_TRUE;
         } else {
-            free(config);
+            free(glx_config);
             return chain;
         }
     }
@@ -263,7 +243,7 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
             glx_config->renderType = GLX_RGBA_FLOAT_BIT_ARB;
         } else {
             LogMessage(X_WARNING, "Unknown EGL_COLOR_COMPONENT_TYPE_EXT value of 0x%08x\n", value);
-            free(config);
+            free(glx_config);
             return chain;
         }
     } else {
@@ -315,7 +295,7 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
          glx_config->blueBits != 8 ||
          glx_config->visualRating != GLX_NONE ||
          glx_config->sampleBuffers != 0)) {
-        free(config);
+        free(glx_config);
         return chain;
     }
 
@@ -323,16 +303,15 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
     glx_config->duplicatedForComp = meta.duplicate_for_composite;
 #endif
 
-    glx_config->next = chain ? &chain->base : NULL;
-    return config;
+    glx_config->next = chain;
+    return glx_config;
 }
 
 static __GLXconfig *
-egl_setup_configs(ScreenPtr pScreen, struct egl_screen *screen)
+egl_setup_configs(ScreenPtr pScreen, EGLDisplay display)
 {
     int i, j, k, nconfigs;
-    struct egl_config *c = NULL;
-    EGLDisplay display = screen->display;
+    struct __GLXconfig *c = NULL;
     EGLConfig *host_configs = NULL;
     
     Bool can_srgb = epoxy_has_gl_extension("GL_ARB_framebuffer_sRGB") ||
@@ -341,7 +320,7 @@ egl_setup_configs(ScreenPtr pScreen, struct egl_screen *screen)
 
     eglGetConfigs(display, NULL, 0, &nconfigs);
 
-    host_configs = calloc(nconfigs, sizeof *host_configs);
+    host_configs = calloc(nconfigs, sizeof(EGLConfig));
     if (!host_configs)
         return NULL;
 
@@ -371,16 +350,15 @@ egl_setup_configs(ScreenPtr pScreen, struct egl_screen *screen)
         }
     }
 
-    screen->configs = host_configs;
-    return c ? &c->base : NULL;
+    free(host_configs);
+    return c;
 }
 
 static __GLXscreen *
 egl_screen_probe(ScreenPtr pScreen)
 {
-    struct egl_screen *screen;
+    __GLXscreen *screen;
     glamor_screen_private *glamor_screen;
-    __GLXscreen *base;
 
     if (enableIndirectGLX)
         return NULL; /* not implemented */
@@ -389,50 +367,47 @@ egl_screen_probe(ScreenPtr pScreen)
     if (!glamor_screen)
         return NULL;
 
-    screen = calloc(1, sizeof(struct egl_screen));
+    screen = calloc(1, sizeof(__GLXscreen));
     if (!screen)
         return NULL;
 
-    base = &screen->base;
-    base->destroy = egl_screen_destroy;
-    base->createDrawable = egl_create_glx_drawable;
-    base->swapInterval = NULL;
+    screen->destroy = egl_screen_destroy;
+    screen->createDrawable = egl_create_glx_drawable;
+    screen->swapInterval = NULL;
 
-    screen->display = glamor_screen->ctx.display;
+    __glXInitExtensionEnableBits(screen->glx_enable_bits);
 
-    __glXInitExtensionEnableBits(screen->base.glx_enable_bits);
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_ARB_context_flush_control");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_ARB_create_context");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_ARB_create_context_no_error");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_ARB_create_context_profile");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_ARB_create_context_robustness");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_ARB_fbconfig_float");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_create_context_es2_profile");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_create_context_es_profile");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_fbconfig_packed_float");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_framebuffer_sRGB");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_no_config_context");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_texture_from_pixmap");
 
-    __glXEnableExtension(base->glx_enable_bits, "GLX_ARB_context_flush_control");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_ARB_create_context");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_ARB_create_context_no_error");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_ARB_create_context_profile");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_ARB_create_context_robustness");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_ARB_fbconfig_float");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_EXT_create_context_es2_profile");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_EXT_create_context_es_profile");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_EXT_fbconfig_packed_float");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_EXT_framebuffer_sRGB");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_EXT_no_config_context");
-    __glXEnableExtension(base->glx_enable_bits, "GLX_EXT_texture_from_pixmap");
-
-    base->fbconfigs = egl_setup_configs(pScreen, screen);
-    if (!base->fbconfigs) {
+    screen->fbconfigs = egl_setup_configs(pScreen, glamor_screen->ctx.display);
+    if (!screen->fbconfigs) {
         free(screen);
         return NULL;
     }
 
-    if (!screen->base.glvnd) {
+    if (!screen->glvnd) {
         if (glamor_screen->glvnd_vendor) {
-            screen->base.glvnd = strdup(glamor_screen->glvnd_vendor);
+            screen->glvnd = strdup(glamor_screen->glvnd_vendor);
         } else {
-            screen->base.glvnd = strdup("mesa");
+            screen->glvnd = strdup("mesa");
         }
     }
 
-    __glXScreenInit(base, pScreen);
+    __glXScreenInit(screen, pScreen);
     __glXsetGetProcAddress(eglGetProcAddress);
 
-    return base;
+    return screen;
 }
 
 __GLXprovider glamor_provider = 
