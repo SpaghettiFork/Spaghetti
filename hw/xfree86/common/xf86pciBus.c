@@ -1204,8 +1204,9 @@ xf86VideoPtrToDriverList(struct pci_device *dev, XF86MatchedDrivers *md)
 
 #if defined(__linux__) || defined(__NetBSD__)
         driverList[idx++] = "nouveau";
-#endif
+#else
         driverList[idx++] = "nv";
+#endif
         break;
     }
     case 0x1106:
