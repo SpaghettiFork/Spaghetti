@@ -265,15 +265,33 @@ ForceClockId(clockid_t forced_clockid)
 #endif
 
 #if (defined WIN32 && defined __MINGW32__) || defined(__CYGWIN__)
+typedef ULONGLONG (WINAPI *LPFN_GETTICKCOUNT64)();
+
 CARD32
 GetTimeInMillis(void)
 {
     return GetTickCount();
 }
+
 CARD64
 GetTimeInMicros(void)
 {
-    return (CARD64) GetTickCount() * 1000;
+    static Bool firstTime = TRUE;
+    static LPFN_GETTICKCOUNT64 fnGetTickCount64 = NULL;
+
+    if (firstTime) {
+        HMODULE module = GetModuleHandle(TEXT("kernel32"));
+        fnGetTickCount64 =
+            (LPFN_GETTICKCOUNT64) GetProcAddress(module, "GetTickCount64");
+        firstTime = FALSE;
+    }
+
+    /* GetTickCount64() is available since Windows Vista,
+     * which was released in 2007 and is way way past EOL. */
+    if (_X_LIKELY(fnGetTickCount64))
+        return (CARD64) fnGetTickCount64() * 1000;
+    else
+        return (CARD64) GetTickCount() * 1000;
 }
 #else
 CARD32
