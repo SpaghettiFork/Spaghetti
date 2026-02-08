@@ -45,16 +45,11 @@ glamor_poly_lines_solid_gl(DrawablePtr drawable, GCPtr gc,
     DDXPointPtr v;
     char *vbo_offset;
     int box_index;
-    int add_last;
     Bool ret = FALSE;
 
     pixmap_priv = glamor_get_pixmap_private(pixmap);
     if (!GLAMOR_PIXMAP_PRIV_HAS_FBO(pixmap_priv))
         goto bail;
-
-    add_last = 0;
-    if (gc->capStyle != CapNotLast)
-        add_last = 1;
 
     if (n < 2)
         return TRUE;
@@ -71,7 +66,7 @@ glamor_poly_lines_solid_gl(DrawablePtr drawable, GCPtr gc,
     /* Set up the vertex buffers for the points */
 
     v = glamor_get_vbo_space(drawable->pScreen,
-                             (n + add_last) * sizeof (DDXPointRec),
+                             n * sizeof (DDXPointRec),
                              &vbo_offset);
 
     glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
@@ -89,11 +84,6 @@ glamor_poly_lines_solid_gl(DrawablePtr drawable, GCPtr gc,
         }
     } else {
         memcpy(v, points, n * sizeof (DDXPointRec));
-    }
-
-    if (add_last) {
-        v[n].x = v[n-1].x + 1;
-        v[n].y = v[n-1].y;
     }
 
     glamor_put_vbo_space(screen);
@@ -114,7 +104,14 @@ glamor_poly_lines_solid_gl(DrawablePtr drawable, GCPtr gc,
                       box->x2 - box->x1,
                       box->y2 - box->y1);
             box++;
-            glDrawArrays(GL_LINE_STRIP, 0, n + add_last);
+            glDrawArrays(GL_LINE_STRIP, 0, n);
+
+            /* Draw the first and last pixels, as implementations are
+             * allowed to be inaccurate there. */
+            if (gc->capStyle == CapNotLast)
+                glDrawArrays(GL_POINTS, 0, n - 1);
+            else
+                glDrawArrays(GL_POINTS, 0, n);
         }
     }
 
