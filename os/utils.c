@@ -198,6 +198,7 @@ sig_atomic_t inSignalContext = FALSE;
 
 #ifdef MONOTONIC_CLOCK
 static clockid_t clockid;
+static clockid_t clockid_micro;
 #endif
 
 OsSigHandlerPtr
@@ -249,15 +250,17 @@ ForceClockId(clockid_t forced_clockid)
 {
     struct timespec tp;
 
-    BUG_RETURN (clockid);
+    BUG_RETURN(clockid);
+    BUG_RETURN(clockid_micro);
 
-    clockid = forced_clockid;
-
-    if (clock_gettime(clockid, &tp) != 0) {
+    if (clock_gettime(forced_clockid, &tp) != 0) {
         FatalError("Forced clock id failed to retrieve current time: %s\n",
                    strerror(errno));
         return;
     }
+
+    clockid = forced_clockid;
+    clockid_micro = forced_clockid;
 }
 #endif
 
@@ -308,15 +311,14 @@ GetTimeInMicros(void)
     struct timeval tv;
 #ifdef MONOTONIC_CLOCK
     struct timespec tp;
-    static clockid_t uclockid;
 
-    if (!uclockid) {
+    if (!clockid_micro) {
         if (clock_gettime(CLOCK_MONOTONIC, &tp) == 0)
-            uclockid = CLOCK_MONOTONIC;
+            clockid_micro = CLOCK_MONOTONIC;
         else
-            uclockid = ~0L;
+            clockid_micro = ~0L;
     }
-    if (uclockid != ~0L && clock_gettime(uclockid, &tp) == 0)
+    if (clockid_micro != ~0L && clock_gettime(clockid_micro, &tp) == 0)
         return (CARD64) tp.tv_sec * (CARD64)1000000 + tp.tv_nsec / 1000;
 #endif
 
