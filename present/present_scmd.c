@@ -849,7 +849,6 @@ present_scmd_pixmap(WindowPtr window,
 
     present_scmd_replace_queued(vblank);
     xorg_list_append(&vblank->event_queue, &present_exec_queue);
-    vblank->queued = TRUE;
 
     if (msc_is_after(vblank->exec_msc, crtc_msc)) {
         ret = present_queue_vblank(screen, window, target_crtc, vblank->event_id, vblank->exec_msc);

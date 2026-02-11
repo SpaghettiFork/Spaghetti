@@ -128,6 +128,7 @@ present_vblank_init(present_vblank_ptr vblank,
     vblank->notifies = notifies;
     vblank->num_notifies = num_notifies;
     vblank->has_suboptimal = (options & PresentOptionSuboptimal);
+    vblank->queued = TRUE;
 
     if (pixmap != NULL &&
         !(options & PresentOptionCopy) &&
