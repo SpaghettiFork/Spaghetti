@@ -110,6 +110,7 @@ __stdcall unsigned long GetTickCount(void);
 #include "os/serverlock.h"
 
 #include "dixstruct.h"
+#include "dix_priv.h"
 #include "xkbsrv.h"
 #include "picture.h"
 #include "miinitext.h"

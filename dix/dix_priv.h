@@ -24,20 +24,8 @@
 #define MAX_BIG_REQUEST_SIZE 4194303
 extern long maxBigRequestSize;
 
-extern char dispatchExceptionAtReset;
-extern int terminateDelay;
-extern Bool touchEmulatePointer;
-
-extern HWEventQueuePtr checkForInput[2];
-
  /* -retro mode */
 extern Bool party_like_its_1989;
-
-static inline _X_NOTSAN Bool
-InputCheckPending(void)
-{
-    return (*checkForInput[0] != *checkForInput[1]);
-}
 
 void ClearWorkQueue(void);
 void ProcessWorkQueue(void);
@@ -84,11 +72,6 @@ int dixLookupClient(ClientPtr *result,
 extern Bool whiteRoot;
 
 extern volatile char isItTimeToYield;
-
-/* bit values for dispatchException */
-#define DE_RESET     1
-#define DE_TERMINATE 2
-#define DE_PRIORITYCHANGE 4     /* set when a client's priority changes */
 
 extern volatile char dispatchException;
 
