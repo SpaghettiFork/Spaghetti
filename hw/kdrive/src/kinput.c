@@ -41,7 +41,6 @@
 #include "dix/input_priv.h"
 #include "mi/mi_priv.h"
 #include "mi/mipointer_priv.h"
-#include "os/cmdline.h"
 
 #include "xkbsrv.h"
 #include "XIstubs.h"            /* even though we don't use stubs.  cute, no? */

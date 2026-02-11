@@ -94,7 +94,6 @@ Equipment Corporation.
 #include "os/audit.h"
 #include "os/auth.h"
 #include "os/client_priv.h"
-#include "os/cmdline.h"
 #include "os/osdep.h"
 #include "os/screensaver.h"
 

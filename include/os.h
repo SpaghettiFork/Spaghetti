@@ -142,6 +142,14 @@ extern _X_EXPORT void TimerFree(OsTimerPtr /* pTimer */ );
 
 extern _X_EXPORT void GiveUp(int /*sig */ );
 
+extern _X_EXPORT void UseMsg(void);
+
+extern _X_EXPORT void ProcessCommandLine(int /*argc */ , char * /*argv */ []);
+
+extern _X_EXPORT int set_font_authorizations(char **authorizations,
+                                             int *authlen,
+                                             void *client);
+
 /*
  * This function malloc(3)s buffer, terminating the server if there is not
  * enough memory.
@@ -220,6 +228,68 @@ OsRegisterSigWrapper(OsSigWrapperPtr newWrap);
 extern _X_EXPORT Bool
 PrivsElevated(void);
 
+extern _X_EXPORT void
+CheckUserParameters(int argc, char **argv, char **envp);
+
+extern _X_EXPORT void
+CheckUserAuthorization(void);
+
+extern _X_EXPORT int
+AddHost(ClientPtr /*client */ ,
+        int /*family */ ,
+        unsigned /*length */ ,
+        const void * /*pAddr */ );
+
+extern _X_EXPORT Bool
+ForEachHostInFamily(int family,
+                    Bool (*func)(
+                                           unsigned char *addr,
+                                           short len,
+                                           void *closure),
+                    void *closure);
+
+extern _X_EXPORT int
+RemoveHost(ClientPtr client,
+           int family,
+           unsigned length,
+           void *pAddr);
+
+extern _X_EXPORT int
+GetHosts(void ** /*data */ ,
+         int * /*pnHosts */ ,
+         int * /*pLen */ ,
+         BOOL * /*pEnabled */ );
+
+typedef struct sockaddr *sockaddrPtr;
+
+extern _X_EXPORT int
+InvalidHost(sockaddrPtr /*saddr */ , int /*len */ , ClientPtr client);
+
+#define LCC_UID_SET	(1 << 0)
+#define LCC_GID_SET	(1 << 1)
+#define LCC_PID_SET	(1 << 2)
+#define LCC_ZID_SET	(1 << 3)
+
+typedef struct {
+    int fieldsSet;              /* Bit mask of fields set */
+    int euid;                   /* Effective uid */
+    int egid;                   /* Primary effective group id */
+    int nSuppGids;              /* Number of supplementary group ids */
+    int *pSuppGids;             /* Array of supplementary group ids */
+    int pid;                    /* Process id */
+    int zoneid;                 /* Only set on Solaris 10 & later */
+} LocalClientCredRec;
+
+extern _X_EXPORT int
+GetLocalClientCreds(ClientPtr, LocalClientCredRec **);
+
+extern _X_EXPORT void
+FreeLocalClientCreds(LocalClientCredRec *);
+
+extern _X_EXPORT int
+ChangeAccessControl(ClientPtr /*client */ , int /*fEnabled */ );
+
+
 extern _X_EXPORT int
 GetClientFd(ClientPtr);
 
@@ -250,6 +320,12 @@ extern void ddxBeforeReset(void);
 
 extern _X_EXPORT int
 ddxProcessArgument(int /*argc */ , char * /*argv */ [], int /*i */ );
+
+#define CHECK_FOR_REQUIRED_ARGUMENTS(num)  \
+    do if (((i + num) >= argc) || (!argv[i + num])) {                   \
+        UseMsg();                                                       \
+        FatalError("Required argument to %s not specified\n", argv[i]); \
+    } while (0)
 
 extern _X_EXPORT void
 ddxUseMsg(void);

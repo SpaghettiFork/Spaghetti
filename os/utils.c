@@ -106,7 +106,6 @@ __stdcall unsigned long GetTickCount(void);
 #include "dix/dix_priv.h"
 #include "dix/input_priv.h"
 #include "os/auth.h"
-#include "os/cmdline.h"
 #include "os/osdep.h"
 #include "os/serverlock.h"
 

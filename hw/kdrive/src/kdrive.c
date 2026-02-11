@@ -23,7 +23,6 @@
 #include <dix-config.h>
 
 #include "config/hotplug_priv.h"
-#include "os/cmdline.h"
 
 #include "os/osdep.h"
 
