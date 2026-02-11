@@ -118,7 +118,6 @@ SOFTWARE.
 
 struct ospoll   *server_poll;
 
-Bool NewOutputPending;          /* not yet attempted to write some new output */
 Bool NoListenAll;               /* Don't establish any listening sockets */
 
 static char dynamic_display[7]; /* display name */
@@ -605,7 +604,7 @@ ClientReady(int fd, int xevents, void *data)
         mark_client_ready(client);
     if (xevents & X_NOTIFY_WRITE) {
         ospoll_mute(server_poll, fd, X_NOTIFY_WRITE);
-        NewOutputPending = TRUE;
+        output_pending_mark(client);
     }
 }
 

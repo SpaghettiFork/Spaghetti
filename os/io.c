@@ -610,9 +610,8 @@ FlushAllOutput(void)
 {
     OsCommPtr oc;
     register ClientPtr client, tmp;
-    Bool newoutput = NewOutputPending;
 
-    if (!newoutput)
+    if (!any_output_pending())
         return;
 
     /*
@@ -621,7 +620,6 @@ FlushAllOutput(void)
      * simply wait for the select to tell us when he's ready to receive.
      */
     CriticalOutputPending = FALSE;
-    NewOutputPending = FALSE;
 
     xorg_list_for_each_entry_safe(client, tmp, &output_pending_clients, output_pending) {
         if (client->clientGone)
@@ -629,8 +627,7 @@ FlushAllOutput(void)
         if (!client_is_ready(client)) {
             oc = (OsCommPtr) client->osPrivate;
             (void) FlushClient(client, oc, (char *) NULL, 0);
-        } else
-            NewOutputPending = TRUE;
+        }
     }
 }
 
@@ -793,15 +790,14 @@ WriteToClient(ClientPtr who, int count, const void *__buf)
 #endif
     if ((oco->count == 0 && who->local) || oco->count + count + padBytes > oco->size) {
         output_pending_clear(who);
+        
         if (!any_output_pending()) {
             CriticalOutputPending = FALSE;
-            NewOutputPending = FALSE;
         }
 
         return FlushClient(who, oc, buf, count);
     }
 
-    NewOutputPending = TRUE;
     output_pending_mark(who);
     memmove((char *) oco->buf + oco->count, buf, count);
     oco->count += count;
@@ -835,8 +831,10 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
     long notWritten;
     long todo;
 
+    output_pending_clear(who);
     if (!oco)
-	return 0;
+        return 0;
+
     written = 0;
     padsize = padding_for_int32(extraCount);
     notWritten = oco->count + extraCount + padsize;
@@ -898,7 +896,6 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
             /* If we've arrived here, then the client is stuffed to the gills
                and not ready to accept more.  Make a note of it and buffer
                the rest. */
-            output_pending_mark(who);
 
             if (written < oco->count) {
                 if (written > 0) {
@@ -956,7 +953,6 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
 
     /* everything was flushed out */
     oco->count = 0;
-    output_pending_clear(who);
 
     if (oco->size > BUFWATERMARK) {
         free(oco->buf);
