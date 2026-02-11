@@ -284,7 +284,7 @@ present_restore_screen_pixmap(ScreenPtr screen)
      * we'll probably scribble over other windows
      */
     if (screen->root && screen->GetWindowPixmap(screen->root) == flip_pixmap)
-        present_copy_region(&screen_pixmap->drawable, flip_pixmap, NULL, 0, 0);
+        present_copy_region(&flip_pixmap->drawable, &screen_pixmap->drawable, NULL, 0, 0);
 
     /* Switch back to using the screen pixmap now to avoid
      * 2D applications drawing to the wrong pixmap.
