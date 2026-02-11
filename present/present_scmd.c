@@ -702,6 +702,46 @@ present_scmd_update_window_crtc(WindowPtr window, RRCrtcPtr crtc, uint64_t new_m
     window_priv->crtc = crtc;
 }
 
+/*
+ * Look for a matching presentation already on the list and
+ * don't bother doing the previous one if this one will overwrite it
+ * in the same frame.
+ */
+static inline void
+present_scmd_replace_queued(present_vblank_ptr vblank)
+{
+    present_window_priv_ptr window_priv = present_window_priv(vblank->window);
+    present_vblank_ptr      vbl, tmp;
+
+    if (vblank->update || !vblank->pixmap)
+        return;
+
+    xorg_list_for_each_entry_safe(vbl, tmp, &window_priv->vblank, window_list) {
+        if (!vbl->pixmap)
+            continue;
+
+        if (!vbl->queued)
+            continue;
+
+        if (vbl->crtc != vblank->crtc || vbl->target_msc != vblank->target_msc)
+            continue;
+
+        /* Too late to abort now if TearFree execution already happened */
+        if (vblank->reason >= PRESENT_FLIP_REASON_DRIVER_TEARFREE &&
+            vblank->exec_msc == vblank->target_msc)
+            continue;
+
+        if (vbl == vblank)
+            continue;
+
+        present_vblank_scrap(vbl);
+
+        if (vbl->flip_ready)
+            present_re_execute(vbl);
+    }
+}
+
+
 static int
 present_scmd_pixmap(WindowPtr window,
                     PixmapPtr pixmap,
@@ -730,7 +770,6 @@ present_scmd_pixmap(WindowPtr window,
     uint64_t                    target_msc;
     uint64_t                    crtc_msc = 0;
     int                         ret;
-    present_vblank_ptr          vblank, tmp;
     ScreenPtr                   screen = window->drawable.pScreen;
     present_window_priv_ptr     window_priv = present_get_window_priv(window, TRUE);
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
@@ -771,34 +810,6 @@ present_scmd_pixmap(WindowPtr window,
                                         remainder,
                                         options);
 
-    /*
-     * Look for a matching presentation already on the list and
-     * don't bother doing the previous one if this one will overwrite it
-     * in the same frame
-     */
-
-    if (!update && pixmap) {
-        xorg_list_for_each_entry_safe(vblank, tmp, &window_priv->vblank, window_list) {
-
-            if (!vblank->pixmap)
-                continue;
-
-            if (!vblank->queued)
-                continue;
-
-            if (vblank->crtc != target_crtc || vblank->target_msc != target_msc)
-                continue;
-
-            /* Too late to abort now if TearFree execution already happened */
-            if (vblank->reason >= PRESENT_FLIP_REASON_DRIVER_TEARFREE &&
-                vblank->exec_msc == vblank->target_msc)
-                continue;
-
-            present_vblank_scrap(vblank);
-            if (vblank->flip_ready)
-                present_re_execute(vblank);
-        }
-    }
 
     vblank = present_vblank_create(window,
                                    pixmap,
@@ -836,8 +847,10 @@ present_scmd_pixmap(WindowPtr window,
              (vblank->flip && vblank->sync_flip))
         vblank->exec_msc--;
 
+    present_scmd_replace_queued(vblank);
     xorg_list_append(&vblank->event_queue, &present_exec_queue);
     vblank->queued = TRUE;
+
     if (msc_is_after(vblank->exec_msc, crtc_msc)) {
         ret = present_queue_vblank(screen, window, target_crtc, vblank->event_id, vblank->exec_msc);
         if (ret == Success)
