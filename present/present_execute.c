@@ -116,7 +116,8 @@ present_execute_copy(present_vblank_ptr vblank, uint64_t crtc_msc)
         return;
     }
 
-    present_copy_region(&window->drawable, vblank->pixmap, vblank->update, vblank->x_off, vblank->y_off);
+    present_copy_region(&vblank->pixmap->drawable, &window->drawable,
+                        vblank->update, vblank->x_off, vblank->y_off);
 
     /* present_copy_region sticks the region into a scratch GC,
      * which is then freed, freeing the region

@@ -275,8 +275,8 @@ RRCrtcPtr
 present_get_crtc(WindowPtr window);
 
 void
-present_copy_region(DrawablePtr drawable,
-                    PixmapPtr pixmap,
+present_copy_region(DrawablePtr source,
+                    DrawablePtr destination,
                     RegionPtr update,
                     int16_t x_off,
                     int16_t y_off);
