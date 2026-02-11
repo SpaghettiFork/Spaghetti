@@ -117,6 +117,7 @@ Equipment Corporation.
 
 #include "windowstr.h"
 #include "dixfontstr.h"
+#include "dix_priv.h"
 #include "gcstruct.h"
 #include "selection.h"
 #include "colormapst.h"

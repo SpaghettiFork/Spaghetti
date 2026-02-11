@@ -50,7 +50,6 @@ SOFTWARE.
 #include <X11/Xmd.h>
 
 #include "dix/cursor_priv.h"
-#include "dix/dix_priv.h"
 
 #include "misc.h"
 #include "windowstr.h"
@@ -58,6 +57,7 @@ SOFTWARE.
 #include "input.h"
 #include "dixfont.h"
 #include "dixstruct.h"
+#include "dix_priv.h"
 #include "os.h"
 
 ScreenInfo screenInfo;
