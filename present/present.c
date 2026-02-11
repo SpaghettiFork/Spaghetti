@@ -97,13 +97,15 @@ present_copy_region(DrawablePtr source,
 }
 
 void
-present_pixmap_idle(PixmapPtr pixmap, WindowPtr window, CARD32 serial, struct present_fence *present_fence)
+present_pixmap_idle(present_vblank_ptr vblank)
 {
-    if (present_fence)
-        present_fence_set_triggered(present_fence);
-    if (window) {
-        DebugPresent(("\ti %08" PRIx32 "\n", pixmap ? pixmap->drawable.id : 0));
-        present_send_idle_notify(window, serial, pixmap, present_fence);
+    if (vblank->pixmap) {
+        if (vblank->idle_fence)
+            present_fence_set_triggered(vblank->idle_fence);
+        if (vblank->window) {
+            DebugPresent(("\ti %08" PRIx32 "\n", vblank->pixmap ? vblank->pixmap->drawable.id : 0));
+            present_send_idle_notify(vblank->window, vblank->serial, vblank->pixmap, vblank->idle_fence);
+        }
     }
 }
 

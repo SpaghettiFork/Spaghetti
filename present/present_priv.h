@@ -275,7 +275,7 @@ present_copy_region(DrawablePtr source,
                     int16_t y_off);
 
 void
-present_pixmap_idle(PixmapPtr pixmap, WindowPtr window, CARD32 serial, struct present_fence *present_fence);
+present_pixmap_idle(present_vblank_ptr pixmap);
 
 void
 present_set_tree_pixmap(WindowPtr window,

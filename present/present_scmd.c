@@ -252,10 +252,7 @@ present_flip_idle(ScreenPtr screen)
     if (!vblank)
         return;
 
-    if (vblank->pixmap)
-        present_pixmap_idle(vblank->pixmap, vblank->window,
-                            vblank->serial, vblank->idle_fence);
-
+    present_pixmap_idle(vblank);
     present_vblank_destroy(vblank);
     screen_priv->flip_active = NULL;
 }
@@ -427,8 +424,8 @@ present_check_flip_window (WindowPtr window)
         /*
          * Check current flip
          */
-        if (window == flip_active->flip_window) {
-            if (!present_check_flip(flip_active->crtc, window, flip_active->flip_pixmap,
+        if (window == flip_active->window) {
+            if (!present_check_flip(flip_active->crtc, window, flip_active->pixmap,
                                     flip_active->sync_flip, NULL, 0, 0, NULL))
                 present_unflip(screen);
         }
@@ -468,7 +465,8 @@ present_scmd_can_window_flip(WindowPtr window)
     /* Make sure the window hasn't been redirected with Composite */
     window_pixmap = screen->GetWindowPixmap(window);
     if (window_pixmap != screen->GetScreenPixmap(screen) &&
-        window_pixmap != screen_priv->flip_pixmap &&
+        NULL != screen_priv->flip_active &&
+        window_pixmap != screen_priv->flip_active->pixmap &&
         window_pixmap != present_flip_pending_pixmap(screen))
         return FALSE;
 
@@ -766,6 +764,7 @@ present_scmd_pixmap(WindowPtr window,
     uint64_t                    target_msc;
     uint64_t                    crtc_msc = 0;
     int                         ret;
+    present_vblank_ptr          vblank;
     ScreenPtr                   screen = window->drawable.pScreen;
     present_window_priv_ptr     window_priv = present_get_window_priv(window, TRUE);
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
