@@ -496,12 +496,15 @@ Dispatch(void)
             FlushIfCriticalOutputPending();
         }
 
+        if (!WaitForSomething(clients_are_ready()))
+            continue;
+
         /*****************
          *  Handle events in round robin fashion, doing input between
          *  each round
          *****************/
 
-        if (WaitForSomething(clients_are_ready())) {
+        if (!dispatchException && clients_are_ready()) {
             client = SmartScheduleClient();
 
             isItTimeToYield = FALSE;
