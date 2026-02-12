@@ -81,6 +81,15 @@ egl_screen_destroy(__GLXscreen* baseScreen)
     free(baseScreen);
 }
 
+static __GLXcontext *
+egl_create_context(__GLXscreen *screen, __GLXconfig *modes,
+                   __GLXcontext *shareContext, unsigned num_attribs,
+                   const uint32_t *attribs, int *error)
+{
+    *error = BadImplementation;
+    return NULL;
+}
+
 static void
 egl_drawable_destroy(__GLXdrawable *draw)
 {
@@ -373,6 +382,7 @@ egl_screen_probe(ScreenPtr pScreen)
 
     screen->destroy = egl_screen_destroy;
     screen->createDrawable = egl_create_glx_drawable;
+    screen->createContext = egl_create_context;
     screen->swapInterval = NULL;
 
     __glXInitExtensionEnableBits(screen->glx_enable_bits);
