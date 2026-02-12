@@ -473,16 +473,6 @@ makeFormat(__GLXconfig *conf)
     return fobj;
 }
 
-static void
-__glXAquaScreenDestroy(__GLXscreen *screen)
-{
-
-    GLAQUA_DEBUG_MSG("glXAquaScreenDestroy(%p)\n", screen);
-    __glXScreenDestroy(screen);
-
-    free(screen);
-}
-
 /* This is called by __glXInitScreens(). */
 static __GLXscreen *
 __glXAquaScreenProbe(ScreenPtr pScreen)
@@ -499,7 +489,7 @@ __glXAquaScreenProbe(ScreenPtr pScreen)
     if (NULL == screen)
         return NULL;
 
-    screen->base.destroy = __glXAquaScreenDestroy;
+    screen->base.destroy = NULL; /* Handled by GLX. */
     screen->base.createContext = __glXAquaScreenCreateContext;
     screen->base.createDrawable = __glXAquaScreenCreateDrawable;
     screen->base.swapInterval = /*FIXME*/ NULL;

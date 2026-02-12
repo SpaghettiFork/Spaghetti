@@ -901,8 +901,6 @@ __glXDRIscreenDestroy(__GLXscreen * baseScreen)
 
     dlclose(screen->driver);
 
-    __glXScreenDestroy(baseScreen);
-
     if (screen->driConfigs) {
         for (i = 0; screen->driConfigs[i] != NULL; i++)
             free((__DRIconfig **) screen->driConfigs[i]);
@@ -911,8 +909,6 @@ __glXDRIscreenDestroy(__GLXscreen * baseScreen)
 
     pScrn->EnterVT = screen->enterVT;
     pScrn->LeaveVT = screen->leaveVT;
-
-    free(screen);
 }
 
 enum {

@@ -161,11 +161,24 @@ static Bool
 glxCloseScreen(ScreenPtr pScreen)
 {
     __GLXscreen *pGlxScreen = glxGetScreen(pScreen);
+    __GLXconfig *config, *next;
 
     pScreen->CloseScreen = pGlxScreen->CloseScreen;
 
-    pGlxScreen->destroy(pGlxScreen);
+    if (pGlxScreen->destroy)
+        pGlxScreen->destroy(pGlxScreen);
 
+    free(pGlxScreen->glvnd);
+    free(pGlxScreen->GLXextensions);
+    free(pGlxScreen->GLextensions);
+    free(pGlxScreen->visuals);
+
+    for (config = pGlxScreen->fbconfigs; config != NULL; config = next) {
+        next = config->next;
+        free(config);
+    }
+
+    free(pGlxScreen);
     return pScreen->CloseScreen(pScreen);
 }
 
@@ -430,20 +443,4 @@ __glXScreenInit(__GLXscreen * pGlxScreen, ScreenPtr pScreen)
                                        pGlxScreen->GLXextensions);
     }
 
-}
-
-void
-__glXScreenDestroy(__GLXscreen * screen)
-{
-    __GLXconfig *config, *next;
-
-    free(screen->glvnd);
-    free(screen->GLXextensions);
-    free(screen->GLextensions);
-    free(screen->visuals);
-
-    for (config = screen->fbconfigs; config != NULL; config = next) {
-        next = config->next;
-        free(config);
-    }
 }

@@ -404,15 +404,11 @@ __glXDRIscreenDestroy(__GLXscreen * baseScreen)
 
     dlclose(screen->driver);
 
-    __glXScreenDestroy(baseScreen);
-
     if (screen->driConfigs) {
         for (i = 0; screen->driConfigs[i] != NULL; i++)
             free((__DRIconfig **) screen->driConfigs[i]);
         free(screen->driConfigs);
     }
-
-    free(screen);
 }
 
 static __GLXscreen *

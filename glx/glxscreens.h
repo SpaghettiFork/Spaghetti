@@ -154,6 +154,5 @@ struct __GLXscreen {
 };
 
 void __glXScreenInit(__GLXscreen * screen, ScreenPtr pScreen);
-void __glXScreenDestroy(__GLXscreen * screen);
 
 #endif                          /* !__GLX_screens_h__ */

@@ -74,13 +74,6 @@ struct egl_config_meta
     Bool duplicate_for_composite;
 };
 
-static void
-egl_screen_destroy(__GLXscreen* baseScreen)
-{
-    __glXScreenDestroy(baseScreen);
-    free(baseScreen);
-}
-
 static __GLXcontext *
 egl_create_context(__GLXscreen *screen, __GLXconfig *modes,
                    __GLXcontext *shareContext, unsigned num_attribs,
@@ -380,7 +373,7 @@ egl_screen_probe(ScreenPtr pScreen)
     if (!screen)
         return NULL;
 
-    screen->destroy = egl_screen_destroy;
+    screen->destroy = NULL; /* Handled by GLX. */
     screen->createDrawable = egl_create_glx_drawable;
     screen->createContext = egl_create_context;
     screen->swapInterval = NULL;

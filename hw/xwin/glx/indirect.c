@@ -415,14 +415,6 @@ glxWinPushNativeProvider(void)
  * Screen functions
  */
 
-static void
-glxWinScreenDestroy(__GLXscreen * screen)
-{
-    GLWIN_DEBUG_MSG("glxWinScreenDestroy(%p)", screen);
-    __glXScreenDestroy(screen);
-    free(screen);
-}
-
 static int
 glxWinScreenSwapInterval(__GLXdrawable * drawable, int interval)
 {
@@ -652,7 +644,7 @@ glxWinScreenProbe(ScreenPtr pScreen)
             screen->has_WGL_ARB_framebuffer_sRGB = TRUE;
         }
 
-        screen->base.destroy = glxWinScreenDestroy;
+        screen->base.destroy = NULL; /* Handled by GLX. */
         screen->base.createContext = glxWinCreateContext;
         screen->base.createDrawable = glxWinCreateDrawable;
         screen->base.swapInterval = glxWinScreenSwapInterval;
