@@ -790,6 +790,24 @@ drmmode_bo_import(drmmode_ptr drmmode, drmmode_bo *bo,
                 handles[i] = gbm_bo_get_handle_for_plane(bo->gbm, i).u32;
                 strides[i] = gbm_bo_get_stride_for_plane(bo->gbm, i);
                 offsets[i] = gbm_bo_get_offset(bo->gbm, i);
+                /*
+                 * Note that this is actually a neat feature. Even if no
+                 * framebuffer modifiers were used during the framebuffer
+                 * allocation, this may return a !DRM_FORMAT_MOD_LINEAR
+                 * modifier if the DRI driver decides to choose one. It's
+                 * not recommended to do so, but if it is guaranteed that
+                 * the display and GPU both support this modifier, they
+                 * can both use this modifier rather than the pitch-linear
+                 * modifier as a lowest common denominator.
+                 *
+                 * DRI drivers are still recommended to allocate buffers in
+                 * pitch-linear format if no framebuffer modifiers are used
+                 * because applications are assumed to not know about these
+                 * modifiers at all if they allocate buffers the old way.
+                 * In that case they must be assumed to use drmModeAddFB(),
+                 * which doesn't allow specifying any framebuffer modifiers
+                 * and therefore DRM_FORMAT_MOD_LINEAR is implied.
+                 */
                 modifiers[i] = gbm_bo_get_modifier(bo->gbm);
             }
 
