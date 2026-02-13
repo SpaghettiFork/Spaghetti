@@ -153,6 +153,12 @@ static drmmode_format_ptr get_format(drmmode_crtc_private_ptr drmmode_crtc,
         return &drmmode_crtc->formats[i];
 }
 
+static inline Bool
+drmmode_is_implicit_modifiers(drmmode_format_ptr iter, uint64_t modifier)
+{
+    return !iter->num_modifiers || modifier == DRM_FORMAT_MOD_INVALID;
+}
+
 Bool
 drmmode_is_format_supported(ScrnInfoPtr scrn, uint32_t format,
                             uint64_t modifier, Bool async_flip)
@@ -180,8 +186,7 @@ drmmode_is_format_supported(ScrnInfoPtr scrn, uint32_t format,
             if (iter->format != format)
                 continue;
 
-            if (modifier == DRM_FORMAT_MOD_INVALID ||
-                iter->num_modifiers == 0) {
+            if (drmmode_is_implicit_modifiers(iter, modifier)) {
                 found = TRUE;
                 break;
             }
@@ -2174,7 +2179,7 @@ populate_format_modifiers(xf86CrtcPtr crtc, const drmModePlane *kplane,
             
             /* We should never arrive on this. */
             if (mod->modifier == DRM_FORMAT_MOD_INVALID)
-                break;
+                continue;
 
             num_modifiers++;
             tmp = realloc(modifiers, num_modifiers * sizeof(modifiers[0]));
