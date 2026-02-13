@@ -834,6 +834,8 @@ drmmode_create_bo(drmmode_ptr drmmode, drmmode_bo *bo,
 #ifdef GLAMOR_HAS_GBM
     if (drmmode->glamor) {
         uint32_t format;
+        uint32_t num_modifiers;
+        uint64_t *modifiers = NULL;
 
         switch (drmmode->scrn->depth) {
         case 15:
@@ -850,27 +852,33 @@ drmmode_create_bo(drmmode_ptr drmmode, drmmode_bo *bo,
             break;
         }
 
+        num_modifiers = get_modifiers_set(drmmode->scrn, format, &modifiers, FALSE, TRUE, TRUE);
+        if (num_modifiers > 0) {
 #ifdef GBM_BO_WITH_MODIFIERS2
-        uint64_t *modifiers;
-        uint32_t num_modifiers =
-                get_modifiers_set(drmmode->scrn, format, &modifiers, FALSE, TRUE, TRUE);
+            bo->gbm = gbm_bo_create_with_modifiers2(drmmode->gbm, 
+                                                    width, height, format,
+                                                    modifiers, num_modifiers,
+                                                    GBM_BO_USE_RENDERING | GBM_BO_USE_SCANOUT);
+#else
+            /* gbm_bo_create_with_modifiers implies GBM_BO_USE_SCANOUT. */
+            bo->gbm = gbm_bo_create_with_modifiers(drmmode->gbm, 
+                                                   width, height, format,
+                                                   modifiers, num_modifiers);
+#endif
+            bo->used_modifiers = TRUE;
+        }
 
-        bo->gbm = gbm_bo_create_with_modifiers2(drmmode->gbm, 
-                                                width, height, format,
-                                                modifiers, num_modifiers,
-                                                GBM_BO_USE_RENDERING | GBM_BO_USE_SCANOUT);
-        bo->used_modifiers = (bo->gbm && num_modifiers);
-        
         if (modifiers)
             free(modifiers);
-#else
-        bo->gbm = gbm_bo_create(drmmode->gbm, width, height, format,
-                                GBM_BO_USE_RENDERING | GBM_BO_USE_SCANOUT);
-        bo->used_modifiers = FALSE;
-#endif
+
+        if (bo->gbm == NULL) {
+            bo->gbm = gbm_bo_create(drmmode->gbm, width, height, format,
+                                    GBM_BO_USE_RENDERING | GBM_BO_USE_SCANOUT);
+            bo->used_modifiers = FALSE;
+        }
+
         bo->gbm_ptr = NULL;
         bo->owned_gbm = TRUE;
-
         return bo->gbm != NULL;
     }
 #endif
