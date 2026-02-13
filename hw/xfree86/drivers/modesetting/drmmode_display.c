@@ -1491,6 +1491,9 @@ static void drmmmode_prepare_modeset(ScrnInfoPtr scrn)
     ScreenPtr pScreen = scrn->pScreen;
     modesettingPtr ms = modesettingPTR(scrn);
 
+    if (!ms->drmmode.present_flipping)
+        return;
+
     if (ms->drmmode.pending_modeset)
         return;
 
