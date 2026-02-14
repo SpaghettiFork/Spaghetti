@@ -124,16 +124,15 @@ glamor_get_flink_name(int fd, int handle, int *name)
 
     flink.handle = handle;
     if (ioctl(fd, DRM_IOCTL_GEM_FLINK, &flink) < 0) {
-
-    /*
-     * Assume non-GEM kernels have names identical to the handle
-     */
-    if (errno == ENODEV) {
-        *name = handle;
-        return TRUE;
-    } else {
-        return FALSE;
-    }
+        /*
+         * Assume non-GEM kernels have names identical to the handle
+         */
+        if (errno == ENODEV) {
+            *name = handle;
+            return TRUE;
+        } else {
+            return FALSE;
+        }
     }
     *name = flink.name;
     return TRUE;
@@ -351,7 +350,7 @@ glamor_egl_create_textured_pixmap_from_gbm_bo(PixmapPtr pixmap,
                                   EGL_NO_CONTEXT,
                                   EGL_LINUX_DMA_BUF_EXT,
                                   NULL,
-                                 img_attrs);
+                                  img_attrs);
 
         for (plane = 0; plane < num_planes; plane++)
         {
