@@ -51,7 +51,4 @@ int miShapedWindowIn(RegionPtr universe, RegionPtr bounding, BoxPtr rect,
                      int x, int y);
 int miValidateTree(WindowPtr pParent, WindowPtr pChild, VTKind kind);
 
-void miClearToBackground(WindowPtr pWin, int x, int y, int w, int h,
-                         Bool generateExposures);
-
 #endif /* _XSERVER_MI_PRIV_H */
