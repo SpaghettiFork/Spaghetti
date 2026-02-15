@@ -286,6 +286,8 @@ extern _X_EXPORT void miPolylines(DrawablePtr pDrawable,
 
 /* miwindow.c */
 
+extern _X_EXPORT WindowPtr miGetLayerWindow(WindowPtr /*pWin */);
+
 extern _X_EXPORT void miSetShape(WindowPtr /*pWin */,
                                  int       /*kind */);
 
