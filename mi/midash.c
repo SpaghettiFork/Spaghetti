@@ -45,8 +45,6 @@ SOFTWARE.
 ******************************************************************/
 #include <dix-config.h>
 
-#include "mi/mi_priv.h"
-
 #include "regionstr.h"
 #include "mistruct.h"
 
