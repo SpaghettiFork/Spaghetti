@@ -264,6 +264,12 @@ extern _X_EXPORT Bool miScreenInit(ScreenPtr pScreen,
 
 /* mivaltree.c */
 
+extern _X_EXPORT int miShapedWindowIn(RegionPtr /*universe */,
+                                      RegionPtr /*bounding */,
+                                      BoxPtr    /*rect */,
+                                      int       /*x */,
+                                      int       /*y */);
+
 extern _X_EXPORT int miValidateTree(WindowPtr /*pParent */,
                                     WindowPtr /*pChild */,
                                     VTKind    /*kind */);

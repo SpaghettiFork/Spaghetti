@@ -92,11 +92,10 @@ Equipment Corporation.
 
 #include    <X11/X.h>
 
-#include    "mi/mi_priv.h"
-
 #include    "scrnintstr.h"
 #include    "validate.h"
 #include    "windowstr.h"
+#include    "mi.h"
 #include    "regionstr.h"
 #include    "mivalidate.h"
 #include    "globals.h"
