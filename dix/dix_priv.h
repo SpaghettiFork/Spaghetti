@@ -69,21 +69,4 @@ int dixLookupClient(ClientPtr *result,
                     ClientPtr client,
                     Mask access_mode);
 
-extern Bool whiteRoot;
-
-extern volatile char isItTimeToYield;
-
-extern volatile char dispatchException;
-
-extern int ScreenSaverBlanking;
-extern int ScreenSaverAllowExposures;
-extern int defaultScreenSaverBlanking;
-extern int defaultScreenSaverAllowExposures;
-extern const char *display;
-extern int displayfd;
-extern Bool explicit_display;
-
-extern Bool disableBackingStore;
-extern Bool enableBackingStore;
-
 #endif /* _XSERVER_DIX_PRIV_H */

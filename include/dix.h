@@ -131,11 +131,6 @@ extern _X_EXPORT ClientPtr clients[MAXCLIENTS];
 extern _X_EXPORT ClientPtr serverClient;
 extern _X_EXPORT int currentMaxClients;
 
-/* bit values for dispatchException */
-#define DE_RESET     1
-#define DE_TERMINATE 2
-#define DE_PRIORITYCHANGE 4     /* set when a client's priority changes */
-
 extern _X_EXPORT char dispatchExceptionAtReset;
 extern _X_EXPORT int terminateDelay;
 extern _X_EXPORT Bool touchEmulatePointer;

@@ -21,8 +21,6 @@
  */
 #include <dix-config.h>
 
-#include "dix/dix_priv.h"
-
 #include "randrstr_priv.h"
 #include "propertyst.h"
 #include "swaprep.h"

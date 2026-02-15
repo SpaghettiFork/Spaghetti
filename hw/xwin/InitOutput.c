@@ -32,7 +32,6 @@ from The Open Group.
 #include <xwin-config.h>
 #endif
 
-#include "dix/dix_priv.h"
 #include "os/osdep.h"
 
 #include "win.h"

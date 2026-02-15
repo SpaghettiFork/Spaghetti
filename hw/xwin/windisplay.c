@@ -30,7 +30,6 @@
 #endif
 
 #include <opaque.h>             // for display
-#include "dix/dix_priv.h"       // for display
 
 #include "windisplay.h"
 #include "winmsg.h"

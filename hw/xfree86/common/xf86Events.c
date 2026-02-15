@@ -61,7 +61,6 @@
 #include <X11/extensions/XIproto.h>
 #include <X11/keysym.h>
 
-#include "dix/dix_priv.h"
 #include "dix/input_priv.h"
 
 #include "misc.h"

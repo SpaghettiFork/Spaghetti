@@ -109,6 +109,7 @@ Equipment Corporation.
 #include "colormapst.h"
 #include "cursorstr.h"
 #include "selection.h"
+#include "opaque.h"
 #include "servermd.h"
 #include "dixfont.h"
 #include "extnsionst.h"

@@ -32,8 +32,6 @@
 #include <xwin-config.h>
 #endif
 
-#include "dix/dix_priv.h"
-
 #include "win.h"
 #include "shellapi.h"
 

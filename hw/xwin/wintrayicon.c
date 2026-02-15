@@ -38,8 +38,6 @@
 #include "winprefs.h"
 #include "winclipboard/winclipboard.h"
 
-#include "dix/dix_priv.h"
-
 /*
  * Initialize the tray icon
  */
