@@ -14,7 +14,6 @@
 #include "include/pixmap.h"
 #include "include/regionstr.h"
 #include "include/screenint.h"
-#include "include/validate.h"
 #include "include/window.h"
 #include "mi/mi.h"
 
@@ -58,6 +57,5 @@ void miMarkWindow(WindowPtr pWin);
 Bool miMarkOverlappedWindows(WindowPtr pWin, WindowPtr pFirst,
                              WindowPtr *ppLayerWin);
 void miHandleValidateExposures(WindowPtr pWin);
-void miMoveWindow(WindowPtr pWin, int x, int y, WindowPtr pNextSib, VTKind kind);
 
 #endif /* _XSERVER_MI_PRIV_H */
