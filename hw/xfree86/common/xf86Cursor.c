@@ -34,7 +34,6 @@
 #include <X11/extensions/XIproto.h>
 
 #include "dix/input_priv.h"
-#include "mi/mipointer_priv.h"
 
 #include "cursor.h"
 #include "mipointer.h"
