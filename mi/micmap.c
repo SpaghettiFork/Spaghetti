@@ -33,8 +33,6 @@
 #include <X11/Xproto.h>
 
 #include "dix/colormap_priv.h"
-#include "mi/mi_priv.h"
-#include "os/osdep.h"
 
 #include "scrnintstr.h"
 #include "colormapst.h"

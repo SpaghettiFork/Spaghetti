@@ -18,9 +18,6 @@
 #include "include/window.h"
 #include "mi/mi.h"
 
-#define SetInstalledmiColormap(s,c) \
-    (dixSetPrivate(&(s)->devPrivates, micmapScrPrivateKey, c))
-
 void miScreenClose(ScreenPtr pScreen);
 
 void miWideArc(DrawablePtr pDraw, GCPtr pGC, int narcs, xArc * parcs);
