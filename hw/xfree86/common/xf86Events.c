@@ -63,7 +63,6 @@
 
 #include "dix/dix_priv.h"
 #include "dix/input_priv.h"
-#include "mi/mi_priv.h"
 
 #include "misc.h"
 #include "xf86.h"
@@ -78,6 +77,7 @@
 
 #include "inputstr.h"
 #include "xf86Xinput.h"
+#include "mi.h"
 #include "mipointer.h"
 #include "xkbsrv.h"
 #include "xkbstr.h"
