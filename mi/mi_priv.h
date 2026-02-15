@@ -45,7 +45,4 @@ void miSendExposures(WindowPtr pWin, RegionPtr pRgn, int dx, int dy);
 
 void miPaintWindow(WindowPtr pWin, RegionPtr prgn, int what);
 
-void miSourceValidate(DrawablePtr pDrawable, int x, int y, int w, int h,
-                      unsigned int subWindowMode);
-
 #endif /* _XSERVER_MI_PRIV_H */
