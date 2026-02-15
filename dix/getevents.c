@@ -55,6 +55,7 @@
 #include "eventstr.h"
 #include "eventconvert.h"
 #include "inpututils.h"
+#include "mi.h"
 #include "windowstr.h"
 
 #include "xkbsrv.h"

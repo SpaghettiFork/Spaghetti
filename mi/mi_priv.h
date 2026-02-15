@@ -8,7 +8,6 @@
 #include <X11/Xdefs.h>
 #include <X11/Xprotostr.h>
 
-#include "include/events.h"
 #include "include/gc.h"
 #include "include/pixmap.h"
 #include "include/screenint.h"
@@ -22,6 +21,5 @@ void miStepDash(int dist, int * pDashIndex, unsigned char * pDash,
 
 Bool mieqInit(void);
 void mieqFini(void);
-void mieqEnqueue(DeviceIntPtr pDev, InternalEvent *e);
 
 #endif /* _XSERVER_MI_PRIV_H */
