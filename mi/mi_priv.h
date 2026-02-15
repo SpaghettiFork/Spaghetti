@@ -12,9 +12,7 @@
 #include "include/events.h"
 #include "include/gc.h"
 #include "include/pixmap.h"
-#include "include/regionstr.h"
 #include "include/screenint.h"
-#include "include/window.h"
 #include "mi/mi.h"
 
 void miScreenClose(ScreenPtr pScreen);
@@ -40,7 +38,5 @@ void mieqRemoveCallbackOnDrained(CallbackProcPtr callback, void *param);
 typedef void (*mieqHandler) (int screen, InternalEvent *event,
                              DeviceIntPtr dev);
 void mieqSetHandler(int event, mieqHandler handler);
-
-void miSendExposures(WindowPtr pWin, RegionPtr pRgn, int dx, int dy);
 
 #endif /* _XSERVER_MI_PRIV_H */

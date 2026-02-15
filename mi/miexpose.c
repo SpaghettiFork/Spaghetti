@@ -79,7 +79,6 @@ Equipment Corporation.
 #include <X11/Xprotostr.h>
 
 #include "dix/dix_priv.h"
-#include "mi/mi_priv.h"
 
 #include "misc.h"
 #include "regionstr.h"
@@ -89,6 +88,7 @@ Equipment Corporation.
 #include "pixmap.h"
 #include "input.h"
 #include "dixstruct.h"
+#include "mi.h"
 #include "globals.h"
 
 #ifdef XINERAMA
