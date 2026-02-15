@@ -41,7 +41,6 @@ in this Software without prior written authorization from The Open Group.
 #include   <X11/extensions/XIproto.h>
 #include   <X11/extensions/geproto.h>
 
-#include   "dix/cursor_priv.h"
 #include   "mi/mi_priv.h"
 #include   "mi/mipointer_priv.h"
 #include   "os/screensaver.h"
