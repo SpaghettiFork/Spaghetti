@@ -130,6 +130,10 @@ extern _X_EXPORT RegionPtr miHandleExposures(DrawablePtr /*pSrcDrawable */ ,
 extern _X_EXPORT void miWindowExposures(WindowPtr /*pWin */ ,
                                         RegionPtr /*prgn */);
 
+extern _X_EXPORT void miPaintWindow(WindowPtr /*pWin */,
+                                    RegionPtr /*prgn */,
+                                    int       /*what */);
+
 extern _X_EXPORT void miClearDrawable(DrawablePtr /*pDraw */ ,
                                       GCPtr     /*pGC */
     );
