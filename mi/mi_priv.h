@@ -8,7 +8,6 @@
 #include <X11/Xdefs.h>
 #include <X11/Xprotostr.h>
 
-#include "include/callback.h"
 #include "include/events.h"
 #include "include/gc.h"
 #include "include/pixmap.h"
@@ -27,6 +26,5 @@ void mieqEnqueue(DeviceIntPtr pDev, InternalEvent *e);
 void mieqSwitchScreen(DeviceIntPtr pDev, ScreenPtr pScreen, Bool set_dequeue_screen);
 void mieqProcessDeviceEvent(DeviceIntPtr dev, InternalEvent *event, ScreenPtr screen);
 void mieqProcessInputEvents(void);
-void mieqAddCallbackOnDrained(CallbackProcPtr callback, void *param);
 
 #endif /* _XSERVER_MI_PRIV_H */
