@@ -26,8 +26,6 @@
 
 #include <stdlib.h>
 
-#include "mi/mi_priv.h"
-
 #include "fb.h"
 #include "fboverlay.h"
 #include "shmint.h"
