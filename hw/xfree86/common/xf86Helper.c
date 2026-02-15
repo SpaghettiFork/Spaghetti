@@ -43,7 +43,6 @@
 
 #include "dix/dix_priv.h"
 #include "dix/input_priv.h"
-#include "mi/mi_priv.h"
 
 #include "mi/mi.h"
 #include "os.h"
