@@ -45,6 +45,7 @@
 #include "dix/input_priv.h"
 #include "mi/mi_priv.h"
 
+#include "mi/mi.h"
 #include "os.h"
 #include "servermd.h"
 #include "pixmapstr.h"
