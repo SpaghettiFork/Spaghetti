@@ -286,6 +286,10 @@ extern _X_EXPORT void miPolylines(DrawablePtr pDrawable,
 
 /* miwindow.c */
 
+extern _X_EXPORT Bool miMarkOverlappedWindows(WindowPtr   /*pWin */,
+                                              WindowPtr   /*pFirst */,
+                                              WindowPtr * /*ppLayerWin */);
+
 extern _X_EXPORT void miHandleValidateExposures(WindowPtr /*pWin */);
 
 extern _X_EXPORT void miMoveWindow(WindowPtr    /*pWin */,
