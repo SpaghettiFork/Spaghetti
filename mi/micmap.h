@@ -6,6 +6,8 @@
 
 #define GetInstalledmiColormap(s) \
     ((ColormapPtr) dixLookupPrivate(&(s)->devPrivates, micmapScrPrivateKey))
+#define SetInstalledmiColormap(s,c) \
+    (dixSetPrivate(&(s)->devPrivates, micmapScrPrivateKey, c))
 
 extern _X_EXPORT DevPrivateKeyRec micmapScrPrivateKeyRec;
 
