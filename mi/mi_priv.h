@@ -65,6 +65,5 @@ WindowPtr miGetLayerWindow(WindowPtr pWin);
 void miSetShape(WindowPtr pWin, int kind);
 void miChangeBorderWidth(WindowPtr pWin, unsigned int width);
 void miMarkUnrealizedWindow(WindowPtr pChild, WindowPtr pWin, Bool fromConfigure);
-WindowPtr miSpriteTrace(SpritePtr pSprite, int x, int y);
 
 #endif /* _XSERVER_MI_PRIV_H */
