@@ -50,7 +50,6 @@
 #include "dix/dix_priv.h"
 #include "dix/eventconvert.h"
 #include "dix/exevents_priv.h"
-#include "mi/mi_priv.h"
 
 #include "xf86.h"
 #include "xf86str.h"
@@ -68,6 +67,7 @@
 #include "exglobals.h"
 #include "eventstr.h"
 #include "xf86Extensions.h"
+#include "mi.h"
 #include "misc.h"
 #include "dixstruct.h"
 #include "dixevents.h"
