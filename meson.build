@@ -110,11 +110,21 @@ xfont2_dep = dependency('xfont2', version: '>= 2.0')
 dbus_required = get_option('systemd_logind') == 'true'
 dbus_dep = dependency('dbus-1', version: '>= 1.0', required: dbus_required)
 
-build_systemd = get_option('systemd_notify') == 'true'
-# libsystemd-daemon was moved into libsystemd in version 209
-libsystemd_daemon_dep = dependency('libsystemd', version: '>= 209', required: false)
-if not libsystemd_daemon_dep.found()
-    libsystemd_daemon_dep = dependency('libsystemd-daemon', required: false)
+systemd_notify = get_option('systemd_notify')
+libsystemd_required = systemd_notify == 'true'
+libsystemd_wanted = systemd_notify in ['auto','true']
+
+if libsystemd_wanted
+    # libsystemd-daemon was moved into libsystemd in version 209
+    libsystemd_daemon_dep = dependency('libsystemd', version: '>= 209', required: false)
+    if not libsystemd_daemon_dep.found()
+        libsystemd_daemon_dep = dependency('libsystemd-daemon', required: false)
+    endif
+    if libsystemd_required and not libsystemd_daemon_dep.found()
+        error('libsystemd required but not found')
+    endif
+else
+    libsystemd_daemon_dep = disabler()
 endif
 
 build_hashtable = false
