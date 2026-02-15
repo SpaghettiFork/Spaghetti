@@ -108,6 +108,14 @@ miDoCopy(DrawablePtr pSrcDrawable,
          int xOut,
          int yOut, miCopyProc copyProc, Pixel bitplane, void *closure);
 
+/* midash.c */
+
+extern _X_EXPORT void miStepDash(int             /* dist */,
+                                 int *           /* pDashIndex */,
+                                 unsigned char * /* pDash */,
+                                 int             /* numInDashList */,
+                                 int *           /* pDashOffset */);
+
 /* mieq.c */
 
 #ifndef INPUT_H
