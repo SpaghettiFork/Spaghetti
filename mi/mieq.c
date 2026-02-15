@@ -41,7 +41,6 @@ in this Software without prior written authorization from The Open Group.
 #include   <X11/extensions/XIproto.h>
 #include   <X11/extensions/geproto.h>
 
-#include   "mi/mi_priv.h"
 #include   "mi/mipointer_priv.h"
 #include   "os/screensaver.h"
 
@@ -50,6 +49,7 @@ in this Software without prior written authorization from The Open Group.
 #include   "pixmapstr.h"
 #include   "inputstr.h"
 #include   "inpututils.h"
+#include   "mi.h"
 #include   "mipointer.h"
 #include   "scrnintstr.h"
 #include   "extinit.h"

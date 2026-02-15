@@ -33,8 +33,7 @@ from The Open Group.
 #include <X11/Xos.h>
 #include <X11/keysym.h>
 
-#include "mi/mi_priv.h"
-
+#include "mi.h"
 #include "scrnintstr.h"
 #include "inputstr.h"
 #include "mipointer.h"

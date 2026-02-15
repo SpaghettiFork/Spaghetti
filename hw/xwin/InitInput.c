@@ -30,8 +30,6 @@
 #include <xwin-config.h>
 #endif
 
-#include "mi/mi_priv.h"
-
 #include "win.h"
 #include "dixstruct_priv.h"
 #include "inputstr.h"

@@ -5,7 +5,6 @@
 #ifndef _XSERVER_MI_PRIV_H
 #define _XSERVER_MI_PRIV_H
 
-#include <X11/Xdefs.h>
 #include <X11/Xprotostr.h>
 
 #include "include/gc.h"
@@ -18,7 +17,5 @@ void miScreenClose(ScreenPtr pScreen);
 void miWideArc(DrawablePtr pDraw, GCPtr pGC, int narcs, xArc * parcs);
 void miStepDash(int dist, int * pDashIndex, unsigned char * pDash,
                 int numInDashList, int *pDashOffset);
-
-Bool mieqInit(void);
 
 #endif /* _XSERVER_MI_PRIV_H */
