@@ -60,7 +60,6 @@ SOFTWARE.
 #include "dix/exevents_priv.h"
 #include "dix/input_priv.h"
 #include "dix/ptrveloc_priv.h"
-#include "mi/mi_priv.h"
 #include "os/osdep.h"
 #include "xkb/xkbsrv_priv.h"
 
@@ -74,6 +73,7 @@ SOFTWARE.
 #include "ptrveloc.h"
 #include "privates.h"
 #include "xace.h"
+#include "mi.h"
 #include "dispatch.h"
 #include "swaprep.h"
 #include "dixevents.h"

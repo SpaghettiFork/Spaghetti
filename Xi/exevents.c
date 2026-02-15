@@ -95,7 +95,6 @@ SOFTWARE.
 #include "dix/eventconvert.h"
 #include "dix/exevents_priv.h"
 #include "dix/input_priv.h"
-#include "mi/mi_priv.h"
 
 #include "inputstr.h"
 #include "windowstr.h"
@@ -111,6 +110,7 @@ SOFTWARE.
 #include "xiquerydevice.h"      /* For List*Info */
 #include "eventstr.h"
 #include "inpututils.h"
+#include "mi.h"
 #include "xkbsrv.h"
 
 #define WID(w) ((w) ? ((w)->drawable.id) : 0)

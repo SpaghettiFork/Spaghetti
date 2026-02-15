@@ -29,7 +29,6 @@
 #include "dix/dixgrabs_priv.h"
 #include "dix/eventconvert.h"
 #include "dix/input_priv.h"
-#include "mi/mi_priv.h"
 
 #include "inputstr.h"
 #include "scrnintstr.h"
@@ -38,6 +37,7 @@
 #include "exglobals.h"
 #include "inpututils.h"
 #include "windowstr.h"
+#include "mi.h"
 
 #define GESTURE_HISTORY_SIZE 100
 
