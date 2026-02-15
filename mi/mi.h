@@ -286,6 +286,10 @@ extern _X_EXPORT void miPolylines(DrawablePtr pDrawable,
 
 /* miwindow.c */
 
+extern _X_EXPORT void miMarkUnrealizedWindow(WindowPtr /*pChild */ ,
+                                             WindowPtr /*pWin */ ,
+                                             Bool      /*fromConfigure */);
+
 extern _X_EXPORT WindowPtr miSpriteTrace(SpritePtr pSprite,
                                         int x,
                                         int y);
