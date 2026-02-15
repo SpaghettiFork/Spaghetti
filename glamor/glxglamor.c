@@ -132,7 +132,7 @@ egl_create_glx_drawable(ClientPtr client, __GLXscreen *screen,
 }
 
 static struct __GLXconfig*
-eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
+eglConfigToGLXConfig(EGLDisplay disp, struct egl_config_meta meta,
                      EGLConfig egl_config, struct __GLXconfig *chain)
 {
     EGLint value = 0;
@@ -142,12 +142,12 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
     if (!glx_config)
         return chain;
 
-    eglGetConfigAttrib(display, egl_config, EGL_SURFACE_TYPE, &surface_type);
-    eglGetConfigAttrib(display, egl_config, EGL_RED_SIZE, &glx_config->redBits);
-    eglGetConfigAttrib(display, egl_config, EGL_GREEN_SIZE, &glx_config->greenBits);
-    eglGetConfigAttrib(display, egl_config, EGL_BLUE_SIZE, &glx_config->blueBits);
-    eglGetConfigAttrib(display, egl_config, EGL_ALPHA_SIZE, &glx_config->alphaBits);
-    eglGetConfigAttrib(display, egl_config, EGL_BUFFER_SIZE, &glx_config->rgbBits);
+    eglGetConfigAttrib(disp, egl_config, EGL_SURFACE_TYPE, &surface_type);
+    eglGetConfigAttrib(disp, egl_config, EGL_RED_SIZE, &glx_config->redBits);
+    eglGetConfigAttrib(disp, egl_config, EGL_GREEN_SIZE, &glx_config->greenBits);
+    eglGetConfigAttrib(disp, egl_config, EGL_BLUE_SIZE, &glx_config->blueBits);
+    eglGetConfigAttrib(disp, egl_config, EGL_ALPHA_SIZE, &glx_config->alphaBits);
+    eglGetConfigAttrib(disp, egl_config, EGL_BUFFER_SIZE, &glx_config->rgbBits);
 
     /* Derived state: sRGB.
      * 
@@ -196,8 +196,8 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
     glx_config->accumBlueBits = 0;
     glx_config->accumAlphaBits = 0;
     
-    eglGetConfigAttrib(display, egl_config, EGL_DEPTH_SIZE, &glx_config->depthBits);
-    eglGetConfigAttrib(display, egl_config, EGL_STENCIL_SIZE, &glx_config->stencilBits);
+    eglGetConfigAttrib(disp, egl_config, EGL_DEPTH_SIZE, &glx_config->depthBits);
+    eglGetConfigAttrib(disp, egl_config, EGL_STENCIL_SIZE, &glx_config->stencilBits);
 
     if (meta.direct_color)
         glx_config->visualType = GLX_DIRECT_COLOR;
@@ -207,7 +207,7 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
     /* This is duplicated. */
     glx_config->doubleBufferMode = meta.double_buffer;
 
-    eglGetConfigAttrib(display, egl_config, EGL_CONFIG_CAVEAT, &value);
+    eglGetConfigAttrib(disp, egl_config, EGL_CONFIG_CAVEAT, &value);
 
     if (value == EGL_NONE)
         glx_config->visualRating = GLX_NONE;
@@ -217,25 +217,25 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
         glx_config->visualRating = GLX_NON_CONFORMANT_CONFIG;
 
     /* Only query transparent channels for EGL_TRANSPARENT_RGB. */
-    eglGetConfigAttrib(display, egl_config, EGL_TRANSPARENT_TYPE, &value);
+    eglGetConfigAttrib(disp, egl_config, EGL_TRANSPARENT_TYPE, &value);
     
     if (value == EGL_TRANSPARENT_RGB) {
         glx_config->transparentPixel = GLX_TRANSPARENT_RGB;
-        eglGetConfigAttrib(display, egl_config, EGL_TRANSPARENT_RED_VALUE,
+        eglGetConfigAttrib(disp, egl_config, EGL_TRANSPARENT_RED_VALUE,
                            &glx_config->transparentRed);
-        eglGetConfigAttrib(display, egl_config, EGL_TRANSPARENT_GREEN_VALUE,
+        eglGetConfigAttrib(disp, egl_config, EGL_TRANSPARENT_GREEN_VALUE,
                            &glx_config->transparentGreen);
-        eglGetConfigAttrib(display, egl_config, EGL_TRANSPARENT_BLUE_VALUE,
+        eglGetConfigAttrib(disp, egl_config, EGL_TRANSPARENT_BLUE_VALUE,
                            &glx_config->transparentBlue);
     } else {
         glx_config->transparentPixel = GLX_NONE;
     }
     
-    eglGetConfigAttrib(display, egl_config, EGL_SAMPLE_BUFFERS, 
+    eglGetConfigAttrib(disp, egl_config, EGL_SAMPLE_BUFFERS, 
                        &glx_config->sampleBuffers);
-    eglGetConfigAttrib(display, egl_config, EGL_SAMPLES, &glx_config->samples);
+    eglGetConfigAttrib(disp, egl_config, EGL_SAMPLES, &glx_config->samples);
 
-    if (eglGetConfigAttrib(display, egl_config,
+    if (eglGetConfigAttrib(disp, egl_config,
                            EGL_COLOR_COMPONENT_TYPE_EXT,
                            &value) == EGL_TRUE) {
 
@@ -254,9 +254,9 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
     }
 
     if (surface_type & EGL_PBUFFER_BIT) {
-        eglGetConfigAttrib(display, egl_config, EGL_MAX_PBUFFER_WIDTH, &glx_config->maxPbufferWidth);
-        eglGetConfigAttrib(display, egl_config, EGL_MAX_PBUFFER_HEIGHT, &glx_config->maxPbufferHeight);
-        eglGetConfigAttrib(display, egl_config, EGL_MAX_PBUFFER_PIXELS, &value);
+        eglGetConfigAttrib(disp, egl_config, EGL_MAX_PBUFFER_WIDTH, &glx_config->maxPbufferWidth);
+        eglGetConfigAttrib(disp, egl_config, EGL_MAX_PBUFFER_HEIGHT, &glx_config->maxPbufferHeight);
+        eglGetConfigAttrib(disp, egl_config, EGL_MAX_PBUFFER_PIXELS, &value);
 
         if (value) {
             glx_config->maxPbufferPixels = value;
@@ -310,7 +310,7 @@ eglConfigToGLXConfig(EGLDisplay display, struct egl_config_meta meta,
 }
 
 static __GLXconfig *
-egl_setup_configs(ScreenPtr pScreen, EGLDisplay display)
+egl_setup_configs(ScreenPtr pScreen, EGLDisplay disp)
 {
     int i, j, k, nconfigs;
     struct __GLXconfig *c = NULL;
@@ -320,13 +320,13 @@ egl_setup_configs(ScreenPtr pScreen, EGLDisplay display)
                     epoxy_has_gl_extension("GL_EXT_framebuffer_sRGB") ||
                     epoxy_has_gl_extension("GL_EXT_sRGB_write_control");
 
-    eglGetConfigs(display, NULL, 0, &nconfigs);
+    eglGetConfigs(disp, NULL, 0, &nconfigs);
 
     host_configs = calloc(nconfigs, sizeof(EGLConfig));
     if (!host_configs)
         return NULL;
 
-    eglGetConfigs(display, host_configs, nconfigs, &nconfigs);
+    eglGetConfigs(disp, host_configs, nconfigs, &nconfigs);
 
     /* We walk the EGL configs backwards to make building the
      * ->next chain easier. */
@@ -334,7 +334,7 @@ egl_setup_configs(ScreenPtr pScreen, EGLDisplay display)
         for (j = 0; j < 3; j++) /* direct_color */ {
             for (k = 0; k < 2; k++) /* double_buffer */ {
                 if (can_srgb) {
-                    c = eglConfigToGLXConfig(display, (struct egl_config_meta) {
+                    c = eglConfigToGLXConfig(disp, (struct egl_config_meta) {
                         .direct_color = (j == 1),
                         .double_buffer = (k > 0),
                         .duplicate_for_composite = (j == 0),
@@ -342,7 +342,7 @@ egl_setup_configs(ScreenPtr pScreen, EGLDisplay display)
                     }, host_configs[i], c);
                 }
 
-                c = eglConfigToGLXConfig(display, (struct egl_config_meta) {
+                c = eglConfigToGLXConfig(disp, (struct egl_config_meta) {
                     .direct_color = (j == 1),
                     .double_buffer = (k > 0),
                     .duplicate_for_composite = (j == 0),
