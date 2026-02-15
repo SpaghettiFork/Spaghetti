@@ -34,6 +34,7 @@
 
 #include "dix/colormap_priv.h"
 
+#include "os/osdep.h"
 #include "scrnintstr.h"
 #include "colormapst.h"
 #include "resource.h"
