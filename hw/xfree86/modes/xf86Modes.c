@@ -814,6 +814,7 @@ xf86CVTMode(int HDisplay, int VDisplay, float VRefresh, Bool Reduced,
     Mode->VDisplay   = libxcvt_mode_info->vdisplay;
     Mode->HDisplay   = libxcvt_mode_info->hdisplay;
     Mode->Clock      = libxcvt_mode_info->dot_clock;
+    Mode->HSync      = libxcvt_mode_info->hsync;
     Mode->HSyncStart = libxcvt_mode_info->hsync_start;
     Mode->HSyncEnd   = libxcvt_mode_info->hsync_end;
     Mode->HTotal     = libxcvt_mode_info->htotal;
