@@ -414,7 +414,7 @@ foreach t : test_sha1
         endif
     elif t == 'libcrypto'
         # we don't need all of OpenSSL, just libcrypto
-        libcrypto_dep = cc.find_library('crypto', required: false)
+        libcrypto_dep = dependency('libcrypto', required: false)
         openssl_dep = dependency('openssl', required: false)
         if libcrypto_dep.found() or openssl_dep.found()
             sha1_found = true
