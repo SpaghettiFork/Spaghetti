@@ -376,6 +376,9 @@ typedef struct _CharInfo *CharInfoPtr;  /* also in fonts/include/font.h */
 extern _X_EXPORT unsigned long globalSerialNumber;
 extern _X_EXPORT unsigned long serverGeneration;
 
+#define NULL_CHECK_ASSIGN(val, fetch) \
+         if (!(val = fetch)) return;
+
 /* Don't use this directly, use BUG_WARN or BUG_WARN_MSG instead */
 #define __BUG_WARN_MSG(cond, with_msg, ...)                                \
           do { if (cond) {                                                \
