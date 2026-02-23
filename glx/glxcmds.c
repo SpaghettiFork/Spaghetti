@@ -891,7 +891,7 @@ __glXDisp_CopyContext(__GLXclientState * cl, GLbyte * pc)
 
 enum {
     GLX_VIS_CONFIG_UNPAIRED = 18,
-    GLX_VIS_CONFIG_PAIRED = 22
+    GLX_VIS_CONFIG_PAIRED = 28
 };
 
 enum {
@@ -976,6 +976,12 @@ __glXDisp_GetVisualConfigs(__GLXclientState * cl, GLbyte * pc)
         buf[p++] = modes->transparentAlpha;
         buf[p++] = GLX_TRANSPARENT_INDEX_VALUE;
         buf[p++] = modes->transparentIndex;
+        buf[p++] = GLX_MAX_PBUFFER_WIDTH;
+        buf[p++] = modes->maxPbufferWidth;
+        buf[p++] = GLX_MAX_PBUFFER_HEIGHT;
+        buf[p++] = modes->maxPbufferHeight;
+        buf[p++] = GLX_MAX_PBUFFER_PIXELS;
+        buf[p++] = modes->maxPbufferPixels;
         buf[p++] = GLX_SAMPLES_SGIS;
         buf[p++] = modes->samples;
         buf[p++] = GLX_SAMPLE_BUFFERS_SGIS;
