@@ -136,8 +136,9 @@ createModeFromConfig(const __DRIcoreExtension * core,
     unsigned int attrib, value, drawableType = GLX_PBUFFER_BIT;
     int i;
 
-
     config = calloc(1, sizeof *config);
+    if (!config)
+        return NULL;
 
     config->driConfig = driConfig;
 
