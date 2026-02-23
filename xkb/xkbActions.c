@@ -1622,7 +1622,7 @@ InjectPointerKeyEvents(DeviceIntPtr dev, int type, int button, int flags,
     if (IsMaster(dev)) {
         mpointer = GetMaster(dev, MASTER_POINTER);
         lastSlave = mpointer->lastSlave;
-        ptr = GetXTestDevice(mpointer);
+        NULL_CHECK_ASSIGN(ptr, GetXTestDevice(mpointer))
     }
     else if (IsFloating(dev))
         ptr = dev;
@@ -1683,8 +1683,7 @@ XkbFakeDeviceButton(DeviceIntPtr dev, Bool press, int button)
 
     if (IsMaster(dev)) {
         DeviceIntPtr mpointer = GetMaster(dev, MASTER_POINTER);
-
-        ptr = GetXTestDevice(mpointer);
+        NULL_CHECK_ASSIGN(ptr, GetXTestDevice(mpointer))
     }
     else if (IsFloating(dev))
         ptr = dev;
