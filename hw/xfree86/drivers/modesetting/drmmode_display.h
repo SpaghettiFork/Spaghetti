@@ -155,8 +155,8 @@ typedef struct {
 typedef struct {
     const char *name;
     uint32_t prop_id;
+    uint32_t num_enum_values;
     uint64_t value;
-    unsigned int num_enum_values;
     drmmode_prop_enum_info_rec *enum_values;
 } drmmode_prop_info_rec, *drmmode_prop_info_ptr;
 
@@ -191,10 +191,13 @@ typedef struct {
 } drmmode_cursor_dim_rec, *drmmode_cursor_dim_ptr;
 
 typedef struct {
-    uint16_t up; /* XXX: This should still be a Bool... */
+    Bool up;
     uint16_t num_dimensions;
+    uint16_t width;
+    uint16_t height;
     int16_t src_x;
     int16_t src_y;
+    /* XXX: 2 byte hole */
     drmmode_cursor_dim_rec* dimensions;
     struct dumb_bo *bo;
 } drmmode_cursor_rec, *drmmode_cursor_ptr;
@@ -237,8 +240,6 @@ typedef struct {
     /** @} */
 
     uint64_t next_msc;
-
-    int cursor_width, cursor_height;
 
     Bool need_modeset;
     struct xorg_list mode_list;
