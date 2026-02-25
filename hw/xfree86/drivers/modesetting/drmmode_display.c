@@ -1761,7 +1761,7 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
                                &glyph_x, &glyph_y, &glyph_width, &glyph_height);
 
     /* Find the most compatiable size. */
-    for (i = 0; i < drmmode_cursor.num_dimensions - 1; i++) {
+    for (i = 0; i < drmmode_cursor.num_dimensions; i++) {
         drmmode_cursor_dim_rec dimensions = drmmode_cursor.dimensions[i];
 
         if (dimensions.width >= glyph_width)
@@ -1770,6 +1770,10 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
         if (dimensions.height >= glyph_height)
             break;
     }
+
+    /* If we cannot get a cursor dimension then fallback to SWcursor. */
+    if (i >= drmmode_cursor.num_dimensions)
+        return FALSE;
 
     /* Get the resolution of the cursor. */
     width  = drmmode_cursor.dimensions[i].width;
