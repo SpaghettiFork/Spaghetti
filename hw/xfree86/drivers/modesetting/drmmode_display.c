@@ -1566,11 +1566,15 @@ drmmode_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
+    /* Compenstation for CRTC rotation and/or reflection. */
+    x += drmmode_crtc->cursor.src_x;
+    y += drmmode_crtc->cursor.src_y;
+
     drmModeMoveCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, x, y);
 }
 
 static Bool
-drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height)
+drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height, int xhot, int yhot)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
@@ -1608,6 +1612,8 @@ drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height)
 
     drmmode_crtc->cursor_width = width;
     drmmode_crtc->cursor_height = height;
+    drmmode_crtc->cursor.src_x = xhot;
+    drmmode_crtc->cursor.src_y = yhot;
 
     return TRUE;
 }
@@ -1753,7 +1759,7 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
         ptr[i] = 0;
 
     if (drmmode_cursor.up)
-        return drmmode_set_cursor(crtc, width, height);
+        return drmmode_set_cursor(crtc, width, height, glyph_x, glyph_y);
     else
         return TRUE;
 }
@@ -1774,7 +1780,10 @@ drmmode_show_cursor(xf86CrtcPtr crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_crtc->cursor.up = TRUE;
-    return drmmode_set_cursor(crtc, drmmode_crtc->cursor_width, drmmode_crtc->cursor_height);
+
+    return drmmode_set_cursor(crtc,
+                              drmmode_crtc->cursor_width, drmmode_crtc->cursor_height,
+                              drmmode_crtc->cursor.src_x, drmmode_crtc->cursor.src_y);
 }
 
 static void
@@ -2544,6 +2553,7 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 
     /* Setup the fallback cursor immediately. */
     drmmode_crtc->cursor.num_dimensions = 1;
+    drmmode_crtc->cursor.src_x = drmmode_crtc->cursor.src_y = 0;
     drmmode_crtc->cursor.dimensions = xnfalloc(sizeof(drmmode_cursor_dim_rec));
 
     drmmode_crtc->cursor.dimensions[0].width = fallback.width;

@@ -186,9 +186,10 @@ typedef struct {
 } drmmode_cursor_dim_rec, *drmmode_cursor_dim_ptr;
 
 typedef struct {
+    uint16_t up; /* XXX: This should still be a Bool... */
     uint16_t num_dimensions;
-
-    Bool up;
+    int16_t src_x;
+    int16_t src_y;
     drmmode_cursor_dim_rec* dimensions;
     struct dumb_bo *bo;
 } drmmode_cursor_rec, *drmmode_cursor_ptr;
