@@ -1610,8 +1610,8 @@ drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height, int xhot, int yhot)
         /* fallback to swcursor */
         return FALSE;
 
-    drmmode_crtc->cursor_width = width;
-    drmmode_crtc->cursor_height = height;
+    drmmode_crtc->cursor.width = width;
+    drmmode_crtc->cursor.height = height;
     drmmode_crtc->cursor.src_x = xhot;
     drmmode_crtc->cursor.src_y = yhot;
 
@@ -1772,7 +1772,7 @@ drmmode_hide_cursor(xf86CrtcPtr crtc)
 
     drmmode_crtc->cursor.up = FALSE;
     drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, 0,
-                     drmmode_crtc->cursor_width, drmmode_crtc->cursor_height);
+                     drmmode_crtc->cursor.width, drmmode_crtc->cursor.height);
 }
 
 static Bool
@@ -1782,7 +1782,7 @@ drmmode_show_cursor(xf86CrtcPtr crtc)
     drmmode_crtc->cursor.up = TRUE;
 
     return drmmode_set_cursor(crtc,
-                              drmmode_crtc->cursor_width, drmmode_crtc->cursor_height,
+                              drmmode_crtc->cursor.width, drmmode_crtc->cursor.height,
                               drmmode_crtc->cursor.src_x, drmmode_crtc->cursor.src_y);
 }
 
