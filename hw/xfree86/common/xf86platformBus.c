@@ -69,7 +69,8 @@ static const char* DEVICE_ALLOWLIST[] =
     "simpledrm",
     "vesadrm",
     "efidrm",
-    "ofdrm"
+    "ofdrm",
+    "corebootdrm"
 };
 
 struct xf86_platform_device *xf86_platform_devices;
