@@ -400,7 +400,13 @@ VBEGetVBEInfo(vbeInfoPtr pVbe)
     i = 0;
     while (modes[i] != 0xffff)
         i++;
+
     block->VideoModePtr = xallocarray(i + 1, sizeof(CARD16));
+    if (!block->VideoModePtr) {
+        free(block);
+        return NULL;
+    }
+
     memcpy(block->VideoModePtr, modes, sizeof(CARD16) * i);
     block->VideoModePtr[i] = 0xffff;
 
@@ -829,8 +835,10 @@ VBESetGetPaletteData(vbeInfoPtr pVbe, Bool set, int first, int num,
         return data;
 
     data = xallocarray(num, sizeof(CARD32));
-    memcpy(data, pVbe->memory, num * sizeof(CARD32));
+    if (!data)
+        return NULL;
 
+    memcpy(data, pVbe->memory, num * sizeof(CARD32));
     return data;
 }
 
