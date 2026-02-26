@@ -80,10 +80,6 @@
 
 #include <list.h>
 
-#ifdef GLAMOR_HAS_GBM
-#include <gbm.h>
-#endif
-
 struct glamor_pixmap_private;
 
 typedef struct glamor_composite_shader {
@@ -401,15 +397,10 @@ typedef struct glamor_pixmap_private {
     BoxRec box;
     RegionRec prepare_region;
     Bool prepared;
+    Bool is_cbcr;
 #ifdef GLAMOR_HAS_GBM
-    Bool exporting;
-    Bool owned_bo;
+    EGLImageKHR image;
     Bool used_modifiers;
-    struct gbm_bo *bo;
-#ifdef GLAMOR_HAS_GBM_MAP
-    void *map_data;
-    Bool bo_mapped;
-#endif
 #endif
     /** block width of this large pixmap. */
     int block_w;
@@ -420,8 +411,6 @@ typedef struct glamor_pixmap_private {
     int block_wcnt;
     /** block_hcnt: block count in one block column. */
     int block_hcnt;
-
-    Bool is_cbcr;
 
     /**
      * The list of boxes for the bounds of the FBOs making up the
