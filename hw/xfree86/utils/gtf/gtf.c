@@ -607,6 +607,9 @@ parse_command_line(int argc, char *argv[])
 
     options *o = (options *) calloc(1, sizeof(options));
 
+    if (!o)
+        goto bail;
+
     if (argc < 4)
         goto bad_option;
 
@@ -670,6 +673,7 @@ parse_command_line(int argc, char *argv[])
     fprintf(stderr, "\n");
 
     free(o);
+ bail:
     return NULL;
 
 }
