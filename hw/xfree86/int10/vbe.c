@@ -860,6 +860,9 @@ VBEGetVBEpmi(vbeInfoPtr pVbe)
         return NULL;
 
     pmi = malloc(sizeof(VBEpmi));
+    if (!pmi)
+        return NULL;
+
     pmi->seg_tbl = R16(pVbe->pInt10->es);
     pmi->tbl_off = R16(pVbe->pInt10->di);
     pmi->tbl_len = R16(pVbe->pInt10->cx);
