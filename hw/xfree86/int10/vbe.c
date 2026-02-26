@@ -375,6 +375,9 @@ VBEGetVBEInfo(vbeInfoPtr pVbe)
         return NULL;
 
     block = calloc(1, sizeof(VbeInfoBlock));
+    if (!block)
+        return NULL;
+
     block->VESASignature[0] = ((char *) pVbe->memory)[0];
     block->VESASignature[1] = ((char *) pVbe->memory)[1];
     block->VESASignature[2] = ((char *) pVbe->memory)[2];
