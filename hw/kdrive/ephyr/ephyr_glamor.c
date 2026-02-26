@@ -150,8 +150,13 @@ ephyr_glamor_build_glsl_prog(GLuint vs, GLuint fs)
         glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &size);
         info = malloc(size);
 
-        glGetProgramInfoLog(prog, size, NULL, info);
-        ErrorF("Failed to link: %s\n", info);
+        if (_X_LIKELY(info)) {
+            glGetProgramInfoLog(prog, size, NULL, info);
+            ErrorF("Failed to link: %s\n", info);
+        } else {
+            ErrorF("Failed to get shader link info.\n");
+        }
+
         FatalError("GLSL link failure\n");
     }
 
