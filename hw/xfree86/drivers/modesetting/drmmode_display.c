@@ -1779,11 +1779,11 @@ static Bool
 drmmode_show_cursor(xf86CrtcPtr crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    drmmode_cursor_rec cursor = drmmode_crtc->cursor;
     drmmode_crtc->cursor.up = TRUE;
 
-    return drmmode_set_cursor(crtc,
-                              drmmode_crtc->cursor.width, drmmode_crtc->cursor.height,
-                              drmmode_crtc->cursor.src_x, drmmode_crtc->cursor.src_y);
+    return drmmode_set_cursor(crtc, cursor.width, cursor.height,
+                                    cursor.src_x, cursor.src_y);
 }
 
 static void
@@ -2553,7 +2553,6 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 
     /* Setup the fallback cursor immediately. */
     drmmode_crtc->cursor.num_dimensions = 1;
-    drmmode_crtc->cursor.src_x = drmmode_crtc->cursor.src_y = 0;
     drmmode_crtc->cursor.dimensions = xnfalloc(sizeof(drmmode_cursor_dim_rec));
 
     drmmode_crtc->cursor.dimensions[0].width = fallback.width;
