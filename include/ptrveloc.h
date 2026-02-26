@@ -38,7 +38,8 @@
 #define AccelProfilePower 5
 #define AccelProfileLinear 6
 #define AccelProfileSmoothLimited 7
-#define AccelProfileLAST AccelProfileSmoothLimited
+#define AccelProfileChromiumMouse 8
+#define AccelProfileLAST AccelProfileChromiumMouse
 
 /* fwd */
 struct _DeviceVelocityRec;
