@@ -171,7 +171,7 @@ void
 DarwinPrintBanner(void)
 {
     ErrorF("Xquartz starting:\n");
-    ErrorF("X.Org X Server %s\n", XSERVER_VERSION);
+    ErrorF("Spaghetti Fork %s\n", XSERVER_VERSION);
 }
 
 /*
