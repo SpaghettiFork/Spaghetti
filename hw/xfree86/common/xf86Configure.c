@@ -178,6 +178,9 @@ configureInputSection(void)
     }
 
     mouse = calloc(1, sizeof(XF86ConfInputRec));
+    if (!mouse)
+        return NULL;
+
     mouse->inp_identifier = XNFstrdup("Mouse0");
     mouse->inp_driver = XNFstrdup("mouse");
     mouse->inp_option_lst =
@@ -338,6 +341,9 @@ configureLayoutSection(void)
         XF86ConfInputrefPtr iptr;
 
         iptr = malloc(sizeof(XF86ConfInputrefRec));
+        if (!iptr)
+            return NULL;
+
         iptr->list.next = NULL;
         iptr->iref_option_lst = NULL;
         iptr->iref_inputdev_str = XNFstrdup("Mouse0");
@@ -352,6 +358,9 @@ configureLayoutSection(void)
         XF86ConfInputrefPtr iptr;
 
         iptr = malloc(sizeof(XF86ConfInputrefRec));
+        if (!iptr)
+            return NULL;
+
         iptr->list.next = NULL;
         iptr->iref_option_lst = NULL;
         iptr->iref_inputdev_str = XNFstrdup("Keyboard0");
@@ -367,6 +376,9 @@ configureLayoutSection(void)
         char *tmp;
 
         aptr = malloc(sizeof(XF86ConfAdjacencyRec));
+        if (!aptr)
+            return NULL;
+
         aptr->list.next = NULL;
         aptr->adj_x = 0;
         aptr->adj_y = 0;
@@ -672,8 +684,16 @@ DoConfigure(void)
     xf86config->conf_modes_lst = NULL;
     xf86config->conf_vendor_lst = NULL;
     xf86config->conf_dri = NULL;
-    xf86config->conf_input_lst = configureInputSection();
-    xf86config->conf_layout_lst = configureLayoutSection();
+    
+    if (!(xf86config->conf_input_lst = configureInputSection())) {
+        ErrorF("Memory allocation failure in configureInputSection.\n");
+        goto bail;             
+    }
+    
+    if (!(xf86config->conf_layout_lst = configureLayoutSection())) {
+        ErrorF("Memory allocation failure in configureLayoutSection.\n");
+        goto bail;        
+    }
 
     home = getenv("HOME");
     if ((home == NULL) || (home[0] == '\0')) {
