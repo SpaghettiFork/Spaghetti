@@ -870,6 +870,79 @@ PowerProfile(DeviceIntPtr dev,
     return (pow(acc, vel_dist)) * vel->min_acceleration;
 }
 
+ /**
+ * Computes Acceleration based on the Chromium acceleration algorithm.
+ * This algorithm was taken from our Chromium MultiTouch touchpad driver.
+ * We think about acceleration curve taking an input velocity and returning
+ * an output velocity. The shape of the curve is parabolic at the low end
+ * and then at a certain point, it continues straight. The curve operates
+ * in units of inches/second.
+ *
+ * Note that X acceleration profile functions operate using very different
+ * units, generally, so a little bit of gynmastics is required to fit our
+ * curve to the X convention.
+ *
+ * Inputs:
+ * velocity: mouse velocity in inches per millisecond[1]
+ * threshold: if greater than 0, the X cutoff in 100ths of an inch/sec
+ * acc: multiplier applied to output, for user's speed preferences, multiplied
+ *      by screen resolution (DPI). A good default for the user prefs is 1.0.
+ *      A good default for the screen resolution is 125.[2]
+ *
+ * Outputs:
+ * Returns a multiplier m such that m * mouse counts = screen pixels.
+ *
+ * [1] To get this value to be inches per millisecond, the following xinput
+ * properties must be set accordingly:
+ * "Device Accel Velocity Scaling": 1.0
+ * "Device Accel Constant Deceleration": CPI (Counts per inch)
+ *
+ * [2] To set this value for a particular device, do:
+ * xinput set-ptr-feedback <device> 0 acc 1  # 0=thresh, acc/1 = num/den
+ * or for all devices(?):
+ * xset m acc/1 0  # num/den thresh
+ *
+ * Note about CPI: CPI is the resolution of the mouse. Many common mice at the
+ * time of writing have a CPI of approximately 1000, so that may be a good
+ * default value.
+ */
+static double
+ChromiumMouseProfile(DeviceIntPtr dev, DeviceVelocityPtr vel,
+                     double velocity, double threshold, double acc)
+{
+    /* Parabola: v_out = a * v_in^2 + b * v_in
+       Line:     v_out = m * v_in + b */
+    /* These three constants seem to work well */
+    const float kParabolaA = 1.3;
+    const float kParabolaB = 0.2;
+    /* v_in where we switch from parab. to line: */
+    const float kCutoffX = threshold > 0 ? threshold * 0.01 : 8.0;
+    const float kCutoffY =
+            kParabolaA * kCutoffX * kCutoffX + kParabolaB * kCutoffX;
+    /* d/dx (ax^2 + bx) = 2ax + 1 */
+    const float kLineM = 2.0 * kParabolaA * kCutoffX + kParabolaB;
+    const float kLineB = kCutoffY - kCutoffX * kLineM;
+
+    float inch_per_sec = velocity * 1000.0;  /* inches/ms -> inches/s */
+    float new_inch_per_sec;
+    if (velocity == 0.0)
+        return 1.0;
+
+    /* acc defaults to a very small value, so if we see it, pick a better
+       default. It probably means that the user doesn't know how to properly
+       use this accel profile, but it sucks if we cause super slow mouse
+       movement. */
+    if (acc < 50.0)
+        acc = 225.0;
+
+    if (inch_per_sec <= kCutoffX)
+        return (kParabolaA * inch_per_sec + kParabolaB) * acc;
+    else
+        new_inch_per_sec = kLineM * inch_per_sec + kLineB;
+
+    return acc * new_inch_per_sec / inch_per_sec;
+}
+
 /**
  * just a smooth function in [0..1] -> [0..1]
  *  - point symmetry at 0.5
@@ -996,6 +1069,8 @@ GetAccelerationProfile(DeviceVelocityPtr vel, int profile_num)
         return LinearProfile;
     case AccelProfileSmoothLimited:
         return SmoothLimitedProfile;
+    case AccelProfileChromiumMouse:
+        return ChromiumMouseProfile;
     case AccelProfileNone:
         return NoProfile;
     default:
