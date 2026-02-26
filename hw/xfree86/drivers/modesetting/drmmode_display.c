@@ -2948,8 +2948,6 @@ drmmode_output_dpms(xf86OutputPtr output, int mode)
 
     /* XXX Check if DPMS mode is already the right one */
 
-    drmmode_output->dpms = mode;
-
     drmModeConnectorSetProperty(drmmode->fd, koutput->connector_id,
                                 drmmode_output->dpms_enum_id, mode);
 
