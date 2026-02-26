@@ -627,6 +627,9 @@ exaPolyPoint(DrawablePtr pDrawable, GCPtr pGC, int mode, int npt,
     }
 
     prect = xallocarray(npt, sizeof(xRectangle));
+    if (_X_UNLIKELY(!prect))
+        return;
+
     for (i = 0; i < npt; i++) {
         prect[i].x = ppt[i].x;
         prect[i].y = ppt[i].y;
@@ -668,6 +671,9 @@ exaPolylines(DrawablePtr pDrawable, GCPtr pGC, int mode, int npt,
     }
 
     prect = xallocarray(npt - 1, sizeof(xRectangle));
+    if (_X_UNLIKELY(!prect))
+        return;
+
     x1 = ppt[0].x;
     y1 = ppt[0].y;
     /* If we have any non-horizontal/vertical, fall back. */
@@ -739,6 +745,9 @@ exaPolySegment(DrawablePtr pDrawable, GCPtr pGC, int nseg, xSegment * pSeg)
     }
 
     prect = xallocarray((unsigned int)nseg, sizeof(xRectangle));
+    if (_X_UNLIKELY(!prect))
+        return;
+
     for (i = 0; i < nseg; i++) {
         if (pSeg[i].x1 < pSeg[i].x2) {
             prect[i].x = pSeg[i].x1;
