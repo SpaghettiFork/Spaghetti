@@ -266,7 +266,6 @@ typedef struct {
     drmModePropertyBlobPtr edid_blob;
     drmModePropertyBlobPtr tile_blob;
     int dpms_enum_id;
-    int dpms;
     int num_props;
     drmmode_prop_ptr props;
     int enc_mask;
