@@ -425,10 +425,12 @@ configureModuleSection(void)
             XF86LoadPtr module;
 
             module = calloc(1, sizeof(XF86LoadRec));
-            module->load_name = *el;
-            ptr->mod_load_lst = (XF86LoadPtr) xf86addListItem((glp) ptr->
-                                                              mod_load_lst,
-                                                              (glp) module);
+            if (module) {
+                module->load_name = *el;
+                ptr->mod_load_lst = (XF86LoadPtr) xf86addListItem((glp) ptr->
+                                                                  mod_load_lst,
+                                                                  (glp) module);
+            }
         }
         free(elist);
     }
@@ -640,6 +642,10 @@ DoConfigure(void)
 
     /* Create XF86Config file structure */
     xf86config = calloc(1, sizeof(XF86ConfigRec));
+    if (!xf86config) {
+        ErrorF("Memory allocation failure.  Configuration failed.\n");
+        goto bail;        
+    }
 
     /* Call all of the probe functions, reporting the results. */
     for (CurrentDriver = 0; CurrentDriver < xf86NumDrivers; CurrentDriver++) {
