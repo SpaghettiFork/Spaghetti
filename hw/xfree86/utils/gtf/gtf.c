@@ -295,6 +295,8 @@ vert_refresh(int h_pixels, int v_lines, float freq, int interlaced, int margins)
     float v_odd_front_porch_lines;
 
     mode *m = (mode *) malloc(sizeof(mode));
+    if (!m)
+        return NULL;
 
     /*  1. In order to give correct results, the number of horizontal
      *  pixels requested is first processed to ensure that it is divisible
