@@ -194,7 +194,20 @@ static int
 __glXDRIreleaseTexImage(__GLXcontext * baseContext,
                         int buffer, __GLXdrawable * pixmap)
 {
-    /* FIXME: Just unbind the texture? */
+#if __DRI_TEX_BUFFER_VERSION >= 2
+    __GLXDRIdrawable *drawable = (__GLXDRIdrawable *) pixmap;
+    const __DRItexBufferExtension *texBuffer = drawable->screen->texBuffer;
+    __GLXDRIcontext *context = (__GLXDRIcontext *) baseContext;
+
+    if (texBuffer == NULL)
+        return Success;
+
+    if (texBuffer->base.version >= 2 && texBuffer->releaseTexBuffer != NULL) {
+         (*texBuffer->releaseTexBuffer)(context->driContext,
+                                        pixmap->target,
+                                        drawable->driDrawable);
+    }
+#endif
     return Success;
 }
 
