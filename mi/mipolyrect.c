@@ -87,7 +87,7 @@ miPolyRectangle(DrawablePtr pDraw, GCPtr pGC, int nrects, xRectangle *pRects)
         offset1 = offset2 >> 1;
         offset3 = offset2 - offset1;
         tmp = xallocarray(ntmp, sizeof(xRectangle));
-        if (!tmp)
+        if (_X_UNLIKELY(!tmp))
             return;
         t = tmp;
         for (i = 0; i < nrects; i++) {
