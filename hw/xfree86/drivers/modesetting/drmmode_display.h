@@ -156,12 +156,6 @@ typedef struct {
 } drmmode_prop_info_rec, *drmmode_prop_info_ptr;
 
 typedef struct {
-    drmModeModeInfo mode_info;
-    uint32_t blob_id;
-    struct xorg_list entry;
-} drmmode_mode_rec, *drmmode_mode_ptr;
-
-typedef struct {
     uint32_t format;
     uint32_t num_modifiers;
     uint64_t *modifiers;
@@ -187,40 +181,33 @@ typedef struct {
 
 typedef struct {
     Bool up;
-    uint16_t num_dimensions;
-    uint16_t width;
-    uint16_t height;
-    int16_t src_x;
-    int16_t src_y;
-    /* XXX: 2 byte hole */
+    uint32_t num_dimensions;
+    uint32_t width;
+    uint32_t height;
+    uint32_t src_x;
+    uint32_t src_y;
     drmmode_cursor_dim_rec* dimensions;
     struct dumb_bo *bo;
 } drmmode_cursor_rec, *drmmode_cursor_ptr;
 
-typedef struct {
+typedef struct _drmmode_crtc_private_rec {
     drmmode_ptr drmmode;
     drmModeCrtcPtr mode_crtc;
-    uint32_t vblank_pipe;
-    int dpms_mode;
-    drmmode_cursor_rec cursor;
-    uint16_t lut_r[256], lut_g[256], lut_b[256];
-
-    drmmode_prop_info_rec props[DRMMODE_CRTC__COUNT];
-    drmmode_prop_info_rec props_plane[DRMMODE_PLANE__COUNT];
     uint32_t plane_id;
-    drmmode_mode_ptr current_mode;
+    uint32_t vblank_pipe;
+    drmmode_cursor_rec cursor;
+    
+    int src_x, src_y;
     uint32_t num_formats;
+    uint32_t rotate_fb_id;
     drmmode_format_rec *formats;
 
     drmmode_bo rotate_bo;
-    unsigned rotate_fb_id;
     drmmode_tearfree_rec tearfree;
 
     PixmapPtr prime_pixmap;
     PixmapPtr prime_pixmap_back;
     unsigned prime_pixmap_x;
-
-    int src_x, src_y;
 
     /**
      * @{ MSC (vblank count) handling for the PRESENT extension.
@@ -235,14 +222,19 @@ typedef struct {
 
     uint64_t next_msc;
 
+    int dpms_mode;
     Bool need_modeset;
-    struct xorg_list mode_list;
 
     Bool enable_flipping;
     Bool flipping_active;
 
     Bool vrr_enabled;
     Bool use_gamma_lut;
+
+    drmmode_prop_info_rec props[DRMMODE_CRTC__COUNT];
+    drmmode_prop_info_rec props_plane[DRMMODE_PLANE__COUNT];
+
+    uint16_t lut_r[256], lut_g[256], lut_b[256];
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {
