@@ -31,8 +31,9 @@ glamor_solid_boxes(DrawablePtr drawable,
     int n;
 
     rect = xallocarray(nbox, sizeof(xRectangle));
-    if (!rect)
+    if (_X_UNLIKELY(!rect))
         return;
+
     for (n = 0; n < nbox; n++) {
         rect[n].x = box[n].x1;
         rect[n].y = box[n].y1;

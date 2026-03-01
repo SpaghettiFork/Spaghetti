@@ -534,7 +534,7 @@ miPaintWindow(WindowPtr pWin, RegionPtr prgn, int what)
     if (regionnumrects == 0)
         return;
     prect = xallocarray(regionnumrects, sizeof(xRectangle));
-    if (!prect)
+    if (_X_UNLIKELY(!prect))
         return;
 
     pGC = GetScratchGC(drawable->depth, drawable->pScreen);

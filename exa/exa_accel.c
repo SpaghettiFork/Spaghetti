@@ -388,7 +388,7 @@ exaHWCopyNtoN(DrawablePtr pSrcDrawable,
 
     rects = xallocarray(nbox, sizeof(xRectangle));
 
-    if (rects) {
+    if (_X_LIKELY(rects)) {
         int i;
         int ordering;
 
