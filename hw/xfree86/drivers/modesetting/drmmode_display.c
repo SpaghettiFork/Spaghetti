@@ -496,16 +496,6 @@ static void
 drmmode_ConvertToKMode(ScrnInfoPtr scrn,
                        drmModeModeInfo * kmode, DisplayModePtr mode);
 
-static void
-drm_mode_destroy(xf86CrtcPtr crtc, drmmode_mode_ptr mode)
-{
-    modesettingPtr ms = modesettingPTR(crtc->scrn);
-    if (mode->blob_id)
-        drmModeDestroyPropertyBlob(ms->fd, mode->blob_id);
-    xorg_list_del(&mode->entry);
-    free(mode);
-}
-
 Bool
 drmmode_crtc_get_fb_id(xf86CrtcPtr crtc, uint32_t *fb_id, int *x, int *y)
 {
@@ -2180,15 +2170,10 @@ drmmode_shadow_destroy(xf86CrtcPtr crtc, PixmapPtr pixmap, void *data)
 static void
 drmmode_crtc_destroy(xf86CrtcPtr crtc)
 {
-    drmmode_mode_ptr iterator, next;
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
     free(drmmode_crtc->cursor.dimensions);
-    
     drmmode_prop_info_free(drmmode_crtc->props_plane, DRMMODE_PLANE__COUNT);
-    xorg_list_for_each_entry_safe(iterator, next, &drmmode_crtc->mode_list, entry) {
-        drm_mode_destroy(crtc, iterator);
-    }
 }
 
 static const xf86CrtcFuncsRec drmmode_crtc_funcs = {
@@ -2589,7 +2574,6 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
         drmModeGetCrtc(drmmode->fd, mode_res->crtcs[num]);
     drmmode_crtc->drmmode = drmmode;
     drmmode_crtc->vblank_pipe = drmmode_crtc_vblank_pipe(num);
-    xorg_list_init(&drmmode_crtc->mode_list);
     xorg_list_init(&drmmode_crtc->tearfree.dri_flip_list);
     drmmode_crtc->next_msc = UINT64_MAX;
 
