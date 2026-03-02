@@ -1203,6 +1203,21 @@ FakeFreeColor(ColormapPtr pmap, Pixel pixel)
     }
 }
 
+#if (defined(__SIZEOF_LONG_LONG__) || defined(__int64)) && defined(UINT64_MAX)
+typedef union {
+    uint64_t value;
+} BigNumRec, *BigNumPtr;
+
+#define BigNumGreater(x, y) (((x)->value) > ((y)->value))
+#define UnsignedToBigNum(u, r) (((r)->value = (uint64_t)(u)))
+#define MaxBigNum(r) ((r)->value = UINT64_MAX - 1)
+
+static void
+BigNumAdd(BigNumPtr x, BigNumPtr y, BigNumPtr r)
+{
+    r->value = x->value + y->value;
+}
+#else
 typedef unsigned short BigNumUpper;
 typedef unsigned long BigNumLower;
 
@@ -1240,6 +1255,7 @@ BigNumAdd(BigNumPtr x, BigNumPtr y, BigNumPtr r)
     r->lower = lower;
     r->upper = x->upper + y->upper + carry;
 }
+#endif
 
 static Pixel
 FindBestPixel(EntryPtr pentFirst, int size, xrgb * prgb, int channel)
