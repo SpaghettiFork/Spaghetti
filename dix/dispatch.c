@@ -2247,10 +2247,12 @@ DoGetImage(ClientPtr client, int format, Drawable drawable,
     }
 
     xgi.length = bytes_to_int32(length);
-    if (!(pBuf = calloc(1, length)))
-        return BadAlloc;
+    pBuf = ReserveClientOutputSpace(client, length + sizeof (xGetImageReply));
+    if (length != 0 && !pBuf)
+         return BadAlloc;
 
-    WriteReplyToClient(client, sizeof(xGetImageReply), &xgi);
+    memcpy(pBuf, &xgi, sizeof (xGetImageReply));
+    pBuf += sizeof (xGetImageReply);
 
     if (pDraw->type == DRAWABLE_WINDOW) {
         pVisibleRegion = &((WindowPtr) pDraw)->borderClip;
@@ -2275,8 +2277,6 @@ DoGetImage(ClientPtr client, int format, Drawable drawable,
          * as we do NOT byte swap */
         ReformatImage(pBuf, length,
                       BitsPerPixel(pDraw->depth), ClientOrder(client));
-
-        WriteToClient(client, length, pBuf);
     } else { /* XYPixmap */
         int plane_size = height * widthBytesLine;
         
@@ -2293,10 +2293,9 @@ DoGetImage(ClientPtr client, int format, Drawable drawable,
         /* Note: NOT a call to WriteSwappedDataToClient,
          * as we do NOT byte swap */
         ReformatImage(pBuf, plane_size, 1, ClientOrder(client));
-
-        WriteToClient(client, plane_size, pBuf);
+        pBuf += plane_size;
     }
-    free(pBuf);
+    CommitClientOutputSpace (client, sizeof (xGetImageReply) + length);
     return Success;
 }
 
