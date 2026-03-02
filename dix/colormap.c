@@ -1253,35 +1253,59 @@ FindBestPixel(EntryPtr pentFirst, int size, xrgb * prgb, int channel)
     final = 0;
     MaxBigNum(&minval);
     /* look for the minimal difference */
-    for (pent = pentFirst, pixel = 0; pixel < size; pent++, pixel++) {
-        dr = dg = db = 0;
-        switch (channel) {
-        case PSEUDOMAP:
+    switch (channel) {
+    case PSEUDOMAP:
+        for (pent = pentFirst, pixel = 0; pixel < size; pent++, pixel++) {
             dg = (long) pent->co.local.green - prgb->green;
             db = (long) pent->co.local.blue - prgb->blue;
-            /* fallthrough */
-        case REDMAP:
             dr = (long) pent->co.local.red - prgb->red;
-            break;
-        case GREENMAP:
+            sq = dr * dr;
+            UnsignedToBigNum(sq, &sum);
+            sq = dg * dg;
+            UnsignedToBigNum(sq, &temp);
+            BigNumAdd(&sum, &temp, &sum);
+            sq = db * db;
+            UnsignedToBigNum(sq, &temp);
+            BigNumAdd(&sum, &temp, &sum);
+            if (BigNumGreater(&minval, &sum)) {
+                final = pixel;
+                minval = sum;
+            }
+        }
+        break;
+    case REDMAP:
+        for (pent = pentFirst, pixel = 0; pixel < size; pent++, pixel++) {
+            dr = (long) pent->co.local.red - prgb->red;
+            sq = dr * dr;
+            UnsignedToBigNum(sq, &sum);
+            if (BigNumGreater(&minval, &sum)) {
+                final = pixel;
+                minval = sum;
+            }
+        }
+        break;
+    case GREENMAP:
+        for (pent = pentFirst, pixel = 0; pixel < size; pent++, pixel++) {
             dg = (long) pent->co.local.green - prgb->green;
-            break;
-        case BLUEMAP:
+            sq = dg * dg;
+            UnsignedToBigNum(sq, &sum);
+            if (BigNumGreater(&minval, &sum)) {
+                final = pixel;
+                minval = sum;
+            }
+        }
+        break;
+    case BLUEMAP:
+        for (pent = pentFirst, pixel = 0; pixel < size; pent++, pixel++) {
             db = (long) pent->co.local.blue - prgb->blue;
-            break;
+            sq = db * db;
+            UnsignedToBigNum(sq, &sum);
+            if (BigNumGreater(&minval, &sum)) {
+                final = pixel;
+                minval = sum;
+            }
         }
-        sq = dr * dr;
-        UnsignedToBigNum(sq, &sum);
-        sq = dg * dg;
-        UnsignedToBigNum(sq, &temp);
-        BigNumAdd(&sum, &temp, &sum);
-        sq = db * db;
-        UnsignedToBigNum(sq, &temp);
-        BigNumAdd(&sum, &temp, &sum);
-        if (BigNumGreater(&minval, &sum)) {
-            final = pixel;
-            minval = sum;
-        }
+        break;
     }
     return final;
 }
