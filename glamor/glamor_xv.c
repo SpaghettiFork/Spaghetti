@@ -543,6 +543,8 @@ glamor_xv_render(glamor_port_private *port_priv, int id)
     glEnable(GL_SCISSOR_TEST);
 
     v = glamor_get_vbo_space(screen, 3 * 4 * sizeof(GLfloat), &vbo_offset);
+    if (_X_UNLIKELY(v == 0))
+        goto bail;
 
     /* Set up a single primitive covering the area being drawn.  We'll
      * clip it to port_priv->clip using GL scissors instead of just
@@ -603,6 +605,7 @@ glamor_xv_render(glamor_port_private *port_priv, int id)
             glDrawArrays(GL_TRIANGLE_FAN, 0, 3);
         }
     }
+bail:
     glDisable(GL_SCISSOR_TEST);
 
     glDisableVertexAttribArray(GLAMOR_VERTEX_POS);

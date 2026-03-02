@@ -407,6 +407,8 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     /* Set up the vertex buffers for the points */
 
     v = glamor_get_vbo_space(dst->pScreen, nbox * 8 * sizeof (int16_t), &vbo_offset);
+    if (_X_UNLIKELY(v == 0))
+        goto bail_ctx;
 
     if (src_pixmap == dst_pixmap && glamor_priv->has_mesa_tile_raster_order) {
         glEnable(GL_TILE_RASTER_ORDER_FIXED_MESA);

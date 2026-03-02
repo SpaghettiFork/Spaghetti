@@ -120,6 +120,8 @@ glamor_text(DrawablePtr drawable, GCPtr gc,
     /* Set up the vertex buffers for the font and destination */
 
     v = glamor_get_vbo_space(drawable->pScreen, count * (6 * sizeof (GLshort)), &vbo_offset);
+    if (_X_UNLIKELY(v == 0))
+        return 0;
 
     glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
     glVertexAttribDivisor(GLAMOR_VERTEX_POS, 1);
@@ -303,6 +305,8 @@ glamor_poly_text(DrawablePtr drawable, GCPtr gc,
 
     x = glamor_text(drawable, gc, glamor_font, prog,
                     x, y, count, chars, charinfo, sixteen);
+    if (_X_UNLIKELY(!x))
+        goto bail;
 
     *final_pos = x;
     return TRUE;
