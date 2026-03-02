@@ -117,6 +117,8 @@ glamor_poly_glyph_blt_gl(DrawablePtr drawable, GCPtr gc,
                                                           max_points *
                                                           (2 * sizeof (INT16)),
                                                           &vbo_offset);
+                            if (_X_UNLIKELY(points == 0))
+                                goto bail;
 
                             glVertexAttribPointer(GLAMOR_VERTEX_POS,
                                                   2, GL_SHORT,
@@ -204,6 +206,9 @@ glamor_push_pixels_gl(GCPtr gc, PixmapPtr bitmap,
     points = glamor_get_vbo_space(screen, w * h * sizeof(INT16) * 2,
                                   &vbo_offset);
     num_points = 0;
+
+    if (_X_UNLIKELY(points == 0))
+        goto bail;
 
     /* Note that because fb sets miTranslate in the GC, our incoming X
      * and Y are in screen coordinate space (same for spans, but not
