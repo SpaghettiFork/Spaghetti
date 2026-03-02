@@ -107,6 +107,10 @@ extern _X_EXPORT void FlushAllOutput(void);
 
 extern _X_EXPORT void FlushIfCriticalOutputPending(void);
 
+extern _X_EXPORT void *ReserveClientOutputSpace(ClientPtr who, int count);
+
+extern _X_EXPORT int CommitClientOutputSpace(ClientPtr who, int count);
+
 extern _X_EXPORT void SetCriticalOutputPending(void);
 
 extern _X_EXPORT int WriteToClient(ClientPtr /*who */ , int /*count */ ,
