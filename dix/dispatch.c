@@ -2152,8 +2152,7 @@ DoGetImage(ClientPtr client, int format, Drawable drawable,
            Mask planemask)
 {
     DrawablePtr pDraw, pBoundingDraw;
-    int nlines, linesPerBuf, rc;
-    int linesDone;
+    int rc;
 
     /* coordinates relative to the bounding drawable */
     int relx, rely;
@@ -2247,33 +2246,10 @@ DoGetImage(ClientPtr client, int format, Drawable drawable,
 
     }
 
-    xgi.length = length;
-
-    xgi.length = bytes_to_int32(xgi.length);
-    if (widthBytesLine == 0 || height == 0)
-        linesPerBuf = 0;
-    else if (widthBytesLine >= IMAGE_BUFSIZE)
-        linesPerBuf = 1;
-    else {
-        linesPerBuf = IMAGE_BUFSIZE / widthBytesLine;
-        if (linesPerBuf > height)
-            linesPerBuf = height;
-    }
-    length = linesPerBuf * widthBytesLine;
-    if (linesPerBuf < height) {
-        /* we have to make sure intermediate buffers don't need padding */
-        while ((linesPerBuf > 1) &&
-               (length & ((1L << LOG2_BYTES_PER_SCANLINE_PAD) - 1))) {
-            linesPerBuf--;
-            length -= widthBytesLine;
-        }
-        while (length & ((1L << LOG2_BYTES_PER_SCANLINE_PAD) - 1)) {
-            linesPerBuf++;
-            length += widthBytesLine;
-        }
-    }
+    xgi.length = bytes_to_int32(length);
     if (!(pBuf = calloc(1, length)))
         return BadAlloc;
+
     WriteReplyToClient(client, sizeof(xGetImageReply), &xgi);
 
     if (pDraw->type == DRAWABLE_WINDOW) {
@@ -2282,62 +2258,43 @@ DoGetImage(ClientPtr client, int format, Drawable drawable,
                                        IncludeInferiors);
     }
 
-    if (linesPerBuf == 0) {
+    if (length == 0) {
         /* nothing to do */
-    }
-    else if (format == ZPixmap) {
-        linesDone = 0;
-        while (height - linesDone > 0) {
-            nlines = min(linesPerBuf, height - linesDone);
-            (*pDraw->pScreen->GetImage) (pDraw,
-                                         x,
-                                         y + linesDone,
-                                         width,
-                                         nlines,
-                                         format, planemask, (void *) pBuf);
-            if (pVisibleRegion)
-                XaceCensorImage(client, pVisibleRegion, widthBytesLine,
-                                pDraw, x, y + linesDone, width,
-                                nlines, format, pBuf);
+    } else if (format == ZPixmap) {
+        (*pDraw->pScreen->GetImage) (pDraw,
+                                     x,
+                                     y,
+                                     width,
+                                     height,
+                                     format, planemask, (void *) pBuf);
+        if (pVisibleRegion)
+            XaceCensorImage(client, pVisibleRegion, widthBytesLine,
+                            pDraw, x, y, width, height, format, pBuf);
 
-            /* Note that this is NOT a call to WriteSwappedDataToClient,
-               as we do NOT byte swap */
-            ReformatImage(pBuf, (int) (nlines * widthBytesLine),
-                          BitsPerPixel(pDraw->depth), ClientOrder(client));
+        /* Note that this is NOT a call to WriteSwappedDataToClient,
+         * as we do NOT byte swap */
+        ReformatImage(pBuf, length,
+                      BitsPerPixel(pDraw->depth), ClientOrder(client));
 
-            WriteToClient(client, (int) (nlines * widthBytesLine), pBuf);
-            linesDone += nlines;
-        }
-    }
-    else {                      /* XYPixmap */
+        WriteToClient(client, length, pBuf);
+    } else { /* XYPixmap */
+        int plane_size = height * widthBytesLine;
+        
+        (*pDraw->pScreen->GetImage) (pDraw,
+                                     x,
+                                     y,
+                                     width,
+                                     height,
+                                     format, plane, (void *) pBuf);
+        if (pVisibleRegion)
+            XaceCensorImage(client, pVisibleRegion, widthBytesLine,
+                            pDraw, x, y, width, height, format, pBuf);
 
-        for (; plane; plane >>= 1) {
-            if (planemask & plane) {
-                linesDone = 0;
-                while (height - linesDone > 0) {
-                    nlines = min(linesPerBuf, height - linesDone);
-                    (*pDraw->pScreen->GetImage) (pDraw,
-                                                 x,
-                                                 y + linesDone,
-                                                 width,
-                                                 nlines,
-                                                 format, plane, (void *) pBuf);
-                    if (pVisibleRegion)
-                        XaceCensorImage(client, pVisibleRegion,
-                                        widthBytesLine,
-                                        pDraw, x, y + linesDone, width,
-                                        nlines, format, pBuf);
+        /* Note: NOT a call to WriteSwappedDataToClient,
+         * as we do NOT byte swap */
+        ReformatImage(pBuf, plane_size, 1, ClientOrder(client));
 
-                    /* Note: NOT a call to WriteSwappedDataToClient,
-                       as we do NOT byte swap */
-                    ReformatImage(pBuf, (int) (nlines * widthBytesLine),
-                                  1, ClientOrder(client));
-
-                    WriteToClient(client, (int)(nlines * widthBytesLine), pBuf);
-                    linesDone += nlines;
-                }
-            }
-        }
+        WriteToClient(client, plane_size, pBuf);
     }
     free(pBuf);
     return Success;
