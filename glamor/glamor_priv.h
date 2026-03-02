@@ -228,8 +228,18 @@ struct glamor_saved_procs {
 };
 
 typedef struct glamor_screen_private {
-    Bool is_gles;
+    struct glamor_context ctx;
+
     int glsl_version;
+    int max_fbo_size;
+
+    Bool is_gles;
+    Bool dri3_enabled;
+    Bool dirty;
+    Bool use_quads;
+    Bool use_gpu_shader4;
+    Bool can_copyplane;
+    Bool enable_gradient_shader;
     Bool has_map_buffer_range;
     Bool has_buffer_storage;
     Bool has_khr_debug;
@@ -237,17 +247,10 @@ typedef struct glamor_screen_private {
     Bool has_nv_texture_barrier;
     Bool has_pack_subimage;
     Bool has_unpack_subimage;
-    Bool use_quads;
     Bool has_dual_blend;
     Bool has_clear_texture;
     Bool has_texture_swizzle;
     Bool has_rg;
-    Bool is_core_profile;
-    Bool can_copyplane;
-    Bool use_gpu_shader4;
-    int max_fbo_size;
-    Bool enable_gradient_shader;
-    Bool dri3_enabled;
 
     /**
      * Stores information about supported formats. Note, that this list contains all
@@ -333,23 +336,19 @@ typedef struct glamor_screen_private {
     GLint gradient_prog[SHADER_GRADIENT_COUNT][3];
     int linear_max_nstops;
     int radial_max_nstops;
-    int flags;
 
     struct glamor_saved_procs saved_procs;
     GetDrawableModifiersFuncPtr get_drawable_modifiers;
     
-    ScreenPtr screen;
     char* glvnd_vendor;
 
     Bool suppress_gl_out_of_memory_logging;
     Bool logged_any_fbo_allocation_failure;
     Bool logged_any_pbo_allocation_failure;
-    Bool dirty;
+    int flags;
 
     /* xv */
     glamor_program xv_prog;
-
-    struct glamor_context ctx;
 } glamor_screen_private;
 
 typedef enum glamor_access {

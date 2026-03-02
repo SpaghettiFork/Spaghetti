@@ -401,10 +401,6 @@ glamor_debug_output_callback(GLenum source,
 static void
 glamor_setup_debug_output(ScreenPtr screen)
 {
-    if (!epoxy_has_gl_extension("GL_KHR_debug") &&
-        !epoxy_has_gl_extension("GL_ARB_debug_output"))
-        return;
-
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     /* Disable debugging messages other than GL API errors */
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL,
@@ -611,6 +607,7 @@ Bool
 glamor_init(ScreenPtr screen, unsigned int flags)
 {
     glamor_screen_private *glamor_priv;
+    Bool is_core_profile;
     int gl_version;
     int max_viewport_size[2];
 
@@ -671,7 +668,7 @@ glamor_init(ScreenPtr screen, unsigned int flags)
     gl_version = epoxy_gl_version();
 
     /* assume a core profile if we are GL 3.1 and don't have ARB_compatibility */
-    glamor_priv->is_core_profile =
+    is_core_profile =
         gl_version >= 31 && !epoxy_has_gl_extension("GL_ARB_compatibility");
 
     glamor_priv->glsl_version = epoxy_glsl_version();
@@ -695,7 +692,7 @@ glamor_init(ScreenPtr screen, unsigned int flags)
             goto fail;
         }
 
-        if (!glamor_priv->is_core_profile &&
+        if (!is_core_profile &&
             !epoxy_has_gl_extension("GL_ARB_texture_border_clamp")) {
             ErrorF("GL_ARB_texture_border_clamp required\n");
             goto fail;
@@ -731,6 +728,10 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         ErrorF("GL_{ARB,OES}_vertex_array_object required\n");
         goto fail;
     }
+
+    if (epoxy_has_gl_extension("GL_KHR_debug") &&
+        epoxy_has_gl_extension("GL_ARB_debug_output"))
+        glamor_setup_debug_output(screen);
 
     if (!glamor_priv->is_gles && glamor_priv->glsl_version == 120 &&
         epoxy_has_gl_extension("GL_ARB_instanced_arrays"))
@@ -772,10 +773,8 @@ glamor_init(ScreenPtr screen, unsigned int flags)
 
     glamor_priv->can_copyplane = (gl_version >= 30);
 
-    glamor_setup_debug_output(screen);
-
     glamor_priv->use_quads = !glamor_priv->is_gles &&
-                             !glamor_priv->is_core_profile;
+                             !is_core_profile;
 
     /* Driver-specific hack: Avoid using GL_QUADS on VC4, where
      * they'll be emulated more expensively than we can with our
@@ -786,13 +785,14 @@ glamor_init(ScreenPtr screen, unsigned int flags)
          strstr((char *)glGetString(GL_RENDERER), "V3D")))
         glamor_priv->use_quads = FALSE;
 
+#ifdef MAX_FBO_SIZE
+    glamor_priv->max_fbo_size = MAX_FBO_SIZE;
+#else
     glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &glamor_priv->max_fbo_size);
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glamor_priv->max_fbo_size);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, max_viewport_size);
     glamor_priv->max_fbo_size = MIN(glamor_priv->max_fbo_size, max_viewport_size[0]);
     glamor_priv->max_fbo_size = MIN(glamor_priv->max_fbo_size, max_viewport_size[1]);
-#ifdef MAX_FBO_SIZE
-    glamor_priv->max_fbo_size = MAX_FBO_SIZE;
 #endif
 
     glamor_priv->has_texture_swizzle =
@@ -869,8 +869,6 @@ glamor_init(ScreenPtr screen, unsigned int flags)
 
     glamor_pixmap_init(screen);
     glamor_sync_init(screen);
-
-    glamor_priv->screen = screen;
 
     return TRUE;
 
