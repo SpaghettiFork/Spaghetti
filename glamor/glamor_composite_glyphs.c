@@ -336,6 +336,7 @@ glamor_glyph_start(ScreenPtr screen, int count)
     /* Set up the vertex buffers for the font and destination */
 
     if (glamor_glsl_has_ints(glamor_priv)) {
+        /* XXX: This needs error handling... */
         v = glamor_get_vbo_space(screen, count * (6 * sizeof (GLshort)), &vbo_offset);
 
         glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
@@ -348,6 +349,7 @@ glamor_glyph_start(ScreenPtr screen, int count)
         glVertexAttribPointer(GLAMOR_VERTEX_SOURCE, 2, GL_SHORT, GL_FALSE,
                               6 * sizeof (GLshort), vbo_offset + 4 * sizeof (GLshort));
     } else {
+        /* XXX: This needs error handling... */
         v = glamor_get_vbo_space(screen, count * (16 * sizeof (GLshort)), &vbo_offset);
 
         glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
