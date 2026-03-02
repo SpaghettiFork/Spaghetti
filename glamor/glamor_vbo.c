@@ -43,7 +43,7 @@
  * accessed by the GL using vbo_offset within the VBO.
  */
 void *
-glamor_get_vbo_space(ScreenPtr screen, unsigned size, char **vbo_offset)
+glamor_get_vbo_space2(ScreenPtr screen, unsigned size, Bool fallback, char **vbo_offset)
 {
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
     void *data;
@@ -52,7 +52,7 @@ glamor_get_vbo_space(ScreenPtr screen, unsigned size, char **vbo_offset)
 
     glBindBuffer(GL_ARRAY_BUFFER, glamor_priv->vbo);
 
-    if (glamor_priv->has_buffer_storage) {
+    if (glamor_priv->has_buffer_storage && !fallback) {
         if (glamor_priv->vbo_size < glamor_priv->vbo_offset + size) {
             if (glamor_priv->vbo_size)
                 glUnmapBuffer(GL_ARRAY_BUFFER);
@@ -75,12 +75,9 @@ glamor_get_vbo_space(ScreenPtr screen, unsigned size, char **vbo_offset)
 
                 if (glGetError() != GL_NO_ERROR) {
                     /* If the driver failed our coherent mapping, fall
-                     * back to the ARB_mbr path.
-                     */
-                    glamor_priv->has_buffer_storage = false;
+                     * back to the glMapBufferRange or non-MBR path. */
                     glamor_priv->vbo_size = 0;
-
-                    return glamor_get_vbo_space(screen, size, vbo_offset);
+                    return glamor_get_vbo_space2(screen, size, TRUE, vbo_offset);
                 }
             }
 
