@@ -265,6 +265,8 @@ glamor_poly_lines_dash_gl(DrawablePtr drawable, GCPtr gc,
     v = glamor_get_vbo_space(drawable->pScreen,
                              (n + add_last) * 3 * sizeof (short),
                              &vbo_offset);
+    if (_X_UNLIKELY(v == 0))
+        return FALSE;
 
     glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
     glVertexAttribPointer(GLAMOR_VERTEX_POS, 3, GL_SHORT, GL_FALSE,

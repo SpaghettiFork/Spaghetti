@@ -743,7 +743,13 @@ void glamor_init_vbo(ScreenPtr screen);
 void glamor_fini_vbo(ScreenPtr screen);
 
 void *
-glamor_get_vbo_space(ScreenPtr screen, unsigned size, char **vbo_offset);
+glamor_get_vbo_space2(ScreenPtr screen, unsigned size, Bool fallback, char **vbo_offset);
+
+static inline void*
+glamor_get_vbo_space(ScreenPtr screen, unsigned size, char **vbo_offset)
+{
+    return glamor_get_vbo_space2(screen, size, FALSE, vbo_offset);
+}
 
 void
 glamor_put_vbo_space(ScreenPtr screen);
