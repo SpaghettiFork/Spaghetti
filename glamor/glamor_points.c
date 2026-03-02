@@ -71,6 +71,9 @@ glamor_poly_point_gl(DrawablePtr drawable, GCPtr gc, int mode, int npt, DDXPoint
         goto bail;
 
     vbo_ppt = glamor_get_vbo_space(screen, npt * (2 * sizeof (INT16)), &vbo_offset);
+    if (_X_UNLIKELY(vbo_ppt == 0))
+        goto bail;
+
     glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
     glVertexAttribPointer(GLAMOR_VERTEX_POS, 2, GL_SHORT, GL_FALSE, 0, vbo_offset);
     if (mode == CoordModePrevious) {

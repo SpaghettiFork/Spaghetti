@@ -343,6 +343,8 @@ glamor_poly_segment_dash_gl(DrawablePtr drawable, GCPtr gc,
     v = glamor_get_vbo_space(drawable->pScreen,
                              (nseg<<add_last) * 6 * sizeof (short),
                              &vbo_offset);
+    if (_X_UNLIKELY(v == 0))
+        return FALSE;
 
     glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
     glVertexAttribPointer(GLAMOR_VERTEX_POS, 3, GL_SHORT, GL_FALSE,
