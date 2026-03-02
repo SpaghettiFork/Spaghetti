@@ -95,6 +95,7 @@ typedef struct _connectionOutput {
     struct _connectionOutput *next;
     unsigned char *buf;
     int size;
+    int start;
     int count;
 } ConnectionOutput;
 
@@ -644,6 +645,23 @@ SetCriticalOutputPending(void)
     CriticalOutputPending = TRUE;
 }
 
+static void
+AppendToOutputBuffer(ConnectionOutputPtr oco, const char *buf, int count)
+{
+    int start, todo;
+
+    start = (oco->start + oco->count) % oco->size;
+    todo = count;
+    if (start + todo > oco->size) {
+        memmove((char *) oco->buf + start, buf, oco->size - start);
+        todo -= (oco->size - start);
+        buf += (oco->size - start);
+        start = 0;
+    }
+    memmove((char *) oco->buf + start, buf, todo);
+    oco->count += count;
+}
+
 /*****************
  * AbortClient:
  *    When a write error occurs to a client, close
@@ -680,6 +698,7 @@ WriteToClient(ClientPtr who, int count, const void *__buf)
 {
     OsCommPtr oc;
     ConnectionOutputPtr oco;
+    static char padBuffer[3];
     int padBytes;
     const char *buf = __buf;
 
@@ -796,13 +815,112 @@ WriteToClient(ClientPtr who, int count, const void *__buf)
     }
 
     output_pending_mark(who);
-    memmove((char *) oco->buf + oco->count, buf, count);
-    oco->count += count;
-    if (padBytes) {
-        memset(oco->buf + oco->count, '\0', padBytes);
-        oco->count += padBytes;
-    }
+    AppendToOutputBuffer(oco, buf, count);
+    if (padBytes)
+        AppendToOutputBuffer(oco, padBuffer, padBytes);
     return count;
+}
+
+static Bool
+ResizeOutputBuffer(ClientPtr who, OsCommPtr oc, int size)
+{
+    ConnectionOutputPtr oco = oc->output;
+    uint8_t *obuf;
+
+    obuf = malloc (size);
+    if (!obuf) {
+        _XSERVTransDisconnect(oc->trans_conn);
+        _XSERVTransClose(oc->trans_conn);
+        oc->trans_conn = NULL;
+        MarkClientException(who);
+        oco->start = 0;
+        oco->count = 0;
+        return FALSE;
+    }
+    if (oco->start + oco->count > oco->size) {
+        memcpy(obuf, (char *)oco->buf + oco->start, oco->size - oco->start);
+        memcpy((char *) obuf + (oco->size - oco->start), oco->buf, oco->count - (oco->size - oco->start));
+        oco->start = 0;
+    } else {
+        memcpy((char *) obuf, (char *) oco->buf + oco->start, oco->count);
+        oco->start = 0;
+    }
+    oco->size = size;
+    free(oco->buf);
+    oco->buf = obuf;
+    return TRUE;
+}
+
+/********************
+ * ReserveClientOutputSpace
+ *    Allocates space in the client output buffer,
+ *    returning a pointer to the desired space or NULL
+ *    on allocation failure
+ **********************/
+
+void *
+ReserveClientOutputSpace(ClientPtr who, int count)
+{
+    OsCommPtr oc;
+    ConnectionOutputPtr oco;
+
+    if (!count || !who || who == serverClient || who->clientGone)
+        return NULL;
+    oc = who->osPrivate;
+    oco = oc->output;
+
+    if (!oco) {
+        if ((oco = FreeOutputs)) {
+            FreeOutputs = oco->next;
+        } else if (!(oco = AllocateOutputBuffer())) {
+            if (oc->trans_conn) {
+                _XSERVTransDisconnect(oc->trans_conn);
+                _XSERVTransClose(oc->trans_conn);
+                oc->trans_conn = NULL;
+            }
+            MarkClientException(who);
+            return NULL;
+        }
+        oc->output = oco;
+    }
+
+    count += padding_for_int32(count);
+
+    if (oco->count + count > oco->size) {
+        if (!ResizeOutputBuffer(who, oc, oco->count + count + BUFSIZE))
+            return NULL;
+    }
+
+    return oco->buf + oco->count + oco->start;
+}
+
+/********************
+ * CommitClientOutputSpace
+ *    Marches the buffer pointers past
+ *    the allocated amount of space
+ **********************/
+
+int
+CommitClientOutputSpace(ClientPtr who, int count)
+{
+    OsCommPtr oc;
+    ConnectionOutputPtr oco;
+
+    if (!count || !who || who == serverClient || who->clientGone)
+        return -1;
+    oc = who->osPrivate;
+    oco = oc->output;
+
+    if (!oco)
+        return -1;
+
+    count += padding_for_int32(count);
+    oco->count += count;
+
+    if (FlushCallback)
+        CallCallbacks(&FlushCallback, NULL);
+
+    return FlushClient(who, oc, NULL, 0);
 }
 
  /********************
@@ -820,7 +938,7 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
 {
     ConnectionOutputPtr oco = oc->output;
     XtransConnInfo trans_conn = oc->trans_conn;
-    struct iovec iov[3];
+    struct iovec iov[4];
     static char padBuffer[3];
     const char *extraBuf = __extraBuf;
     long written;
@@ -875,11 +993,17 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
 	    before = 0; \
 	}
 
-        InsertIOV((char *) oco->buf, oco->count)
-            InsertIOV((char *) extraBuf, extraCount)
-            InsertIOV(padBuffer, padsize)
+        if (oco->start + oco->count > oco->size) {
+            InsertIOV((char *) oco->buf + oco->start, oco->size - oco->start)
+            InsertIOV((char *) oco->buf, oco->count - (oco->size - oco->start))
+        } else {
+            InsertIOV((char *) oco->buf + oco->start, oco->count)
+        }
 
-            errno = 0;
+        InsertIOV((char *) extraBuf, extraCount)
+        InsertIOV(padBuffer, padsize)
+
+        errno = 0;
         if (trans_conn && (len = _XSERVTransWritev(trans_conn, iov, i)) >= 0) {
             written += len;
             notWritten -= len;
@@ -897,38 +1021,29 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
 
             if (written < oco->count) {
                 if (written > 0) {
+                    oco->start += written;
+                    oco->start %= oco->size;
                     oco->count -= written;
-                    memmove((char *) oco->buf,
-                            (char *) oco->buf + written, oco->count);
                     written = 0;
                 }
-            }
-            else {
+            } else {
                 written -= oco->count;
+                oco->start = 0;
                 oco->count = 0;
             }
 
             if (notWritten > oco->size) {
-                unsigned char *obuf = NULL;
-
-                if (notWritten + BUFSIZE <= INT_MAX) {
-                    obuf = realloc(oco->buf, notWritten + BUFSIZE);
-                }
-                if (!obuf) {
-                    AbortClient(who);
-                    MarkClientException(who);
-                    oco->count = 0;
+                if (!ResizeOutputBuffer(who, oc, notWritten + BUFSIZE))
                     return -1;
-                }
-                oco->size = notWritten + BUFSIZE;
-                oco->buf = obuf;
             }
 
             /* If the amount written extended into the padBuffer, then the
                difference "extraCount - written" may be less than 0 */
-            if ((len = extraCount - written) > 0)
-                memmove((char *) oco->buf + oco->count,
-                        extraBuf + written, len);
+            if ((len = extraCount - written) > 0) {
+                AppendToOutputBuffer(oco, extraBuf + written, len);
+                if (padsize)
+                    AppendToOutputBuffer(oco, padBuffer, padsize);
+            }
 
             oco->count = notWritten;    /* this will include the pad */
             ospoll_listen(server_poll, oc->fd, X_NOTIFY_WRITE);
@@ -944,12 +1059,14 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
         else {
             AbortClient(who);
             MarkClientException(who);
+            oco->start = 0;
             oco->count = 0;
             return -1;
         }
     }
 
     /* everything was flushed out */
+    oco->start = 0;
     oco->count = 0;
     output_pending_clear(who);
 
@@ -1000,6 +1117,7 @@ AllocateOutputBuffer(void)
         return NULL;
     }
     oco->size = BUFSIZE;
+    oco->start = 0;
     oco->count = 0;
     return oco;
 }
@@ -1034,6 +1152,7 @@ FreeOsBuffers(OsCommPtr oc)
         else {
             FreeOutputs = oco;
             oco->next = (ConnectionOutputPtr) NULL;
+            oco->start = 0;
             oco->count = 0;
         }
     }

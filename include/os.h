@@ -114,6 +114,10 @@ extern _X_EXPORT int WriteToClient(ClientPtr /*who */ , int /*count */ ,
 
 extern _X_EXPORT void ResetOsBuffers(void);
 
+extern _X_EXPORT void *ReserveClientOutputSpace(ClientPtr who, int count);
+
+extern _X_EXPORT int CommitClientOutputSpace(ClientPtr who, int count);
+
 extern _X_EXPORT void NotifyParentProcess(void);
 
 extern _X_EXPORT void CreateWellKnownSockets(void);
