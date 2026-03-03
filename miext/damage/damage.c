@@ -1930,6 +1930,18 @@ DamageGetScreenFuncs(ScreenPtr pScreen)
     return &pScrPriv->funcs;
 }
 
+static inline void
+DamageCombineExtents(DamagePtr pDamage, RegionPtr pDamageRegion)
+{
+    if (!pDamage->isInternal) {
+        RegionUninit(pDamageRegion);
+        RegionUnion(&pDamage->damage, &pDamage->damage, pDamageRegion);
+        RegionUninit(&pDamage->damage);
+    } else {
+        RegionUnion(&pDamage->damage, &pDamage->damage, pDamageRegion);
+    }
+}
+
 void
 DamageReportDamage(DamagePtr pDamage, RegionPtr pDamageRegion)
 {
@@ -1953,7 +1965,7 @@ DamageReportDamage(DamagePtr pDamage, RegionPtr pDamageRegion)
         break;
     case DamageReportBoundingBox:
         tmpBox = *RegionExtents(&pDamage->damage);
-        RegionUnion(&pDamage->damage, &pDamage->damage, pDamageRegion);
+        DamageCombineExtents(pDamage, pDamageRegion);
         if (!BOX_SAME(&tmpBox, RegionExtents(&pDamage->damage))) {
             (*pDamage->damageReport) (pDamage, &pDamage->damage,
                                       pDamage->closure);
@@ -1961,7 +1973,7 @@ DamageReportDamage(DamagePtr pDamage, RegionPtr pDamageRegion)
         break;
     case DamageReportNonEmpty:
         was_empty = !RegionNotEmpty(&pDamage->damage);
-        RegionUnion(&pDamage->damage, &pDamage->damage, pDamageRegion);
+        DamageCombineExtents(pDamage, pDamageRegion);
         if (was_empty && RegionNotEmpty(&pDamage->damage)) {
             (*pDamage->damageReport) (pDamage, &pDamage->damage,
                                       pDamage->closure);
