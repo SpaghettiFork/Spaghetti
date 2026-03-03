@@ -53,7 +53,7 @@ typedef struct _Property *PropertyPtr;
 
 extern _X_EXPORT int dixLookupProperty(PropertyPtr * /*result */ ,
                                        WindowPtr /*pWin */ ,
-                                       Atom /*proprty */ ,
+                                       Atom /*property */ ,
                                        ClientPtr /*pClient */ ,
                                        Mask /*access_mode */ );
 

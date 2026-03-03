@@ -885,7 +885,7 @@ OnlyListenToOneClient(ClientPtr client)
 
 /****************
  * ListenToAllClients:
- *    Undoes OnlyListentToOneClient()
+ *    Undoes OnlyListenToOneClient()
  ****************/
 
 void
