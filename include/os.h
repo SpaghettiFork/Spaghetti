@@ -267,6 +267,8 @@ OsAbort(void)
     _X_NORETURN;
 
 #if !defined(WIN32)
+extern _X_EXPORT int
+System(const char *);
 extern _X_EXPORT void *
 Popen(const char *, const char *);
 extern _X_EXPORT int
