@@ -225,6 +225,68 @@ typedef int (*OsSigWrapperPtr) (int /* sig */ );
 extern _X_EXPORT OsSigWrapperPtr
 OsRegisterSigWrapper(OsSigWrapperPtr newWrap);
 
+extern _X_EXPORT int auditTrailLevel;
+
+extern _X_EXPORT void
+LockServer(void);
+extern _X_EXPORT void
+UnlockServer(void);
+
+extern _X_EXPORT Bool
+OsLookupColor(int /*screen */ ,
+              char * /*name */ ,
+              unsigned /*len */ ,
+              unsigned short * /*pred */ ,
+              unsigned short * /*pgreen */ ,
+              unsigned short * /*pblue */ );
+
+extern _X_EXPORT void
+OsInit(void);
+
+extern _X_EXPORT void
+OsCleanup(Bool);
+
+extern _X_EXPORT void
+OsVendorFatalError(const char *f, va_list args)
+_X_ATTRIBUTE_PRINTF(1, 0);
+
+extern _X_EXPORT void
+OsVendorInit(void);
+
+extern _X_EXPORT void
+OsBlockSignals(void);
+
+extern _X_EXPORT void
+OsReleaseSignals(void);
+
+extern void
+OsResetSignals(void);
+
+extern _X_EXPORT void
+OsAbort(void)
+    _X_NORETURN;
+
+#if !defined(WIN32)
+extern _X_EXPORT void *
+Popen(const char *, const char *);
+extern _X_EXPORT int
+Pclose(void *);
+extern _X_EXPORT void *
+Fopen(const char *, const char *);
+extern _X_EXPORT int
+Fclose(void *);
+#else
+
+extern const char *
+Win32TempDir(void);
+
+extern int
+System(const char *cmdline);
+
+#define Fopen(a,b) fopen(a,b)
+#define Fclose(a) fclose(a)
+#endif
+
 extern _X_EXPORT Bool
 PrivsElevated(void);
 
