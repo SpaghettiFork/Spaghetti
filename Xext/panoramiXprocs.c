@@ -32,6 +32,7 @@ Equipment Corporation.
 #include <X11/Xproto.h>
 
 #include "dix/dix_priv.h"
+#include "os/client_priv.h"
 #include "os/osdep.h"
 
 #include "windowstr.h"
@@ -1951,7 +1952,6 @@ PanoramiXGetImage(ClientPtr client)
     char *pBuf;
     int i, x, y, w, h, format, rc;
     Mask plane = 0, planemask;
-    int linesDone, nlines, linesPerBuf;
     long widthBytesLine, length;
 
     REQUEST(xGetImageReq);
@@ -2040,61 +2040,32 @@ PanoramiXGetImage(ClientPtr client)
     }
 
     xgi.length = bytes_to_int32(length);
-
-    if (widthBytesLine == 0 || h == 0)
-        linesPerBuf = 0;
-    else if (widthBytesLine >= XINERAMA_IMAGE_BUFSIZE)
-        linesPerBuf = 1;
-    else {
-        linesPerBuf = XINERAMA_IMAGE_BUFSIZE / widthBytesLine;
-        if (linesPerBuf > h)
-            linesPerBuf = h;
-    }
-    if (!(pBuf = xallocarray(linesPerBuf, widthBytesLine)))
+    pBuf = ReserveClientOutputSpace(client, length + sizeof (xGetImageReply));
+    if (length != 0 && !pBuf)
         return BadAlloc;
 
-    WriteReplyToClient(client, sizeof(xGetImageReply), &xgi);
+    memcpy(pBuf, &xgi, sizeof (xGetImageReply));
+    pBuf += sizeof (xGetImageReply);
 
-    if (linesPerBuf == 0) {
+    if (length == 0) {
         /* nothing to do */
+    } else if (format == ZPixmap) {
+        XineramaGetImageData(drawables,
+                             x, y, w, h,
+                             format, planemask,
+                             pBuf, widthBytesLine,
+                             isRoot);
+    } else { /* XYPixmap */
+        int plane_size = h * widthBytesLine;
+
+        XineramaGetImageData(drawables,
+                             x, y, w, h,
+                             format, plane, pBuf,
+                             widthBytesLine, isRoot);
+
+        pBuf += plane_size;
     }
-    else if (format == ZPixmap) {
-        linesDone = 0;
-        while (h - linesDone > 0) {
-            nlines = min(linesPerBuf, h - linesDone);
-
-            if (pDraw->depth == 1)
-                memset(pBuf, 0, nlines * widthBytesLine);
-
-            XineramaGetImageData(drawables, x, y + linesDone, w, nlines,
-                                 format, planemask, pBuf, widthBytesLine,
-                                 isRoot);
-
-            WriteToClient(client, (int) (nlines * widthBytesLine), pBuf);
-            linesDone += nlines;
-        }
-    }
-    else {                      /* XYPixmap */
-        for (; plane; plane >>= 1) {
-            if (planemask & plane) {
-                linesDone = 0;
-                while (h - linesDone > 0) {
-                    nlines = min(linesPerBuf, h - linesDone);
-
-                    memset(pBuf, 0, nlines * widthBytesLine);
-
-                    XineramaGetImageData(drawables, x, y + linesDone, w,
-                                         nlines, format, plane, pBuf,
-                                         widthBytesLine, isRoot);
-
-                    WriteToClient(client, (int)(nlines * widthBytesLine), pBuf);
-
-                    linesDone += nlines;
-                }
-            }
-        }
-    }
-    free(pBuf);
+    CommitClientOutputSpace (client, sizeof (xGetImageReply) + length);
     return Success;
 }
 
