@@ -225,13 +225,6 @@ typedef int (*OsSigWrapperPtr) (int /* sig */ );
 extern _X_EXPORT OsSigWrapperPtr
 OsRegisterSigWrapper(OsSigWrapperPtr newWrap);
 
-extern _X_EXPORT int auditTrailLevel;
-
-extern _X_EXPORT void
-LockServer(void);
-extern _X_EXPORT void
-UnlockServer(void);
-
 extern _X_EXPORT Bool
 OsLookupColor(int /*screen */ ,
               char * /*name */ ,
@@ -449,12 +442,5 @@ timingsafe_memcmp(const void *b1, const void *b2, size_t len);
 #if defined(WIN32) && !defined(__CYGWIN__)
 typedef _sigset_t sigset_t;
 #endif
-
-/* should not be used anymore, just for backwards compat with drivers */
-#define LogVMessageVerbSigSafe(...) LogVMessageVerb(__VA_ARGS__)
-#define LogMessageVerbSigSafe(...) LogMessageVerb(__VA_ARGS__)
-#define ErrorFSigSafe(...) ErrorF(__VA_ARGS__)
-#define VErrorFSigSafe(...) VErrorF(__VA_ARGS__)
-#define VErrorF(...) LogVMessageVerb(X_NONE, -1, __VA_ARGS__)
 
 #endif                          /* OS_H */
