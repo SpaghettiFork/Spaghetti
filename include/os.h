@@ -386,15 +386,11 @@ timingsafe_memcmp(const void *b1, const void *b2, size_t len);
 typedef _sigset_t sigset_t;
 #endif
 
-/* only for backwards compat with drivers that haven't kept up yet
-   (xf86-video-intel)
-
-   @todo revise after next stable release
-*/
-_X_DEPRECATED
-static inline int System(const char* cmdline)
-{
-    return system(cmdline);
-}
+/* should not be used anymore, just for backwards compat with drivers */
+#define LogVMessageVerbSigSafe(...) LogVMessageVerb(__VA_ARGS__)
+#define LogMessageVerbSigSafe(...) LogMessageVerb(__VA_ARGS__)
+#define ErrorFSigSafe(...) ErrorF(__VA_ARGS__)
+#define VErrorFSigSafe(...) VErrorF(__VA_ARGS__)
+#define VErrorF(...) LogVMessageVerb(X_NONE, -1, __VA_ARGS__)
 
 #endif                          /* OS_H */
