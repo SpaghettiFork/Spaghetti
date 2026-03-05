@@ -2815,7 +2815,7 @@ DeliverEvent(DeviceIntPtr dev, xEvent *xE, int count,
     Mask filter;
     int deliveries = 0;
 
-    if (XaceHookSendAccess(NULL, dev, win, xE, count) == Success) {
+    if (XaceHook(XACE_SEND_ACCESS, NULL, dev, win, xE, count) == Success) {
         filter = GetEventFilter(dev, xE);
         FixUpEventFromWindow(pSprite, xE, win, child, FALSE);
         deliveries = DeliverEventsToWindow(dev, win, xE, count, filter, grab);
@@ -4239,7 +4239,7 @@ DeliverFocusedEvent(DeviceIntPtr keybd, InternalEvent *event, WindowPtr window)
 
     rc = EventToXI(event, &xE, &count);
     if (rc == Success &&
-        XaceHookSendAccess(NULL, keybd, focus, xE, count) == Success) {
+        XaceHook(XACE_SEND_ACCESS, NULL, keybd, focus, xE, count) == Success) {
         FixUpEventFromWindow(ptr->spriteInfo->sprite, xE, focus, None, FALSE);
         deliveries = DeliverEventsToWindow(keybd, focus, xE, count,
                                            GetEventFilter(keybd, xE), NullGrab);
@@ -4255,7 +4255,7 @@ DeliverFocusedEvent(DeviceIntPtr keybd, InternalEvent *event, WindowPtr window)
     if (sendCore) {
         rc = EventToCore(event, &core, &count);
         if (rc == Success) {
-            if (XaceHookSendAccess(NULL, keybd, focus, core, count) ==
+            if (XaceHook(XACE_SEND_ACCESS, NULL, keybd, focus, core, count) ==
                 Success) {
                 FixUpEventFromWindow(keybd->spriteInfo->sprite, core, focus,
                                      None, FALSE);
@@ -4328,7 +4328,8 @@ DeliverOneGrabbedEvent(InternalEvent *event, DeviceIntPtr dev,
 
     if (rc == Success) {
         FixUpEventFromWindow(pSprite, xE, grab->window, None, TRUE);
-        if (XaceHookSendAccess(0, dev, grab->window, xE, count) ||
+        if (XaceHook(XACE_SEND_ACCESS, 0, dev,
+                     grab->window, xE, count) ||
             XaceHook(XACE_RECEIVE_ACCESS, rClient(grab),
                      grab->window, xE, count))
             deliveries = 1;     /* don't send, but pretend we did */
@@ -5566,7 +5567,8 @@ ProcSendEvent(ClientPtr client)
     stuff->event.u.u.type |= SEND_EVENT_BIT;
     if (stuff->propagate) {
         for (; pWin; pWin = pWin->parent) {
-            if (XaceHookSendAccess(client, NULL, pWin, &stuff->event, 1))
+            if (XaceHook(XACE_SEND_ACCESS, client, NULL, pWin,
+                         &stuff->event, 1))
                 return Success;
             if (DeliverEventsToWindow(dev, pWin,
                                       &stuff->event, 1, stuff->eventMask,
@@ -5579,7 +5581,7 @@ ProcSendEvent(ClientPtr client)
                 break;
         }
     }
-    else if (!XaceHookSendAccess(client, NULL, pWin, &stuff->event, 1))
+    else if (!XaceHook(XACE_SEND_ACCESS, client, NULL, pWin, &stuff->event, 1))
         DeliverEventsToWindow(dev, pWin, &stuff->event,
                               1, stuff->eventMask, NullGrab);
     return Success;
