@@ -1095,7 +1095,7 @@ DeliverOneTouchEvent(ClientPtr client, DeviceIntPtr dev, TouchPointInfoPtr ti,
 
     FixUpEventFromWindow(&ti->sprite, xi2, win, child, FALSE);
     filter = GetEventFilter(dev, xi2);
-    if (XaceHookReceiveAccess(client, win, xi2, 1) != Success)
+    if (XaceHook(XACE_RECEIVE_ACCESS, client, win, xi2, 1) != Success)
         return FALSE;
     err = TryClientEvents(client, dev, xi2, 1, filter, filter, NullGrab);
     free(xi2);
@@ -2243,7 +2243,7 @@ DeliverOneGestureEvent(ClientPtr client, DeviceIntPtr dev, GestureInfoPtr gi,
 
     FixUpEventFromWindow(&gi->sprite, xi2, win, child, FALSE);
     filter = GetEventFilter(dev, xi2);
-    if (XaceHookReceiveAccess(client, win, xi2, 1) != Success)
+    if (XaceHook(XACE_RECEIVE_ACCESS, client, win, xi2, 1) != Success)
         return FALSE;
     err = TryClientEvents(client, dev, xi2, 1, filter, filter, NullGrab);
     free(xi2);

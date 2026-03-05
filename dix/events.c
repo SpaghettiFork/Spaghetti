@@ -2199,7 +2199,7 @@ DeliverToWindowOwner(DeviceIntPtr dev, WindowPtr win,
     if (IsInterferingGrab(wClient(win), dev, events))
         return EVENT_SKIP;
 
-    if (!XaceHookReceiveAccess(wClient(win), win, events, count)) {
+    if (!XaceHook(XACE_RECEIVE_ACCESS, wClient(win), win, events, count)) {
         int attempt = TryClientEvents(wClient(win), dev, events,
                                       count, win->eventMask,
                                       filter, grab);
@@ -2283,7 +2283,7 @@ DeliverEventToInputClients(DeviceIntPtr dev, InputClients * inputclients,
 
         mask = GetEventMask(dev, events, inputclients);
 
-        if (XaceHookReceiveAccess(client, win, events, count))
+        if (XaceHook(XACE_RECEIVE_ACCESS, client, win, events, count))
             /* do nothing */ ;
         else if ((attempt = TryClientEvents(client, dev,
                                             events, count,
@@ -2562,7 +2562,7 @@ MaybeDeliverEventsToClient(WindowPtr pWin, xEvent *pEvents,
             return XineramaTryClientEventsResult(wClient(pWin), NullGrab,
                                                  pWin->eventMask, filter);
 #endif /* XINERAMA */
-        if (XaceHookReceiveAccess(wClient(pWin), pWin, pEvents, count))
+        if (XaceHook(XACE_RECEIVE_ACCESS, wClient(pWin), pWin, pEvents, count))
             return 1;           /* don't send, but pretend we did */
         return TryClientEvents(wClient(pWin), NULL, pEvents, count,
                                pWin->eventMask, filter, NullGrab);
@@ -2576,7 +2576,7 @@ MaybeDeliverEventsToClient(WindowPtr pWin, xEvent *pEvents,
                 return XineramaTryClientEventsResult(rClient(other), NullGrab,
                                                      other->mask, filter);
 #endif /* XINERAMA */
-            if (XaceHookReceiveAccess(rClient(other), pWin, pEvents,
+            if (XaceHook(XACE_RECEIVE_ACCESS, rClient(other), pWin, pEvents,
                          count))
                 return 1;       /* don't send, but pretend we did */
             return TryClientEvents(rClient(other), NULL, pEvents, count,
@@ -4329,7 +4329,8 @@ DeliverOneGrabbedEvent(InternalEvent *event, DeviceIntPtr dev,
     if (rc == Success) {
         FixUpEventFromWindow(pSprite, xE, grab->window, None, TRUE);
         if (XaceHookSendAccess(0, dev, grab->window, xE, count) ||
-            XaceHookReceiveAccess(rClient(grab), grab->window, xE, count))
+            XaceHook(XACE_RECEIVE_ACCESS, rClient(grab),
+                     grab->window, xE, count))
             deliveries = 1;     /* don't send, but pretend we did */
         else if (level != CORE || !IsInterferingGrab(rClient(grab), dev, xE)) {
             deliveries = TryClientEvents(rClient(grab), dev,
