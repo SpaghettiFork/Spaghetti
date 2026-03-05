@@ -177,7 +177,7 @@ ShouldSkipDevice(ClientPtr client, int deviceid, DeviceIntPtr dev)
 {
     /* if all devices are not being queried, only master devices are */
     if (deviceid == XIAllDevices || IsMaster(dev)) {
-        int rc = XaceHookDeviceAccess(client, dev, DixGetAttrAccess);
+        int rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, DixGetAttrAccess);
 
         if (rc == Success)
             return FALSE;
@@ -574,7 +574,7 @@ ListDeviceClasses(ClientPtr client, DeviceIntPtr dev,
     int rc;
 
     /* Check if the current device state should be suppressed */
-    rc = XaceHookDeviceAccess(client, dev, DixReadAccess);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, DixReadAccess);
 
     if (dev->button) {
         (*nclasses)++;

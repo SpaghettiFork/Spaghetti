@@ -2518,7 +2518,7 @@ GrabButton(ClientPtr client, DeviceIntPtr dev, DeviceIntPtr modifier_device,
     if (param->this_device_mode == GrabModeSync ||
         param->other_devices_mode == GrabModeSync)
         access_mode |= DixFreezeAccess;
-    rc = XaceHookDeviceAccess(client, dev, access_mode);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, access_mode);
     if (rc != Success)
         return rc;
     rc = dixLookupWindow(&pWin, param->grabWindow, client, DixSetAttrAccess);
@@ -2574,7 +2574,7 @@ GrabKey(ClientPtr client, DeviceIntPtr dev, DeviceIntPtr modifier_device,
     if (param->this_device_mode == GrabModeSync ||
         param->other_devices_mode == GrabModeSync)
         access_mode |= DixFreezeAccess;
-    rc = XaceHookDeviceAccess(client, dev, access_mode);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, access_mode);
     if (rc != Success)
         return rc;
 
@@ -2617,7 +2617,7 @@ GrabWindow(ClientPtr client, DeviceIntPtr dev, int type,
     if (param->this_device_mode == GrabModeSync ||
         param->other_devices_mode == GrabModeSync)
         access_mode |= DixFreezeAccess;
-    rc = XaceHookDeviceAccess(client, dev, access_mode);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, access_mode);
     if (rc != Success)
         return rc;
 
@@ -2648,7 +2648,7 @@ GrabTouchOrGesture(ClientPtr client, DeviceIntPtr dev, DeviceIntPtr mod_dev,
     rc = dixLookupWindow(&pWin, param->grabWindow, client, DixSetAttrAccess);
     if (rc != Success)
         return rc;
-    rc = XaceHookDeviceAccess(client, dev, DixGrabAccess);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, DixGrabAccess);
     if (rc != Success)
         return rc;
 

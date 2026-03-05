@@ -301,7 +301,7 @@ AddInputDevice(ClientPtr client, DeviceProc deviceProc, Bool autoStart)
 
     /*  security creation/labeling check
      */
-    if (XaceHookDeviceAccess(client, dev, DixCreateAccess)) {
+    if (XaceHook(XACE_DEVICE_ACCESS, client, dev, DixCreateAccess)) {
         dixFreePrivates(dev->devPrivates, PRIVATE_DEVICE);
         free(dev);
         return NULL;
@@ -1286,7 +1286,7 @@ dixLookupDevice(DeviceIntPtr *pDev, int id, ClientPtr client, Mask access_mode)
     return BadDevice;
 
  found:
-    rc = XaceHookDeviceAccess(client, dev, access_mode);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, access_mode);
     if (rc == Success)
         *pDev = dev;
     return rc;
@@ -1869,7 +1869,7 @@ ProcChangeKeyboardMapping(ClientPtr client)
     keysyms.mapWidth = stuff->keySymsPerKeyCode;
     keysyms.map = (KeySym *) &stuff[1];
 
-    rc = XaceHookDeviceAccess(client, pDev, DixManageAccess);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, pDev, DixManageAccess);
     if (rc != Success)
         return rc;
 
@@ -1882,7 +1882,7 @@ ProcChangeKeyboardMapping(ClientPtr client)
         if (!tmp->key)
             continue;
 
-        rc = XaceHookDeviceAccess(client, pDev, DixManageAccess);
+        rc = XaceHook(XACE_DEVICE_ACCESS, client, pDev, DixManageAccess);
         if (rc != Success)
             continue;
 
@@ -1963,7 +1963,7 @@ ProcGetKeyboardMapping(ClientPtr client)
     REQUEST(xGetKeyboardMappingReq);
     REQUEST_SIZE_MATCH(xGetKeyboardMappingReq);
 
-    rc = XaceHookDeviceAccess(client, kbd, DixGetAttrAccess);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, kbd, DixGetAttrAccess);
     if (rc != Success)
         return rc;
 
@@ -2016,7 +2016,7 @@ ProcGetPointerMapping(ClientPtr client)
 
     REQUEST_SIZE_MATCH(xReq);
 
-    rc = XaceHookDeviceAccess(client, ptr, DixGetAttrAccess);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, ptr, DixGetAttrAccess);
     if (rc != Success)
         return rc;
 
@@ -2232,7 +2232,7 @@ ProcChangeKeyboardControl(ClientPtr client)
         if ((pDev == keyboard ||
              (!IsMaster(pDev) && GetMaster(pDev, MASTER_KEYBOARD) == keyboard))
             && pDev->kbdfeed && pDev->kbdfeed->CtrlProc) {
-            ret = XaceHookDeviceAccess(client, pDev, DixManageAccess);
+            ret = XaceHook(XACE_DEVICE_ACCESS, client, pDev, DixManageAccess);
             if (ret != Success)
                 return ret;
         }
@@ -2261,7 +2261,7 @@ ProcGetKeyboardControl(ClientPtr client)
 
     REQUEST_SIZE_MATCH(xReq);
 
-    rc = XaceHookDeviceAccess(client, kbd, DixGetAttrAccess);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, kbd, DixGetAttrAccess);
     if (rc != Success)
         return rc;
 
@@ -2309,7 +2309,7 @@ ProcBell(ClientPtr client)
              (!IsMaster(dev) && GetMaster(dev, MASTER_KEYBOARD) == keybd)) &&
             ((dev->kbdfeed && dev->kbdfeed->BellProc) || dev->xkb_interest)) {
 
-            rc = XaceHookDeviceAccess(client, dev, DixBellAccess);
+            rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, DixBellAccess);
             if (rc != Success)
                 return rc;
             XkbHandleBell(FALSE, FALSE, dev, newpercent,
@@ -2382,7 +2382,7 @@ ProcChangePointerControl(ClientPtr client)
         if ((dev == mouse ||
              (!IsMaster(dev) && GetMaster(dev, MASTER_POINTER) == mouse)) &&
             dev->ptrfeed) {
-            rc = XaceHookDeviceAccess(client, dev, DixManageAccess);
+            rc = XaceHook(XACE_DEVICE_ACCESS, client, dev, DixManageAccess);
             if (rc != Success)
                 return rc;
         }
@@ -2414,7 +2414,7 @@ ProcGetPointerControl(ClientPtr client)
 
     REQUEST_SIZE_MATCH(xReq);
 
-    rc = XaceHookDeviceAccess(client, ptr, DixGetAttrAccess);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, ptr, DixGetAttrAccess);
     if (rc != Success)
         return rc;
 
@@ -2463,7 +2463,7 @@ ProcGetMotionEvents(ClientPtr client)
     rc = dixLookupWindow(&pWin, stuff->window, client, DixGetAttrAccess);
     if (rc != Success)
         return rc;
-    rc = XaceHookDeviceAccess(client, mouse, DixReadAccess);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, mouse, DixReadAccess);
     if (rc != Success)
         return rc;
 
@@ -2527,7 +2527,7 @@ ProcQueryKeymap(ClientPtr client)
         .length = 2
     };
 
-    rc = XaceHookDeviceAccess(client, keybd, DixReadAccess);
+    rc = XaceHook(XACE_DEVICE_ACCESS, client, keybd, DixReadAccess);
     /* If rc is Success, we're allowed to copy out the keymap.
      * If it's BadAccess, we leave it empty & lie to the client.
      */
