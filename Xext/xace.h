@@ -94,7 +94,6 @@ int XaceHookClientAccess(ClientPtr client, ClientPtr target, Mask access_mode);
 int XaceHookExtAccess(ClientPtr client, ExtensionEntry *ext);
 int XaceHookServerAccess(ClientPtr client, Mask access_mode);
 int XaceHookScreenAccess(ClientPtr client, ScreenPtr screen, Mask access_mode);
-int XaceHookScreensaverAccess(ClientPtr client, ScreenPtr screen, Mask access_mode);
 
 
 /* Register a callback for a given hook.
