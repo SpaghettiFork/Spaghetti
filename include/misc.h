@@ -403,6 +403,9 @@ typedef struct _CharInfo *CharInfoPtr;  /* also in fonts/include/font.h */
 extern _X_EXPORT unsigned long globalSerialNumber;
 extern _X_EXPORT unsigned long serverGeneration;
 
+/* Stop all event delivery to clients effective immediately. */
+extern Bool stopAllEventDelivery;
+
 #define NULL_CHECK_ASSIGN(val, fetch) \
          if (!(val = fetch)) return;
 

@@ -48,6 +48,7 @@
 
 #include "xfixesint.h"
 #include "opaque.h"
+#include "xace.h"
 
 static DevPrivateKeyRec ClientDisconnectPrivateKeyRec;
 
@@ -64,14 +65,30 @@ typedef struct _ClientDisconnect {
 int
 ProcXFixesSetClientDisconnectMode(ClientPtr client)
 {
+    int rc = Success;
     ClientDisconnectPtr pDisconnect = GetClientDisconnect(client);
 
     REQUEST(xXFixesSetClientDisconnectModeReq);
     REQUEST_SIZE_MATCH(xXFixesSetClientDisconnectModeReq);
 
+    if (stuff->disconnect_mode &
+        ~(CARD32)(XFixesClientDisconnectFlagTerminate |
+                  XFixesClientDisconnectFlagForceTerminate))
+        return BadValue;
+    /*
+     * To force the server to terminate, the client must be local
+     * and have permission to manage the server.
+     */
+    if (stuff->disconnect_mode & XFixesClientDisconnectFlagForceTerminate) {
+        if (!ClientIsLocal(client))
+            return BadAccess;
+        if ((rc = XaceHook(XACE_SERVER_ACCESS, client, DixManageAccess)))
+            return rc;
+    }
+
     pDisconnect->disconnect_mode = stuff->disconnect_mode;
 
-    return Success;
+    return rc;
 }
 
 int _X_COLD
@@ -129,6 +146,17 @@ XFixesShouldDisconnectClient(ClientPtr client)
         return (pDisconnect->disconnect_mode & XFixesClientDisconnectFlagTerminate);
 
     return FALSE;
+}
+
+Bool
+XFixesMustTerminateServerOnDisconnect(ClientPtr client)
+{
+    ClientDisconnectPtr pDisconnect = GetClientDisconnect(client);
+
+    if (!pDisconnect)
+        return FALSE;
+
+    return (pDisconnect->disconnect_mode & XFixesClientDisconnectFlagForceTerminate);
 }
 
 Bool
