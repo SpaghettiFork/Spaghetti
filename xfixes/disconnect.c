@@ -60,6 +60,8 @@ typedef struct _ClientDisconnect {
     ((ClientDisconnectPtr) dixLookupPrivate(&(s)->devPrivates, \
                                             ClientDisconnectPrivateKey))
 
+Bool allowForceTerminate;
+
 int
 ProcXFixesSetClientDisconnectMode(ClientPtr client)
 {
@@ -78,6 +80,8 @@ ProcXFixesSetClientDisconnectMode(ClientPtr client)
      * and have permission to manage the server.
      */
     if (stuff->disconnect_mode & XFixesClientDisconnectFlagForceTerminate) {
+        if (!allowForceTerminate)
+            return BadAccess;
         if (!ClientIsLocal(client))
             return BadAccess;
         if ((rc = XaceHook(XACE_SERVER_ACCESS, client, DixManageAccess)))

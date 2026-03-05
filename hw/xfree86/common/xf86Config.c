@@ -66,6 +66,7 @@
 #include "xf86Xinput.h"
 #include "loaderProcs.h"
 
+#include "misc.h"
 #include "xkbsrv.h"
 #include "picture.h"
 #ifdef DPMSExtension
@@ -625,6 +626,7 @@ typedef enum {
     FLAG_DONTVTSWITCH,
     FLAG_DONTZAP,
     FLAG_DONTZOOM,
+    FLAG_ALLOW_FORCE_TERMINATE,
     FLAG_DISABLEVIDMODE,
     FLAG_ALLOWNONLOCAL,
     FLAG_ALLOWMOUSEOPENFAIL,
@@ -657,6 +659,8 @@ typedef enum {
  * if the parser found the option in the config file.
  */
 static OptionInfoRec FlagOptions[] = {
+    {FLAG_DONTVTSWITCH, "AllowForceTerminate", OPTV_BOOLEAN,
+     {0}, FALSE},
     {FLAG_DONTVTSWITCH, "DontVTSwitch", OPTV_BOOLEAN,
      {0}, FALSE},
     {FLAG_DONTZAP, "DontZap", OPTV_BOOLEAN,
@@ -727,6 +731,12 @@ configServerFlags(XF86ConfFlagsPtr flagsconf, XF86OptionPtr layoutopts)
     const char *rules;
 
     /*
+     * Allow force terminate by default when running on hardware.
+     * Other DDXs do not set this.
+     */
+    allowForceTerminate = TRUE;
+
+    /*
      * Merge the ServerLayout and ServerFlags options.  The former have
      * precedence over the latter.
      */
@@ -746,6 +756,7 @@ configServerFlags(XF86ConfFlagsPtr flagsconf, XF86OptionPtr layoutopts)
     xf86GetOptValBool(FlagOptions, FLAG_DONTVTSWITCH, &xf86Info.dontVTSwitch);
     xf86GetOptValBool(FlagOptions, FLAG_DONTZAP, &xf86Info.dontZap);
     xf86GetOptValBool(FlagOptions, FLAG_DONTZOOM, &xf86Info.dontZoom);
+    xf86GetOptValBool(FlagOptions, FLAG_ALLOW_FORCE_TERMINATE, &allowForceTerminate);
 
     xf86GetOptValBool(FlagOptions, FLAG_IGNORE_ABI, &xf86Info.ignoreABI);
     if (xf86Info.ignoreABI) {
