@@ -1523,7 +1523,7 @@ ProcCreatePixmap(ClientPtr client)
         pMap->drawable.serialNumber = NEXT_SERIAL_NUMBER;
         pMap->drawable.id = stuff->pid;
         /* security creation/labeling check */
-        rc = XaceHookResourceAccess(client, stuff->pid, X11_RESTYPE_PIXMAP,
+        rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid, X11_RESTYPE_PIXMAP,
                       pMap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
         if (rc != Success) {
             (*pDraw->pScreen->DestroyPixmap) (pMap);

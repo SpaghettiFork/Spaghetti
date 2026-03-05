@@ -250,7 +250,7 @@ ProcCompositeNameWindowPixmap(ClientPtr client)
         return BadMatch;
 
     /* security creation/labeling check */
-    rc = XaceHookResourceAccess(client, stuff->pixmap, X11_RESTYPE_PIXMAP,
+    rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pixmap, X11_RESTYPE_PIXMAP,
                   pPixmap, X11_RESTYPE_WINDOW, pWin, DixCreateAccess);
     if (rc != Success)
         return rc;
@@ -304,7 +304,7 @@ ProcCompositeGetOverlayWindow(ClientPtr client)
             return BadAlloc;
         }
 
-    rc = XaceHookResourceAccess(client, cs->pOverlayWin->drawable.id,
+    rc = XaceHook(XACE_RESOURCE_ACCESS, client, cs->pOverlayWin->drawable.id,
                   X11_RESTYPE_WINDOW, cs->pOverlayWin, X11_RESTYPE_NONE,
                   NULL, DixGetAttrAccess);
     if (rc != Success) {
@@ -811,7 +811,7 @@ PanoramiXCompositeGetOverlayWindow(ClientPtr client)
                 return BadAlloc;
             }
 
-        rc = XaceHookResourceAccess(client,
+        rc = XaceHook(XACE_RESOURCE_ACCESS, client,
                       cs->pOverlayWin->drawable.id,
                       X11_RESTYPE_WINDOW, cs->pOverlayWin, X11_RESTYPE_NONE, NULL,
                       DixGetAttrAccess);

@@ -1001,7 +1001,7 @@ ProcPanoramiXShmCreatePixmap(ClientPtr client)
                                                        stuff->offset);
 
         if (pMap) {
-            result = XaceHookResourceAccess(client, stuff->pid,
+            result = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid,
                               X11_RESTYPE_PIXMAP, pMap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
             if (result != Success) {
                 pDraw->pScreen->DestroyPixmap(pMap);
@@ -1116,7 +1116,7 @@ ProcShmCreatePixmap(ClientPtr client)
                                                    shmdesc->addr +
                                                    stuff->offset);
     if (pMap) {
-        rc = XaceHookResourceAccess(client, stuff->pid, X11_RESTYPE_PIXMAP,
+        rc = XaceHook(XACE_RESOURCE_ACCESS, client, stuff->pid, X11_RESTYPE_PIXMAP,
                       pMap, X11_RESTYPE_NONE, NULL, DixCreateAccess);
         if (rc != Success) {
             pDraw->pScreen->DestroyPixmap(pMap);

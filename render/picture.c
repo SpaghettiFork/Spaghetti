@@ -766,7 +766,7 @@ CreatePicture(Picture pid,
     pPicture->format = pFormat->format | (pDrawable->bitsPerPixel << 24);
 
     /* security creation/labeling check */
-    *error = XaceHookResourceAccess(client, pid, PictureType, pPicture,
+    *error = XaceHook(XACE_RESOURCE_ACCESS, client, pid, PictureType, pPicture,
                       X11_RESTYPE_PIXMAP, pDrawable, DixCreateAccess | DixSetAttrAccess);
     if (*error != Success)
         goto out;
