@@ -40,6 +40,8 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "windowstr.h"
 #include "xkbsrv_priv.h"
 
+#include "xkb-procs.h"
+
 /***====================================================================***/
 
 /*
@@ -1055,6 +1057,7 @@ XkbRemoveResourceClient(DevicePtr inDev, XID id)
             autoCtrls = interest->autoCtrls;
             autoValues = interest->autoCtrlValues;
             client = interest->client;
+            FreeResource(interest->resource, RT_XKBCLIENT);
             free(interest);
             found = TRUE;
         }
@@ -1066,6 +1069,7 @@ XkbRemoveResourceClient(DevicePtr inDev, XID id)
                 autoCtrls = victim->autoCtrls;
                 autoValues = victim->autoCtrlValues;
                 client = victim->client;
+                FreeResource(victim->resource, RT_XKBCLIENT);
                 free(victim);
                 found = TRUE;
             }

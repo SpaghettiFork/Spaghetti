@@ -52,7 +52,7 @@ int XkbKeyboardErrorCode;
 CARD32 xkbDebugFlags = 0;
 static CARD32 xkbDebugCtrls = 0;
 
-static RESTYPE RT_XKBCLIENT;
+RESTYPE RT_XKBCLIENT = 0;
 
 /***====================================================================***/
 
@@ -2991,6 +2991,9 @@ _XkbSetCompatMap(ClientPtr client, DeviceIntPtr dev,
         xkbSymInterpretWireDesc *wire = (xkbSymInterpretWireDesc *) data;
         XkbSymInterpretPtr sym;
         unsigned int skipped = 0;
+
+        if ((unsigned) (req->firstSI + req->nSI) > USHRT_MAX)
+            return BadValue;
 
         if ((unsigned) (req->firstSI + req->nSI) > compat->size_si) {
             compat->num_si = compat->size_si = req->firstSI + req->nSI;
