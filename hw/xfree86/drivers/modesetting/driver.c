@@ -1924,7 +1924,7 @@ msSetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
     ScreenPtr screen = ppix->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
-    Bool ret;
+    Bool ret = FALSE;
     int ihandle = (int) (long) fd_handle;
 
     if (ihandle == -1)
@@ -1943,10 +1943,8 @@ msSetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
         int size = ppix->devKind * ppix->drawable.height;
         ret = drmmode_SetSlaveBO(ppix, &ms->drmmode, ihandle, ppix->devKind, size);
     }
-    if (ret == FALSE)
-        return ret;
 
-    return TRUE;
+    return ret;
 #else
     return FALSE;
 #endif
