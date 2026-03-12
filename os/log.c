@@ -95,7 +95,6 @@ OR PERFORMANCE OF THIS SOFTWARE.
 #include "os/audit.h"
 #include "os/client_priv.h"
 #include "os/fmt.h"
-#include "os/osdep.h"
 
 #include "input.h"
 #include "opaque.h"

@@ -135,10 +135,6 @@ extern Bool ComputeLocalClient(ClientPtr client);
 /* in auth.c */
 extern void GenerateRandomData(int len, char *buf);
 
-/* OsTimer functions */
-void TimerInit(void);
-Bool TimerForce(OsTimerPtr timer);
-
 #ifdef WIN32
 #include <X11/Xwinsock.h>
 struct utsname {

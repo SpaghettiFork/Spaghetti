@@ -127,6 +127,10 @@ typedef CARD32 (*OsTimerCallback) (OsTimerPtr timer,
                                    CARD32 time,
                                    void *arg);
 
+extern _X_EXPORT void TimerInit(void);
+
+extern _X_EXPORT Bool TimerForce(OsTimerPtr /* timer */ );
+
 #define TimerAbsolute (1<<0)
 #define TimerForceOld (1<<1)
 
