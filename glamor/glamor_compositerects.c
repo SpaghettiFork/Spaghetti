@@ -35,15 +35,11 @@
  *
  * compositeRects acceleration implementation
  */
-
-static int16_t
+static inline int16_t
 bound(int16_t a, uint16_t b)
 {
     int v = (int) a + (int) b;
-
-    if (v > MAXSHORT)
-        return MAXSHORT;
-    return v;
+    return v > MAXSHORT ? MAXSHORT : (int16_t) v;
 }
 
 static Bool
