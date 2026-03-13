@@ -1653,8 +1653,11 @@ xf86RandR12SetInfo12(ScreenPtr pScreen)
     clones = xallocarray(config->num_output, sizeof(RROutputPtr));
     crtcs = xallocarray(config->num_crtc, sizeof(RRCrtcPtr));
 
-    if (!clones || !crtcs)
+    if (!clones || !crtcs) {
+        free(clones);
+        free(crtcs);
         return FALSE;
+    }
 
     for (o = 0; o < config->num_output; o++) {
         xf86OutputPtr output = config->output[o];
