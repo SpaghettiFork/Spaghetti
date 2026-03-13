@@ -1146,7 +1146,12 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn)
 
     if (eglBindAPI(EGL_OPENGL_API)) {
         mini_vector config;
-        mini_vector_init(&config, sizeof(EGLint), 5);
+
+        if (!mini_vector_init(&config, sizeof(EGLint), 5)) {
+            xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+                       "mini_vector_init allocation failed\n");
+            return FALSE;
+        }
 
         insert_mini_vector(&config, EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR);
         insert_mini_vector(&config, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR);
@@ -1211,7 +1216,11 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
         glamor_egl_get_screen_private(scrn);
 
     mini_vector config;
-    mini_vector_init(&config, sizeof(EGLint), 5);
+    if (!mini_vector_init(&config, sizeof(EGLint), 5)) {
+        xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+                   "mini_vector_init allocation failed\n");
+        return FALSE;
+    }
 
     insert_mini_vector(&config, EGL_CONTEXT_CLIENT_VERSION);
     insert_mini_vector(&config, 2);

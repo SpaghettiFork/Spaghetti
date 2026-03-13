@@ -63,15 +63,17 @@ glamor_compile_glsl_prog(GLenum type, const char *source)
 
         glGetShaderiv(prog, GL_INFO_LOG_LENGTH, &size);
         info = malloc(size);
-        if (info) {
+
+        if (_X_LIKELY(info)) {
             glGetShaderInfoLog(prog, size, NULL, info);
             ErrorF("Failed to compile %s: %s\n",
                    type == GL_FRAGMENT_SHADER ? "FS" : "VS", info);
             ErrorF("Program source:\n%s", source);
             free(info);
-        }
-        else
+        } else {
             ErrorF("Failed to get shader compilation info.\n");
+        }
+
         FatalError("GLSL compile failure\n");
     }
 

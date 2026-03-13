@@ -130,12 +130,14 @@ miPolyGlyphBlt(DrawablePtr pDrawable, GC * pGC, int x, int y, unsigned int nglyp
              gcvals);
 
     nbyLine = BitmapBytePad(width);
+
     pbits = xallocarray(height, nbyLine);
-    if (!pbits) {
+    if (_X_UNLIKELY(!pbits)) {
         (*pDrawable->pScreen->DestroyPixmap) (pPixmap);
         FreeScratchGC(pGCtmp);
         return;
     }
+
     while (nglyph--) {
         pci = *ppci++;
         pglyph = FONTGLYPHBITS(pglyphBase, pci);

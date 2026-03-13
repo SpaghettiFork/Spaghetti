@@ -165,6 +165,9 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
         return FALSE;
 
     visuals = xallocarray(xnestNumVisuals, sizeof(VisualRec));
+    if (!visuals)
+        return FALSE;
+
     numVisuals = 0;
 
     depths = (DepthPtr) malloc(MAXDEPTH * sizeof(DepthRec));
@@ -230,6 +233,7 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
 
         numVisuals++;
     }
+    
     visuals = reallocarray(visuals, numVisuals, sizeof(VisualRec));
 
     defaultVisual = visuals[xnestDefaultVisualIndex].vid;
