@@ -119,6 +119,9 @@ xnestOpenDisplay(int argc, char *argv[])
     xnestNumDefaultColormaps = xnestNumVisuals;
     xnestDefaultColormaps = xallocarray(xnestNumDefaultColormaps,
                                         sizeof(Colormap));
+    if (!xnestDefaultColormaps)
+        FatalError("Failed to allocate xnestDefaultColormaps");
+
     for (i = 0; i < xnestNumDefaultColormaps; i++)
         xnestDefaultColormaps[i] = XCreateColormap(xnestDisplay,
                                                    DefaultRootWindow

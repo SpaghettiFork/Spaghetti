@@ -1084,7 +1084,7 @@ XvFillColorKey(DrawablePtr pDraw, CARD32 key, RegionPtr region)
     ValidateGC(pDraw, gc);
 
     rects = xallocarray(nbox, sizeof(xRectangle));
-    if (rects) {
+    if (_X_LIKELY(rects)) {
         for (i = 0; i < nbox; i++, pbox++) {
             rects[i].x = pbox->x1 - pDraw->x;
             rects[i].y = pbox->y1 - pDraw->y;

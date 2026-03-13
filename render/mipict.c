@@ -509,7 +509,7 @@ miTriStrip(CARD8 op,
 
     ntri = npoints - 2;
     tris = xallocarray(ntri, sizeof(xTriangle));
-    if (!tris)
+    if (_X_UNLIKELY(!tris))
         return;
 
     for (tri = tris; npoints >= 3; npoints--, points++, tri++) {
@@ -534,7 +534,7 @@ miTriFan(CARD8 op,
 
     ntri = npoints - 2;
     tris = xallocarray(ntri, sizeof(xTriangle));
-    if (!tris)
+    if (_X_UNLIKELY(!tris))
         return;
 
     first = points++;

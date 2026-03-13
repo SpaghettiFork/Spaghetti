@@ -204,6 +204,9 @@ xnestChangeClip(GCPtr pGC, int type, void *pValue, int nRects)
     case CT_REGION:
         nRects = RegionNumRects((RegionPtr) pValue);
         pRects = xallocarray(nRects, sizeof(*pRects));
+        if (_X_UNLIKELY(!pRects))
+            return;
+
         pBox = RegionRects((RegionPtr) pValue);
         for (i = nRects; i-- > 0;) {
             pRects[i].x = pBox[i].x1;

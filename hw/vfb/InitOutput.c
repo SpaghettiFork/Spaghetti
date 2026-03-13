@@ -479,9 +479,9 @@ vfbInstallColormap(ColormapPtr pmap)
         swapcopy32(pXWDHeader->bits_per_rgb, pVisual->bitsPerRGBValue);
         swapcopy32(pXWDHeader->colormap_entries, pVisual->ColormapEntries);
 
-        ppix = xallocarray(entries, sizeof(Pixel));
-        prgb = xallocarray(entries, sizeof(xrgb));
-        defs = xallocarray(entries, sizeof(xColorItem));
+        ppix = XNFcallocarray(entries, sizeof(Pixel));
+        prgb = XNFcallocarray(entries, sizeof(xrgb));
+        defs = XNFcallocarray(entries, sizeof(xColorItem));
 
         for (i = 0; i < entries; i++)
             ppix[i] = i;

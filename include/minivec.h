@@ -29,12 +29,16 @@ typedef struct
 	size_t obj_size;
 } mini_vector;
 
-inline void mini_vector_init(mini_vector *a, size_t obj_size, size_t initialSize)
+inline int mini_vector_init(mini_vector *a, size_t obj_size, size_t initialSize)
 {
-	a->array = malloc(initialSize * obj_size);
-	a->used = 0;
-	a->size = initialSize;
-	a->obj_size = obj_size;
+	if ((a->array = malloc(initialSize * obj_size))) {
+		a->used = 0;
+		a->size = initialSize;
+		a->obj_size = obj_size;
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 inline void insert_mini_vector(mini_vector *a, int element)
