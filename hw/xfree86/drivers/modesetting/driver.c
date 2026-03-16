@@ -1413,6 +1413,11 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         ms->drmmode.sw_cursor = TRUE;
     }
 
+    if (xf86Info.debug != NULL && !!strstr(xf86Info.debug, "multiplanar")) {
+        ms->drmmode.multiplanar = TRUE;
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Using multi-plane modifiers for front BO.\n");
+    }
+
     try_enable_glamor(pScrn);
 
     if (!ms->drmmode.glamor) {

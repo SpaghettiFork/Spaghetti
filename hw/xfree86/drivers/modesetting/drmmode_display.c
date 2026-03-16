@@ -847,7 +847,8 @@ drmmode_create_bo(drmmode_ptr drmmode, drmmode_bo *bo,
             break;
         }
 
-        num_modifiers = get_modifiers_set(drmmode->scrn, format, &modifiers, FALSE, TRUE, TRUE);
+        num_modifiers = get_modifiers_set(drmmode->scrn, format, &modifiers,
+                                          FALSE, !drmmode->multiplanar, TRUE);
         if (num_modifiers > 0) {
 #ifdef GBM_BO_WITH_MODIFIERS2
             bo->gbm = gbm_bo_create_with_modifiers2(drmmode->gbm, 

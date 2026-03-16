@@ -504,10 +504,13 @@ The following values are defined for this option:
 .IP
 .B dmabuf_capable
 .BI
-which instructs glamor to enable some unstable buffer management code.
+which instructs GLAMOR to enable some unstable buffer management code.
 .IP
 .BI high_priority
-which instructs glamor to request a higher priority context via EGL_IMG_context_priority.
+which instructs GLAMOR to request a higher priority context via EGL_IMG_context_priority.
+.IP
+.BI multiplanar
+which instructs MODESETTING to expose and use multi-planar formats for the front buffer.
 .TP 7
 .BI "Option \*qDefaultServerLayout\*q  \*q" layout\-id \*q
 This specifies the default
