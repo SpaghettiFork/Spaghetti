@@ -431,7 +431,7 @@ extern _X_EXPORT unsigned int XkbMaskForVMask(XkbDescPtr /* xkb */ ,
     );
 
 extern _X_EXPORT Bool XkbVirtualModsToReal(XkbDescPtr /* xkb */ ,
-                                           unsigned int /* virtua_mask */ ,
+                                           unsigned int /* virtual_mask */ ,
                                            unsigned int *       /* mask_rtrn */
     );
 
