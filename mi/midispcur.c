@@ -360,6 +360,7 @@ miDCPutUpCursor(DeviceIntPtr pDev, ScreenPtr pScreen, CursorPtr pCursor,
 
     pWin = pScreen->root;
     pBuffer = miGetDCDevice(pDev, pScreen);
+    BUG_RETURN_VAL(!pBuffer, FALSE);
 
     if (pScreenPriv->pPicture) {
         if (!EnsurePicture(pBuffer->pRootPicture, &pWin->drawable, pWin))
@@ -391,6 +392,7 @@ miDCSaveUnderCursor(DeviceIntPtr pDev, ScreenPtr pScreen,
     GCPtr pGC;
 
     pBuffer = miGetDCDevice(pDev, pScreen);
+    BUG_RETURN_VAL(!pBuffer, FALSE);
 
     pSave = pBuffer->pSave;
     pWin = pScreen->root;
@@ -421,8 +423,7 @@ miDCRestoreUnderCursor(DeviceIntPtr pDev, ScreenPtr pScreen,
     GCPtr pGC;
 
     pBuffer = miGetDCDevice(pDev, pScreen);
-    if (_X_UNLIKELY(!pBuffer))
-        return FALSE;
+    BUG_RETURN_VAL(!pBuffer, FALSE);
 
     pSave = pBuffer->pSave;
     pWin = pScreen->root;
@@ -501,7 +502,7 @@ miDCDeviceCleanup(DeviceIntPtr pDev, ScreenPtr pScreen)
 
             pBuffer = miGetDCDevice(pDev, pScreen);
 
-            if (pBuffer) {
+            if (_X_LIKELY(pBuffer)) {
                 if (pBuffer->pSourceGC)
                     FreeGC(pBuffer->pSourceGC, (GContext) 0);
                 if (pBuffer->pMaskGC)
