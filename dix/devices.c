@@ -2518,7 +2518,7 @@ ProcQueryKeymap(ClientPtr client)
     xQueryKeymapReply rep;
     int rc, i;
     DeviceIntPtr keybd = PickKeyboard(client);
-    CARD8 *down = keybd->key->down;
+    CARD8 *down = client->down;
 
     REQUEST_SIZE_MATCH(xReq);
     rep = (xQueryKeymapReply) {
