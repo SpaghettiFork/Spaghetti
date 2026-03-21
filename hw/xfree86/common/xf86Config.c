@@ -652,7 +652,6 @@ typedef enum {
     FLAG_IGLX,
     FLAG_DEBUG,
     FLAG_ALLOW_BYTE_SWAPPED_CLIENTS,
-    FLAG_BACKGROUND_ISOLATION
 } FlagValues;
 
 /**
@@ -716,8 +715,6 @@ static OptionInfoRec FlagOptions[] = {
      {0}, FALSE},
     {FLAG_ALLOW_BYTE_SWAPPED_CLIENTS, "AllowByteSwappedClients", OPTV_BOOLEAN,
      {0}, FALSE},
-    {FLAG_BACKGROUND_ISOLATION, "BackgroundIsolation", OPTV_BOOLEAN, 
-     {0}, FALSE},
     {-1, NULL, OPTV_NONE,
      {0}, FALSE},
 };
@@ -760,11 +757,6 @@ configServerFlags(XF86ConfFlagsPtr flagsconf, XF86OptionPtr layoutopts)
     xf86GetOptValBool(FlagOptions, FLAG_DONTZAP, &xf86Info.dontZap);
     xf86GetOptValBool(FlagOptions, FLAG_DONTZOOM, &xf86Info.dontZoom);
     xf86GetOptValBool(FlagOptions, FLAG_ALLOW_FORCE_TERMINATE, &allowForceTerminate);
-
-    xf86GetOptValBool(FlagOptions, FLAG_BACKGROUND_ISOLATION, &backgroundInputIsolation);
-    if (backgroundInputIsolation) {
-        xf86Msg(X_CONFIG, "Restricting input events to background clients.\n");
-    }
 
     xf86GetOptValBool(FlagOptions, FLAG_IGNORE_ABI, &xf86Info.ignoreABI);
     if (xf86Info.ignoreABI) {
