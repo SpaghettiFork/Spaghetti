@@ -695,15 +695,6 @@ Unset by default.
 .TP 7
 .BI "Option \*qAllowByteSwappedClients\*q  \*q" boolean \*q
 Allow clients with a different byte-order than the server. Disabled by default.
-.TP 7
-.BI "Option \*qBackgroundIsolation\*q \*q" boolean \*q
-Blocks raw key events (ET_RawKeyPress and ET_RawKeyRelease) to ungrabbed clients
-.br
-and keyboard events (ET_KeyPress and ET_KeyRelease) to both unfocused windows and clients.
-.sp 7
-Acts as a crude protection against keyloggers.
-.sp 7
-Disabled by default.
 .SH "MODULE SECTION"
 The
 .B Module
