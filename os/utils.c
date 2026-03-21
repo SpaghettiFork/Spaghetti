@@ -117,7 +117,11 @@ __stdcall unsigned long GetTickCount(void);
 #include "present.h"
 #include "dixstruct_priv.h"
 
-Bool noTestExtensions;
+Bool noXTestExtension;
+
+#ifdef XRECORD
+Bool noRecordExtension = TRUE;
+#endif
 
 #ifdef COMPOSITE
 Bool noCompositeExtension = FALSE;
@@ -404,7 +408,7 @@ UseMsg(void)
     ErrorF("-seat string           seat to run on\n");
     ErrorF("-t #                   default pointer threshold (pixels/t)\n");
     ErrorF("-terminate [delay]     terminate at server reset (optional delay in sec)\n");
-    ErrorF("-tst                   disable testing extensions\n");
+    ErrorF("-tst                   disable XTEST extension\n");
     ErrorF("ttyxx                  server started from init on /dev/ttyxx\n");
     ErrorF("v                      video blanking for screen-saver\n");
     ErrorF("-v                     screen-saver without video blanking\n");
@@ -778,7 +782,7 @@ ProcessCommandLine(int argc, char *argv[])
             terminateDelay = max(0, terminateDelay);
         }
         else if (strcmp(argv[i], "-tst") == 0) {
-            noTestExtensions = TRUE;
+            noXTestExtension = TRUE;
         }
         else if (strcmp(argv[i], "v") == 0)
             defaultScreenSaverBlanking = PreferBlanking;

@@ -298,7 +298,7 @@ the delay. At the end of this grace period if no client is
 connected, the server terminates immediately.
 .TP 8
 .B \-tst
-disables all testing extensions (e.g., XTEST, XTrap, XTestExtension1, RECORD).
+disables XTEST extension.
 .TP 8
 .B tty\fIxx\fP
 ignored, for servers started the ancient way (from init).

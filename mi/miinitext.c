@@ -109,7 +109,7 @@ static const ExtensionModule staticExtensions[] = {
 #endif
     {XInputExtensionInit, "XInputExtension", NULL},
 #ifdef XTEST
-    {XTestExtensionInit, "XTEST", &noTestExtensions},
+    {XTestExtensionInit, "XTEST", &noXTestExtension},
 #endif
     {BigReqExtensionInit, "BIG-REQUESTS", NULL},
     {SyncExtensionInit, "SYNC", NULL},
@@ -143,7 +143,7 @@ static const ExtensionModule staticExtensions[] = {
     {DbeExtensionInit, "DOUBLE-BUFFER", &noDbeExtension},
 #endif
 #ifdef XRECORD
-    {RecordExtensionInit, "RECORD", &noTestExtensions},
+    {RecordExtensionInit, "RECORD", &noRecordExtension},
 #endif
 #ifdef DPMSExtension
     {DPMSExtensionInit, "DPMS", &noDPMSExtension},
