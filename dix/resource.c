@@ -1203,8 +1203,6 @@ dixLookupResourceByType(void **result, XID id, RESTYPE rtype,
     ResourcePtr res = NULL;
 
     *result = NULL;
-    if ((rtype & TypeMask) > lastResourceType)
-        return BadImplementation;
 
     if ((cid < LimitClients) && clientTable[cid].buckets) {
         res = clientTable[cid].resources[HashResourceID(id, clientTable[cid].hashsize)];
@@ -1216,8 +1214,12 @@ dixLookupResourceByType(void **result, XID id, RESTYPE rtype,
     if (client) {
         client->errorValue = id;
     }
-    if (!res)
-        return resourceTypes[rtype & TypeMask].errorValue;
+    if (!res) {
+        if ((rtype & TypeMask) > lastResourceType)
+            return BadImplementation;
+        else
+            return resourceTypes[rtype & TypeMask].errorValue;
+    }
 
     if (client) {
         cid = XaceHookResourceAccess(client, id, res->type,
