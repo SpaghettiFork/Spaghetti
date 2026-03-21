@@ -45,7 +45,6 @@ void ListenOnOpenFD(int fd, int noxauth);
 int WriteFdToClient(struct _Client *client, int fd, Bool do_close);
 Bool InsertFakeRequest(struct _Client *client, char *data, int count);
 void FlushAllOutput(void);
-void FlushIfCriticalOutputPending(void);
 void *ReserveClientOutputSpace(ClientPtr who, int count);
 int CommitClientOutputSpace(ClientPtr who, int count);
 void ResetOsBuffers(void);

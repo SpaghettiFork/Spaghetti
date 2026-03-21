@@ -46,6 +46,7 @@ and Jim Haggerty of Metheus.
 #include "swaprep.h"
 #include "inputstr.h"
 #include "scrnintstr.h"
+#include "opaque.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -745,7 +746,7 @@ RecordSendProtocolEvents(RecordClientsAndProtocolPtr pRCAP,
             /* make sure device events get flushed in the absence
              * of other client activity
              */
-            SetCriticalOutputPending();
+            isItTimeToYield = TRUE;
         }
     }                           /* end for each event */
 
