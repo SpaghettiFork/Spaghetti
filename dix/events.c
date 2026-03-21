@@ -166,6 +166,12 @@ Equipment Corporation.
 #define PropagateMask ( \
 	KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | \
 	MotionMask )
+
+/* Deliver these events only to the owner if the owner selects them */
+#define OwnerPriorityMask (\
+        KeyPressMask | KeyReleaseMask | \
+        ButtonPressMask | ButtonReleaseMask | PointerMotionMask)
+
 #define PointerGrabMask ( \
 	ButtonPressMask | ButtonReleaseMask | \
 	EnterWindowMask | LeaveWindowMask | \
@@ -2377,6 +2383,7 @@ DeliverEventsToWindow(DeviceIntPtr pDev, WindowPtr pWin, xEvent
     Mask deliveryMask = 0;      /* If a grab occurs due to a button press, then
                                    this mask is the mask of the grab. */
     int type = pEvents->u.u.type;
+    Bool deliver_other_clients = TRUE;
 
     /* Deliver to window owner */
     if ((filter == CantBeFiltered) || core_get_type(pEvents) != 0) {
@@ -2393,6 +2400,8 @@ DeliverEventsToWindow(DeviceIntPtr pDev, WindowPtr pWin, xEvent
         case EVENT_DELIVERED:
             /* We delivered to the owner, with our event mask */
             deliveries++;
+            if (filter & OwnerPriorityMask)
+                deliver_other_clients = FALSE;
             client = wClient(pWin);
             deliveryMask = pWin->eventMask;
             break;
@@ -2402,7 +2411,7 @@ DeliverEventsToWindow(DeviceIntPtr pDev, WindowPtr pWin, xEvent
     }
 
     /* CantBeFiltered means only window owner gets the event */
-    if (filter != CantBeFiltered) {
+    if (filter != CantBeFiltered && deliver_other_clients) {
         enum EventDeliveryState rc;
 
         rc = DeliverEventToWindowMask(pDev, pWin, pEvents, count, filter,
@@ -2437,8 +2446,9 @@ DeliverEventsToWindow(DeviceIntPtr pDev, WindowPtr pWin, xEvent
                                          (deviceKeyButtonPointer *) pEvents,
                                          grab, client, deliveryMask);
         return deliveries;
+    } else {
+        return nondeliveries;
     }
-    return nondeliveries;
 }
 
 /**
