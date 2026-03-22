@@ -130,10 +130,29 @@ extern _X_EXPORT PixmapPtr glamor_create_pixmap(ScreenPtr screen, int w, int h,
                                                 int depth, unsigned int usage);
 extern _X_EXPORT Bool glamor_destroy_pixmap(PixmapPtr pixmap);
 
+/**
+ * Creates a pixmap with no glamor private, and just CPU-side pixels
+ * managed by fb.
+ */
 #define GLAMOR_CREATE_PIXMAP_CPU        0x100
 #define GLAMOR_CREATE_PIXMAP_FIXUP      0x101
+/**
+ * Creates a pixmap with no GL FBO attached, to slightly optimize
+ * cases where we know only texturing will be done to it.
+ */
 #define GLAMOR_CREATE_FBO_NO_FBO        0x103
+/**
+ * Creates a pixmap that is definitely not large-texture tiled mode.
+ *
+ * If the size is too large to not be tiled, the pixmap allocation
+ * will fail.
+ */
 #define GLAMOR_CREATE_NO_LARGE          0x105
+/**
+ * Creates a pixmap with a glamor private but no backing storage yet.
+ * Can be used if you're going to attach backing storage later, like
+ * in a DRI3 pixmap-from-BO hook.
+ */
 #define GLAMOR_CREATE_PIXMAP_NO_TEXTURE 0x106
 #define GLAMOR_CREATE_FORMAT_CBCR       0x107
 
