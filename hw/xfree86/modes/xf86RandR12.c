@@ -60,6 +60,10 @@ typedef struct _xf86RandR12Info {
     int palette_green_size;
     int palette_blue_size;
     int palette_size;
+
+    /* is a full output re-probe required? */
+    Bool needs_probe;
+
     LOCO *palette;
 
     /* Used to wrap EnterVT so we can re-probe the outputs when a laptop unsuspends
@@ -1723,11 +1727,17 @@ static Bool
 xf86RandR12GetInfo12(ScreenPtr pScreen, Rotation * rotations)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-
+    XF86RandRInfoPtr randrp = XF86RANDRINFO(pScreen);
+    
     if (!pScrn->vtSema)
         return TRUE;
+
+    if (!randrp->needs_probe)
+        return TRUE;
+
     xf86ProbeOutputModes(pScrn, 0, 0);
     xf86SetScrnInfoModes(pScrn);
+    randrp->needs_probe = FALSE;
     return xf86RandR12SetInfo12(pScreen);
 }
 
@@ -1873,7 +1883,12 @@ xf86RandR12TellChanged(ScreenPtr pScreen)
 {
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(pScrn);
+    XF86RandRInfoPtr randrp = XF86RANDRINFO(pScreen);
     int c;
+
+    /* A hotplug event means a monitor may have appeared or disappeared;
+     * flag that the next GetInfo call must re-probe data from outputs. */
+    randrp->needs_probe = TRUE;
 
     xf86RandR12SetInfo12(pScreen);
     for (c = 0; c < config->num_crtc; c++)
@@ -2076,6 +2091,10 @@ xf86RandR12EnterVT(ScrnInfoPtr pScrn)
     /* reload gamma */
     for (i = 0; i < rp->numCrtcs; i++)
         xf86RandR12CrtcReloadGamma(rp->crtcs[i]->devPrivate);
+
+    /* Flag that the next GetInfo call must re-probe outputs,
+     * since monitors may have changed while we were away */
+    randrp->needs_probe = TRUE;
 
     return RRGetInfo(pScreen, TRUE);    /* force a re-probe of outputs and notify clients about changes */
 }
@@ -2394,6 +2413,7 @@ xf86RandR12Init12(ScreenPtr pScreen)
     randrp->orig_EnterVT = pScrn->EnterVT;
     pScrn->EnterVT = xf86RandR12EnterVT;
 
+    randrp->needs_probe = TRUE;
     randrp->panning = FALSE;
     randrp->orig_ConstrainCursorHarder = pScreen->ConstrainCursorHarder;
     pScreen->ConstrainCursorHarder = xf86RandR13ConstrainCursorHarder;
