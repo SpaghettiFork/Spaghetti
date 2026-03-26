@@ -2149,7 +2149,7 @@ TryClientEvents(ClientPtr client, DeviceIntPtr dev, xEvent *pEvents,
     if (BitIsOn(criticalEvents, type)) {
         if (client->smart_priority < SMART_MAX_PRIORITY)
             client->smart_priority++;
-        isItTimeToYield = TRUE;
+        SetCriticalOutputPending();
     }
 
     WriteEventsToClient(client, count, pEvents);
