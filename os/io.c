@@ -107,6 +107,7 @@ typedef struct _connectionOutput {
 static ConnectionInputPtr AllocateInputBuffer(void);
 static ConnectionOutputPtr AllocateOutputBuffer(void);
 
+static Bool CriticalOutputPending;
 static int timesThisConnection = 0;
 static ConnectionInputPtr FreeInputs = (ConnectionInputPtr) NULL;
 static ConnectionOutputPtr FreeOutputs = (ConnectionOutputPtr) NULL;
@@ -619,6 +620,13 @@ FlushAllOutput(void)
     if (!any_output_pending())
         return;
 
+    /*
+     * It may be that some client still has critical output pending,
+     * but he is not yet ready to receive it anyway, so we will
+     * simply wait for the select to tell us when he's ready to receive.
+     */
+    CriticalOutputPending = FALSE;
+
     xorg_list_for_each_entry_safe(client, tmp, &output_pending_clients, output_pending) {
         if (client->clientGone)
             continue;
@@ -630,9 +638,16 @@ FlushAllOutput(void)
 }
 
 void
+FlushIfCriticalOutputPending(void)
+{
+    if (CriticalOutputPending)
+        FlushAllOutput();
+}
+
+void
 SetCriticalOutputPending(void)
 {
-    isItTimeToYield = TRUE;
+    CriticalOutputPending = TRUE;
 }
 
 static void
@@ -799,6 +814,11 @@ WriteToClient(ClientPtr who, int count, const void *__buf)
 #endif
     if ((oco->count == 0 && who->local) || oco->count + count + padBytes > oco->size) {
         output_pending_clear(who);
+        
+        if (!any_output_pending()) {
+            CriticalOutputPending = FALSE;
+        }
+
         return FlushClient(who, oc, buf, count);
     }
 

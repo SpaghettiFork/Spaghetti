@@ -494,6 +494,7 @@ Dispatch(void)
     while (!dispatchException) {
         if (InputCheckPending()) {
             ProcessInputEvents();
+            FlushIfCriticalOutputPending();
         }
 
         if (!WaitForSomething(clients_are_ready()))
@@ -514,6 +515,7 @@ Dispatch(void)
                 if (InputCheckPending())
                     ProcessInputEvents();
 
+                FlushIfCriticalOutputPending();
                 if ((SmartScheduleTime - start_tick) >= SmartScheduleSlice)
                 {
                     /* Penalize clients which consume ticks */
