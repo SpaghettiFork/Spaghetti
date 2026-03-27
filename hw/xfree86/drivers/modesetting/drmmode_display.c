@@ -1739,7 +1739,8 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
             if (x < glyph_width && y < glyph_height)
-                ptr[i++] = image[(glyph_y + y) * max_width + (glyph_x + x)];
+                ptr[i++] =
+                    cpu_to_le32(image[(glyph_y + y) * max_width + (glyph_x + x)]);
             else
                 ptr[i++] = 0;
         }
