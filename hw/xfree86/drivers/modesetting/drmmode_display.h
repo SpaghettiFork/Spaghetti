@@ -261,6 +261,10 @@ typedef struct {
     xf86CrtcPtr current_crtc;
     Atom ctm_atom;
     struct drm_color_ctm ctm;
+
+    xf86MonPtr cached_edid;      /* Cached parsed EDID */
+    void* cached_edid_data;      /* Cached raw EDID bytes */
+    uint32_t cached_edid_length; /* Length of cached raw data */
 } drmmode_output_private_rec, *drmmode_output_private_ptr;
 
 typedef struct {

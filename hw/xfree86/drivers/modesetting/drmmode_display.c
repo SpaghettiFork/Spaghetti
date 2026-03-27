@@ -2879,42 +2879,90 @@ drmmode_output_add_gtf_modes(xf86OutputPtr output, DisplayModePtr Modes)
     return xf86ModesAdd(Modes, m);
 }
 
+static inline void
+drmmode_clear_edid_cache(drmmode_output_private_ptr drmmode_output)
+{
+    /* Free old cached data */
+    if (drmmode_output->cached_edid) {
+        free(drmmode_output->cached_edid);
+        drmmode_output->cached_edid = NULL;
+    }
+
+    if (drmmode_output->cached_edid_data) {
+        free(drmmode_output->cached_edid_data);
+        drmmode_output->cached_edid_data = NULL;
+        drmmode_output->cached_edid_length = 0;
+    }
+}
+
 static DisplayModePtr
 drmmode_output_get_modes(xf86OutputPtr output)
 {
     drmmode_output_private_ptr drmmode_output = output->driver_private;
     drmModeConnectorPtr koutput = drmmode_output->mode_output;
     drmmode_ptr drmmode = drmmode_output->drmmode;
+    Bool edid_changed = FALSE;
     int i;
     DisplayModePtr Modes = NULL, Mode;
     xf86MonPtr mon = NULL;
+    drmModePropertyBlobPtr current_blob;
 
     if (!koutput)
         return NULL;
 
+    /* Free previous EDID blob from last call */
     drmModeFreePropertyBlob(drmmode_output->edid_blob);
+    drmmode_output->edid_blob = NULL;
 
-    /* look for an EDID property */
-    drmmode_output->edid_blob =
-        koutput_get_prop_blob(drmmode->fd, koutput, "EDID");
+    current_blob = koutput_get_prop_blob(drmmode->fd, koutput, "EDID");
+    if (current_blob) {
+        /* Check if EDID actually changed by comparing raw data */
+        if (drmmode_output->cached_edid_data &&
+            current_blob->length == drmmode_output->cached_edid_length &&
+            memcmp(current_blob->data, drmmode_output->cached_edid_data,
+                   current_blob->length) == 0) {
+            mon = drmmode_output->cached_edid;
+            drmmode_output->edid_blob = current_blob;
+        } else {
+            edid_changed = TRUE;
+            
+            mon = xf86InterpretEDID(output->scrn->scrnIndex,
+                                    current_blob->data);
+            if (mon && current_blob->length > 128)
+                mon->flags |= MONITOR_EDID_COMPLETE_RAWDATA;
 
-    if (drmmode_output->edid_blob) {
-        mon = xf86InterpretEDID(output->scrn->scrnIndex,
-                                drmmode_output->edid_blob->data);
-        if (mon && drmmode_output->edid_blob->length > 128)
-            mon->flags |= MONITOR_EDID_COMPLETE_RAWDATA;
+            /* Free old cached data */
+            drmmode_clear_edid_cache(drmmode_output);
+
+            /* Cache the new EDID and its raw data */
+            drmmode_output->cached_edid = mon;
+            drmmode_output->cached_edid_data = malloc(current_blob->length);
+            if (drmmode_output->cached_edid_data) {
+                memcpy(drmmode_output->cached_edid_data, 
+                       current_blob->data, 
+                       current_blob->length);
+                drmmode_output->cached_edid_length = current_blob->length;
+            } else {
+                drmmode_output->cached_edid_length = 0;
+            }
+
+            drmmode_output->edid_blob = current_blob;
+        }
+    } else {
+        return NULL;
     }
-    xf86OutputSetEDID(output, mon);
+
+    /* Only call xf86OutputSetEDID if EDID actually changed */
+    if (edid_changed) {
+        xf86OutputSetEDID(output, mon);
+    }
 
     drmmode_output_attach_tile(output);
 
-    /* modes should already be available */
     for (i = 0; i < koutput->count_modes; i++) {
         Mode = XNFalloc(sizeof(DisplayModeRec));
-
         drmmode_ConvertFromKMode(output->scrn, &koutput->modes[i], Mode);
         Modes = xf86ModesAdd(Modes, Mode);
-
     }
 
     return drmmode_output_add_gtf_modes(output, Modes);
@@ -2928,6 +2976,8 @@ drmmode_output_destroy(xf86OutputPtr output)
 
     drmModeFreePropertyBlob(drmmode_output->edid_blob);
     drmModeFreePropertyBlob(drmmode_output->tile_blob);
+
+    drmmode_clear_edid_cache(drmmode_output);
 
     for (i = 0; i < drmmode_output->num_props; i++) {
         drmModeFreeProperty(drmmode_output->props[i].mode_prop);
