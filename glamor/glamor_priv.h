@@ -48,6 +48,7 @@
 
 #define GLAMOR_DEFAULT_PRECISION  \
     "#ifdef GL_ES\n"              \
+    "precision mediump sampler2D;\n" \
     "precision mediump float;\n"  \
     "#endif\n"
 

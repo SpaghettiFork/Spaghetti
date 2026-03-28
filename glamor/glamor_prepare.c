@@ -30,6 +30,20 @@
  * and downloading all of the FBOs into it.
  */
 
+static inline int
+glamor_flags_for_map(glamor_screen_private *glamor_priv, glamor_access_t map_access)
+{
+#define GL_MAP_READ_WRITE (GL_MAP_READ_BIT | GL_MAP_WRITE_BIT)
+    Bool is_rw = map_access == GLAMOR_ACCESS_RW;
+
+    if (glamor_priv->has_map_buffer_range) {
+        return is_rw ? GL_MAP_READ_WRITE : GL_MAP_READ_BIT;
+    } else {
+        return is_rw ? GL_READ_WRITE : GL_READ_ONLY;
+    }
+#undef GL_MAP_READ_WRITE
+}
+
 static Bool
 glamor_prep_drawable_box(DrawablePtr drawable, glamor_access_t access, BoxPtr box)
 {
@@ -148,12 +162,17 @@ glamor_prep_drawable_box(DrawablePtr drawable, glamor_access_t access, BoxPtr bo
                           0, 0, 0, 0, pixmap->devPrivate.ptr, pixmap->devKind);
 
     if (priv->pbo) {
-        if (priv->map_access == GLAMOR_ACCESS_RW)
-            gl_access = GL_READ_WRITE;
-        else
-            gl_access = GL_READ_ONLY;
+        gl_access = glamor_flags_for_map(glamor_priv, priv->map_access);
 
-        pixmap->devPrivate.ptr = glMapBuffer(GL_PIXEL_PACK_BUFFER, gl_access);
+        if (glamor_priv->has_map_buffer_range) {
+            pixmap->devPrivate.ptr = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0,
+                                                      pixmap->devKind *
+                                                      pixmap->drawable.height,
+                                                      gl_access);
+        } else {
+            pixmap->devPrivate.ptr = glMapBuffer(GL_PIXEL_PACK_BUFFER, gl_access);
+        }
+
         glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     }
 
