@@ -255,7 +255,6 @@ typedef struct glamor_screen_private {
     Bool has_dual_blend;
     Bool has_clear_texture;
     Bool has_texture_swizzle;
-    Bool has_rg;
 
     /**
      * Stores information about supported formats. Note, that this list contains all
