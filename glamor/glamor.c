@@ -799,7 +799,8 @@ glamor_init(ScreenPtr screen, unsigned int flags)
 
     glamor_priv->has_texture_swizzle =
         (epoxy_has_gl_extension("GL_ARB_texture_swizzle") ||
-         (glamor_priv->is_gles && gl_version >= 30));
+        (epoxy_has_gl_extension("GL_EXT_texture_swizzle") ||
+         (glamor_priv->is_gles && gl_version >= 30)));
 
     glamor_setup_formats(screen, has_rg);
 
