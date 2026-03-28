@@ -528,7 +528,7 @@ glamor_add_format(ScreenPtr screen, int depth, CARD32 render_format,
  * driver's visual masks also need to match what we're doing here.
  */
 static void
-glamor_setup_formats(ScreenPtr screen)
+glamor_setup_formats(ScreenPtr screen, Bool has_rg)
 {
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
 
@@ -536,7 +536,7 @@ glamor_setup_formats(ScreenPtr screen)
      * only falling back to a8 if we can't do them. We cannot do them
      * on GLES2 due to lack of texture swizzle.
      */
-    if (glamor_priv->has_rg && glamor_priv->has_texture_swizzle) {
+    if (has_rg && glamor_priv->has_texture_swizzle) {
         glamor_add_format(screen, 1, PICT_a1,
                           GL_R8, GL_RED, GL_UNSIGNED_BYTE, FALSE);
         glamor_add_format(screen, 8, PICT_a8,
@@ -590,7 +590,7 @@ glamor_setup_formats(ScreenPtr screen)
     }
 
     glamor_priv->cbcr_format.depth = 16;
-    if (glamor_priv->is_gles && glamor_priv->has_rg) {
+    if (glamor_priv->is_gles && has_rg) {
         glamor_priv->cbcr_format.internalformat = GL_RG;
     } else {
         glamor_priv->cbcr_format.internalformat = GL_RG8;
@@ -766,8 +766,9 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         epoxy_gl_version() >= 44 ||
         epoxy_has_gl_extension("GL_ARB_clear_texture") ||
         epoxy_has_gl_extension("GL_EXT_clear_texture");
+
     /* GL_EXT_texture_rg is part of GLES3 core */
-    glamor_priv->has_rg =
+    Bool has_rg =
         (glamor_priv->is_gles && epoxy_gl_version() >= 30) ||
         epoxy_has_gl_extension("GL_EXT_texture_rg") ||
         epoxy_has_gl_extension("GL_ARB_texture_rg");
@@ -800,7 +801,7 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         (epoxy_has_gl_extension("GL_ARB_texture_swizzle") ||
          (glamor_priv->is_gles && gl_version >= 30));
 
-    glamor_setup_formats(screen);
+    glamor_setup_formats(screen, has_rg);
 
     glamor_set_debug_level(&glamor_debug_level);
 
