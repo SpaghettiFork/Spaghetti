@@ -48,6 +48,7 @@ if cc.get_id() == 'gcc' or cc.get_id() == 'clang'
         '-Werror=int-to-pointer-cast',
         '-Werror=pointer-to-int-cast',
         '-Wvla',
+        '-Wanalyzer-null-dereference'
     ]
 else
     test_wflags = []
