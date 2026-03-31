@@ -1521,7 +1521,7 @@ get_mcast_options(int argc, char **argv, int i)
         else {
             struct multicastinfo *mcastinfo, *mcl;
 
-            mcastinfo = malloc(sizeof(struct multicastinfo));
+            mcastinfo = XNFalloc(sizeof(struct multicastinfo));
             mcastinfo->next = NULL;
             mcastinfo->ai = firstai;
             mcastinfo->hops = hopcount;
