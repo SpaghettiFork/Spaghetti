@@ -392,7 +392,7 @@ int
 ProcRRListProviderProperties(ClientPtr client)
 {
     REQUEST(xRRListProviderPropertiesReq);
-    Atom *pAtoms = NULL, *temppAtoms;
+    Atom *pAtoms = NULL;
     xRRListProviderPropertiesReply rep;
     int numProps = 0;
     RRProviderPtr provider;
@@ -419,12 +419,14 @@ ProcRRListProviderProperties(ClientPtr client)
         swapl(&rep.length);
         swaps(&rep.nAtoms);
     }
-    temppAtoms = pAtoms;
-    for (prop = provider->properties; prop; prop = prop->next)
-        *temppAtoms++ = prop->propertyName;
 
     WriteToClient(client, sizeof(xRRListProviderPropertiesReply), (char *) &rep);
     if (numProps) {
+        Atom *temppAtoms = pAtoms;
+
+        for (prop = provider->properties; prop; prop = prop->next)
+            *temppAtoms++ = prop->propertyName;
+
         client->pSwapReplyFunc = (ReplySwapPtr) Swap32Write;
         WriteSwappedDataToClient(client, numProps * sizeof(Atom), pAtoms);
         free(pAtoms);
