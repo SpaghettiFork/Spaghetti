@@ -123,7 +123,8 @@ validGlxFBConfigForWindow(ClientPtr client, __GLXconfig * config,
     }
 
     /* FIXME: What exactly should we check here... */
-    if (pVisual->class != glxConvertToXVisualType(config->visualType) ||
+    if (pVisual == NULL ||
+        pVisual->class != glxConvertToXVisualType(config->visualType) ||
         !(config->drawableType & GLX_WINDOW_BIT)) {
         client->errorValue = pDraw->id;
         *err = BadMatch;
