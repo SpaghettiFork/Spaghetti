@@ -479,23 +479,25 @@ vfbInstallColormap(ColormapPtr pmap)
         swapcopy32(pXWDHeader->bits_per_rgb, pVisual->bitsPerRGBValue);
         swapcopy32(pXWDHeader->colormap_entries, pVisual->ColormapEntries);
 
-        ppix = XNFcallocarray(entries, sizeof(Pixel));
-        prgb = XNFcallocarray(entries, sizeof(xrgb));
-        defs = XNFcallocarray(entries, sizeof(xColorItem));
+        ppix = xallocarray(entries, sizeof(Pixel));
+        prgb = xallocarray(entries, sizeof(xrgb));
+        defs = xallocarray(entries, sizeof(xColorItem));
 
-        for (i = 0; i < entries; i++)
-            ppix[i] = i;
-        /* XXX truecolor */
-        QueryColors(pmap, entries, ppix, prgb, serverClient);
+        if (ppix && prgb && defs) {
+            for (i = 0; i < entries; i++)
+                ppix[i] = i;
+            /* XXX truecolor */
+            QueryColors(pmap, entries, ppix, prgb, serverClient);
 
-        for (i = 0; i < entries; i++) { /* convert xrgbs to xColorItems */
-            defs[i].pixel = ppix[i] & 0xff;     /* change pixel to index */
-            defs[i].red = prgb[i].red;
-            defs[i].green = prgb[i].green;
-            defs[i].blue = prgb[i].blue;
-            defs[i].flags = DoRed | DoGreen | DoBlue;
+            for (i = 0; i < entries; i++) { /* convert xrgbs to xColorItems */
+                defs[i].pixel = ppix[i] & 0xff;     /* change pixel to index */
+                defs[i].red = prgb[i].red;
+                defs[i].green = prgb[i].green;
+                defs[i].blue = prgb[i].blue;
+                defs[i].flags = DoRed | DoGreen | DoBlue;
+            }
+            (*pmap->pScreen->StoreColors) (pmap, entries, defs);
         }
-        (*pmap->pScreen->StoreColors) (pmap, entries, defs);
 
         free(ppix);
         free(prgb);
