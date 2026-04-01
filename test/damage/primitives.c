@@ -102,6 +102,7 @@ compute_expected_damage(struct test_setup *setup)
     }
 
     /* Make sure that the testcases actually render something! */
+    free(results);
     assert(any_modified_pixels);
 }
 
