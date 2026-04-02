@@ -646,23 +646,23 @@ xorgGlxMakeCurrent(ClientPtr client, GLXContextTag tag, XID drawId, XID readId,
             return __glXError(GLXBadContext);
 
         lastGLContext = NULL;
-        if (!prevglxc->isDirect) {
-            prevglxc->drawPriv = NULL;
-            prevglxc->readPriv = NULL;
-        }
+        prevglxc->drawPriv = NULL;
+        prevglxc->readPriv = NULL;
     }
 
-    if (glxc && !glxc->isDirect) {
+    if (glxc) {
         glxc->drawPriv = drawPriv;
         glxc->readPriv = readPriv;
 
-        /* make the context current */
-        lastGLContext = glxc;
-        if (!(*glxc->makeCurrent) (glxc)) {
-            lastGLContext = NULL;
-            glxc->drawPriv = NULL;
-            glxc->readPriv = NULL;
-            return __glXError(GLXBadContext);
+        if (!glxc->isDirect) {
+            /* make the context current */
+            lastGLContext = glxc;
+            if (!(*glxc->makeCurrent) (glxc)) {
+                lastGLContext = NULL;
+                glxc->drawPriv = NULL;
+                glxc->readPriv = NULL;
+                return __glXError(GLXBadContext);
+            }
         }
     }
 
