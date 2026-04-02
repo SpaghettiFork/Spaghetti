@@ -177,6 +177,28 @@ Equipment Corporation.
 #define LastEventMask OwnerGrabButtonMask
 #define AllEventMasks (LastEventMask|(LastEventMask-1))
 
+/* Background Input Isolation */
+static inline Bool
+isolate_event_from_client(InternalEvent *event, WindowPtr win)
+{
+    if (!backgroundInputIsolation)
+        return FALSE;
+
+    WindowPtr focus = inputInfo.keyboard->focus->win;
+
+    if (focus == win)
+        return FALSE;
+
+    return event->any.type == ET_KeyPress || event->any.type == ET_KeyRelease;
+}
+
+static inline Bool
+isolate_raw_event_from_client(RawDeviceEvent *ev)
+{
+    return ev->type == ET_RawKeyPress || ev->type == ET_RawKeyRelease;
+}
+/* */
+
 /* @return the core event type or 0 if the event is not a core event */
 static inline int
 core_get_type(const xEvent *event)
@@ -2486,6 +2508,15 @@ DeliverRawEvent(RawDeviceEvent *ev, DeviceIntPtr device)
     if (grab)
         DeliverGrabbedEvent((InternalEvent *) ev, device, FALSE);
 
+    /*
+     * To prevent keylogging, raw keyboard events should
+     * not be sent to any client that isn't grabbed.
+     */
+    if (isolate_raw_event_from_client(ev)) {
+        free(xi);
+        return;
+    }
+
     filter = GetEventFilter(device, xi);
 
     for (i = 0; i < screenInfo.numScreens; i++) {
@@ -2832,6 +2863,15 @@ DeliverOneEvent(InternalEvent *event, DeviceIntPtr dev, enum InputLevel level,
     int count = 0;
     int deliveries = 0;
     int rc;
+
+    /*
+     * Deliver keyboard events only if client is focused.
+     * Even if it does not have a window, that means unfocused.
+     * 
+     * Acts as a crude protection against keyloggers.
+     */
+    if (isolate_event_from_client(event, win))
+        return 0;
 
     switch (level) {
     case XI2:

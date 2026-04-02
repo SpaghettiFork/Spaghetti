@@ -30,6 +30,8 @@ extern _X_EXPORT char *SeatId;
 extern _X_EXPORT char *ConnectionInfo;
 extern _X_EXPORT sig_atomic_t inSignalContext;
 
+extern _X_EXPORT Bool backgroundInputIsolation;
+
 #ifdef XINERAMA
 extern _X_EXPORT Bool PanoramiXExtensionDisabledHack;
 #endif /* XINERAMA */
