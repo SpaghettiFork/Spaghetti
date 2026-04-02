@@ -78,7 +78,7 @@ static dispatch_queue_t eventTranslationQueue;
 #define APPKIT_APPFLAGS_HACK 1
 #endif
 
-extern Bool noXTestExtension;
+extern Bool noTestExtensions;
 extern Bool noRenderExtension;
 
 static TISInputSourceRef last_key_layout;
@@ -545,7 +545,7 @@ QuartzModeBundleInit(void);
 
     darwinDesiredDepth = [defaults integerForKey:XQuartzPrefKeyDepth];
 
-    noXTestExtension = ![defaults boolForKey:XQuartzPrefKeyTESTExtension];
+    noTestExtensions = ![defaults boolForKey:XQuartzPrefKeyTESTExtension];
     noRenderExtension = ![defaults boolForKey:XQuartzPrefKeyRENDERExtension];
 
     XQuartzScrollInDeviceDirection = [defaults boolForKey:XQuartzPrefKeyScrollInDeviceDirection];
@@ -1124,7 +1124,7 @@ handle_mouse:
             }
         }
 
-        if (!XQuartzServerVisible && noXTestExtension) {
+        if (!XQuartzServerVisible && noTestExtensions) {
             xp_window_id wid = 0;
             xp_error err;
 
