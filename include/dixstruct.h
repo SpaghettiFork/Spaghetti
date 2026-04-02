@@ -113,9 +113,6 @@ typedef struct _Client {
     DeviceIntPtr clientPtr;
     struct _ClientId *clientIds;
     int req_fds;
-
-/* Spaghetti ABI */
-    CARD8 down[DOWN_LENGTH];    /* track key state for QueryKeymap */
 } ClientRec;
 
 typedef struct _WorkQueue {
