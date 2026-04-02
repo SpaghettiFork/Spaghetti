@@ -64,9 +64,3 @@ between Spaghetti and the X.Org Display server.
 ## FB
 
 - Fixed source and mask clipping for `fbComposite`.
-
-## INPUT
-
-- Protections aganist keyboard snooping
-
-	Core input events are now only sent to window owners, key grabbing is unaffected.
