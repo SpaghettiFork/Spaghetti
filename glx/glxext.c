@@ -95,7 +95,7 @@ static int glxBlockClients;
 static Bool
 DrawableGone(__GLXdrawable * glxPriv, XID xid)
 {
-    __GLXcontext *c, *next;
+    __GLXcontext *c;
 
     if (glxPriv->type == GLX_DRAWABLE_WINDOW) {
         /* If this was created by glXCreateWindow, free the matching resource */
@@ -108,11 +108,8 @@ DrawableGone(__GLXdrawable * glxPriv, XID xid)
         /* otherwise this window was implicitly created by MakeCurrent */
     }
 
-    for (c = glxAllContexts; c; c = next) {
-        next = c->next;
-        if (c->currentClient &&
-		(c->drawPriv == glxPriv || c->readPriv == glxPriv)) {
-            /* just force a re-bind the next time through */
+    for (c = glxAllContexts; c; c = c->next) {
+        if (c->drawPriv == glxPriv || c->readPriv == glxPriv) {
             (*c->loseCurrent) (c);
             lastGLContext = NULL;
         }
