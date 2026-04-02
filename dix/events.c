@@ -2124,19 +2124,6 @@ TryClientEvents(ClientPtr client, DeviceIntPtr dev, xEvent *pEvents,
         }
     }
 
-    /* Track keyboard state per client */
-    switch (type) {
-    case KeyPress:
-        SetBit(client->down, pEvents->u.u.detail);
-        break;
-    case KeyRelease:
-        ClearBit(client->down, pEvents->u.u.detail);
-        break;
-    case KeymapNotify:
-        memcpy(client->down+1, ((xKeymapEvent *) pEvents)->map, 31);
-        break;
-    }
-
     if (BitIsOn(criticalEvents, type)) {
         if (client->smart_priority < SMART_MAX_PRIORITY)
             client->smart_priority++;
