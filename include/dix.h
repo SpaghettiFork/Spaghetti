@@ -66,6 +66,9 @@ SOFTWARE.
 
 #define ARRAY_SIZE(a)  (sizeof((a)) / sizeof((a)[0]))
 
+#define XORG_EXCHANGE(a, b) \
+    { typeof(a) __tmp; __tmp = a; a = b; b = __tmp; }
+
 #define REQUEST_SIZE_MATCH(req)                                         \
     do {                                                                \
         if ((sizeof(req) >> 2) != client->req_len)                      \

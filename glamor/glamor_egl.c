@@ -935,18 +935,18 @@ glamor_egl_exchange_buffers(PixmapPtr front, PixmapPtr back)
 
     /* Swap all buffer related members */
 #ifdef GLAMOR_HAS_GBM
-    GLAMOR_EXCHANGE(back_priv->bo, front_priv->bo);
-    GLAMOR_EXCHANGE(back_priv->owned_bo, front_priv->owned_bo);
-    GLAMOR_EXCHANGE(back_priv->used_modifiers, front_priv->used_modifiers);
+    XORG_EXCHANGE(back_priv->bo, front_priv->bo);
+    XORG_EXCHANGE(back_priv->owned_bo, front_priv->owned_bo);
+    XORG_EXCHANGE(back_priv->used_modifiers, front_priv->used_modifiers);
 
 #ifdef GLAMOR_HAS_GBM_MAP
-    GLAMOR_EXCHANGE(back_priv->bo_mapped, front_priv->bo_mapped);
-    GLAMOR_EXCHANGE(back_priv->map_data, front_priv->map_data);
+    XORG_EXCHANGE(back_priv->bo_mapped, front_priv->bo_mapped);
+    XORG_EXCHANGE(back_priv->map_data, front_priv->map_data);
 #endif
 #endif
 
-    GLAMOR_EXCHANGE(back->devPrivate.ptr, front->devPrivate.ptr);
-    GLAMOR_EXCHANGE(back->devKind, front->devKind);
+    XORG_EXCHANGE(back->devPrivate.ptr, front->devPrivate.ptr);
+    XORG_EXCHANGE(back->devKind, front->devKind);
 
     glamor_set_pixmap_type(front, GLAMOR_TEXTURE_DRM);
     glamor_set_pixmap_type(back, GLAMOR_TEXTURE_DRM);
