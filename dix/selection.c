@@ -154,38 +154,33 @@ DeleteClientFromAnySelections(ClientPtr client)
 }
 
 int
-ProcSetSelectionOwner(ClientPtr client)
+dixSetSelectionOwner(ClientPtr client, Atom selection,
+                     Window window, TimeStamp time)
 {
     WindowPtr pWin = NULL;
-    TimeStamp time;
     Selection *pSel;
     int rc;
-
-    REQUEST(xSetSelectionOwnerReq);
-    REQUEST_SIZE_MATCH(xSetSelectionOwnerReq);
-
-    UpdateCurrentTime();
-    time = ClientTimeToServerTime(stuff->time);
 
     /* If the client's time stamp is in the future relative to the server's
        time stamp, do not set the selection, just return success. */
     if (CompareTimeStamps(time, currentTime) == LATER)
         return Success;
 
-    if (stuff->window != None) {
-        rc = dixLookupWindow(&pWin, stuff->window, client, DixSetAttrAccess);
+    if (window != None) {
+        rc = dixLookupWindow(&pWin, window, client, DixSetAttrAccess);
         if (rc != Success)
             return rc;
     }
-    if (!ValidAtom(stuff->selection)) {
-        client->errorValue = stuff->selection;
+
+    if (!ValidAtom(selection)) {
+        client->errorValue = selection;
         return BadAtom;
     }
 
     /*
      * First, see if the selection is already set...
      */
-    rc = dixLookupSelection(&pSel, stuff->selection, client, DixSetAttrAccess);
+    rc = dixLookupSelection(&pSel, selection, client, DixSetAttrAccess);
 
     if (rc != Success)
         return rc;
@@ -207,12 +202,24 @@ ProcSetSelectionOwner(ClientPtr client)
     }
 
     pSel->lastTimeChanged = time;
-    pSel->window = stuff->window;
+    pSel->window = window;
     pSel->pWin = pWin;
     pSel->client = (pWin ? client : NullClient);
 
     CallSelectionCallback(pSel, client, SelectionSetOwner);
     return Success;
+}
+
+int
+ProcSetSelectionOwner(ClientPtr client)
+{
+    REQUEST(xSetSelectionOwnerReq);
+    REQUEST_SIZE_MATCH(xSetSelectionOwnerReq);
+
+    UpdateCurrentTime();
+
+    return dixSetSelectionOwner(client, stuff->selection, stuff->window,
+                                ClientTimeToServerTime(stuff->time));
 }
 
 int
