@@ -3634,9 +3634,9 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     modesettingPtr ms = modesettingPTR(scrn);
     drmmode_ptr drmmode = &ms->drmmode;
-    drmmode_bo old_front;
+    drmmode_bo old_front = { 0 };
     ScreenPtr screen = xf86ScrnToScreen(scrn);
-    uint32_t old_fb_id;
+    uint32_t old_fb_id = 0;
     int i, pitch, old_width, old_height, old_pitch;
     int cpp = (scrn->bitsPerPixel + 7) / 8;
     int kcpp = (drmmode->kbpp + 7) / 8;
@@ -3652,9 +3652,9 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
     old_width = scrn->virtualX;
     old_height = scrn->virtualY;
     old_pitch = drmmode_bo_get_pitch(&drmmode->front_bo);
-    old_front = drmmode->front_bo;
-    old_fb_id = drmmode->fb_id;
-    drmmode->fb_id = 0;
+
+    XORG_EXCHANGE(old_front, drmmode->front_bo);
+    XORG_EXCHANGE(old_fb_id, drmmode->fb_id);
 
     if (!drmmode_create_bo(drmmode, &drmmode->front_bo,
                            width, height, drmmode->kbpp))
