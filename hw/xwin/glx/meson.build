@@ -14,33 +14,33 @@ gen_gl_wrappers_cmd = ['env', 'PYTHONPATH=' + khronos_spec_dir, py3, files('./ge
 wgl_wrappers = custom_target(
     'gen_wgl_wrappers',
     command: [gen_gl_wrappers_cmd, '-registry', '@INPUT@', '-prefix', 'wgl', '-wrapper', '-preresolve', '-outfile', '@OUTPUT@'],
-    input: join_paths(khronos_spec_dir, 'wgl.xml'),
+    input: khronos_spec_dir / 'wgl.xml',
     output: 'generated_wgl_wrappers.ic',
-    depend_files: join_paths(khronos_spec_dir, 'reg.py'),
+    depend_files: khronos_spec_dir / 'reg.py',
 )
 
 gl_shim = custom_target(
     'gen_gl_shim',
     command: [gen_gl_wrappers_cmd, '-registry', '@INPUT@', '-shim', '-outfile', '@OUTPUT@'],
-    input: join_paths(khronos_spec_dir, 'gl.xml'),
+    input: khronos_spec_dir / 'gl.xml',
     output: 'generated_gl_shim.ic',
-    depend_files: join_paths(khronos_spec_dir, 'reg.py'),
+    depend_files: khronos_spec_dir / 'reg.py',
 )
 
 gl_thunks = custom_target(
     'gen_gl_thunks',
     command: [gen_gl_wrappers_cmd, '-registry', '@INPUT@', '-thunk', '-outfile', '@OUTPUT@'],
-    input: join_paths(khronos_spec_dir, 'gl.xml'),
+    input: khronos_spec_dir / 'gl.xml',
     output: 'generated_gl_thunks.ic',
-    depend_files: join_paths(khronos_spec_dir, 'reg.py'),
+    depend_files: khronos_spec_dir / 'reg.py',
 )
 
 gl_thunks_def = custom_target(
     'gen_gl_thunks_def',
     command: [gen_gl_wrappers_cmd, '-registry', '@INPUT@', '-thunkdefs', '-outfile', '@OUTPUT@'],
-    input: join_paths(khronos_spec_dir, 'gl.xml'),
+    input: khronos_spec_dir / 'gl.xml',
     output: 'generated_gl_thunks.def',
-    depend_files: join_paths(khronos_spec_dir, 'reg.py'),
+    depend_files: khronos_spec_dir / 'reg.py',
 )
 
 srcs_windows_glx = [

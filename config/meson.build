@@ -26,7 +26,7 @@ endif
 if build_xorg
     install_data(
       '10-quirks.conf',
-      install_dir: join_paths(get_option('datadir'), 'X11/xorg.conf.d'),
+      install_dir: get_option('datadir') / 'X11/xorg.conf.d',
       install_tag: 'runtime',
     )
 endif

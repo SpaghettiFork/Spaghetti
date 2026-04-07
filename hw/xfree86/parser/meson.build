@@ -25,7 +25,7 @@ xorg_parser = static_library('xorg_parser',
     dependencies: common_dep,
     c_args: [
         xorg_c_args,
-        '-DDATADIR="' + join_paths(get_option('prefix'), get_option('datadir')) + '"',
+        '-DDATADIR="' + (get_option('prefix') / get_option('datadir')) + '"',
     ],
 )
 

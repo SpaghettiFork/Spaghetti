@@ -20,11 +20,11 @@ mach_startup_dep = declare_dependency(
 xquartz_defs = [
     bundle_id_def,
     '-DXSERVER_VERSION="@0@"'.format(meson.project_version()),
-    '-DX11BINDIR="@0@"'.format(join_paths(get_option('prefix'), get_option('bindir'))),
+    '-DX11BINDIR="@0@"'.format(get_option('prefix') / get_option('bindir')),
 ]
 
 # X11.bin
-x11appdir = join_paths(bundle_root, 'Contents/MacOS')
+x11appdir = bundle_root / 'Contents/MacOS'
 
 x11_bin_deps = [
      meson.get_compiler('c').find_library('Xplugin'),

@@ -20,21 +20,21 @@ localities = [
     'ro','ru','sk','sv','th','tr','uk','zh_CN','zh_TW'
 ]
 foreach lang : localities
-    install_data(join_paths('Resources', lang + '.lproj', 'Localizable.strings'),
-        install_dir: join_paths(bundle_root, 'Contents/Resources', lang + '.lproj'),
+    install_data('Resources' / lang + '.lproj' / 'Localizable.strings',
+        install_dir: bundle_root / 'Contents/Resources' / lang + '.lproj',
         install_mode: 'rw-r--r--')
 
-    install_data(join_paths('Resources', lang + '.lproj', 'main.nib/keyedobjects.nib'),
-        install_dir: join_paths(bundle_root, 'Contents/Resources', lang + '.lproj', 'main.nib'),
+    install_data('Resources' / lang + '.lproj' / 'main.nib/keyedobjects.nib',
+        install_dir: bundle_root / 'Contents/Resources' / lang + '.lproj' / 'main.nib',
         install_mode: 'rw-r--r--')
 endforeach
 
 install_data('Resources/English.lproj/main.nib/designable.nib',
-    install_dir: join_paths(bundle_root, 'Contents/Resources/English.lproj/main.nib'),
+    install_dir: bundle_root / 'Contents/Resources/English.lproj/main.nib',
     install_mode: 'rw-r--r--')
 
 install_data('Resources/X11.icns',
-    install_dir: join_paths(bundle_root, 'Contents/Resources'),
+    install_dir: bundle_root / 'Contents/Resources',
     install_mode: 'rw-r--r--')
 
 custom_target('Info.plist',
@@ -43,17 +43,17 @@ custom_target('Info.plist',
     input: 'Info.plist.cpp',
     output: 'Info.plist',
     install: true,
-    install_dir: join_paths(bundle_root, 'Contents'),
+    install_dir: bundle_root / 'Contents',
     install_mode: 'rw-r--r--',
     build_by_default: true,
 )
 
 install_data('PkgInfo',
-    install_dir: join_paths(bundle_root, 'Contents'),
+    install_dir: bundle_root / 'Contents',
     install_mode: 'rw-r--r--')
 
 install_data('X11.sh',
-    install_dir: join_paths(bundle_root, 'Contents/MacOS'),
+    install_dir: bundle_root / 'Contents/MacOS',
     install_mode: 'rwxr-xr-x')
 
 meson.add_install_script('chown-bundle.sh', bundle_root)

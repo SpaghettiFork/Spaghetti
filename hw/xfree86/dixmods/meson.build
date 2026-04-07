@@ -38,6 +38,6 @@ if build_glx
         link_with: e,
 
         install: true,
-        install_dir: join_paths(module_dir, 'extensions')
+        install_dir: module_dir / 'extensions'
     )
 endif

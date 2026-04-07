@@ -145,7 +145,7 @@ meson.add_install_script(
     'sh', '-c',
     'ln -fs Xorg @0@@1@'.format(
         '${DESTDIR}',
-        join_paths(get_option('prefix'), get_option('bindir'), 'X')),
+        get_option('prefix') / get_option('bindir') / 'X'),
     install_tag: 'runtime',
 )
 
@@ -171,7 +171,7 @@ if get_option('suid_wrapper')
     install_data(
         xorg_sh,
         install_mode: 'rwxr-xr-x',
-        install_dir: join_paths(get_option('prefix'), get_option('bindir')),
+        install_dir: get_option('prefix') / get_option('bindir'),
         rename: ['Xorg']
     )
 endif

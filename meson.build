@@ -138,13 +138,13 @@ if xkb_dir == ''
         xkb_dir = xkbcomp_dep.get_variable(pkgconfig : 'xkbconfigdir')
     endif
     if xkb_dir == ''
-        xkb_dir = join_paths(get_option('prefix'), 'share/X11/xkb')
+        xkb_dir = get_option('prefix') / 'share/X11/xkb'
     endif
 endif
 
 xkb_output_dir = get_option('xkb_output_dir')
 if xkb_output_dir == ''
-    xkb_output_dir = join_paths(xkb_dir, 'compiled')
+    xkb_output_dir = xkb_dir / 'compiled'
 endif
 
 xkb_bin_dir = get_option('xkb_bin_dir')
@@ -153,7 +153,7 @@ if xkb_bin_dir == ''
         xkb_bin_dir = xkbcomp_dep.get_variable(pkgconfig : 'bindir')
     endif
     if xkb_bin_dir == ''
-        xkb_bin_dir = join_paths(get_option('prefix'), get_option('bindir'))
+        xkb_bin_dir = get_option('prefix') / get_option('bindir')
     endif
 endif
 
@@ -165,16 +165,16 @@ if dfp == ''
         if fontutil_dep.found()
             fontrootdir = fontutil_dep.get_variable(pkgconfig : 'fontrootdir')
         else
-            fontrootdir = join_paths(get_option('prefix'), get_option('datadir'), 'fonts', 'X11')
+            fontrootdir = get_option('prefix') / get_option('datadir', 'fonts', 'X11')
         endif
     endif
     dfp_elements = [
-        join_paths(fontrootdir, 'misc'),
-        join_paths(fontrootdir, 'TTF'),
-        join_paths(fontrootdir, 'OTF'),
-        join_paths(fontrootdir, 'Type1'),
-        join_paths(fontrootdir, '100dpi'),
-        join_paths(fontrootdir, '75dpi'),
+        fontrootdir / 'misc',
+        fontrootdir / 'TTF',
+        fontrootdir / 'OTF',
+        fontrootdir / 'Type1',
+        fontrootdir / '100dpi',
+        fontrootdir / '75dpi',
     ]
     if host_machine.system() == 'darwin'
        dfp_elements += [
@@ -221,7 +221,7 @@ if (host_machine.system() != 'windows')
         build_xorg = get_option('xorg') == 'true'
     endif
 endif
-xorgsdkdir = join_paths(get_option('prefix'), get_option('includedir'), 'xorg')
+xorgsdkdir = get_option('prefix') / get_option('includedir') / 'xorg'
 libxcvt_dep = dependency('libxcvt', fallback: ['libxcvt', 'libxcvt_dep'], required: build_xorg)
 
 ## configure Xnest - nesting X server
@@ -338,10 +338,10 @@ endif
 
 log_dir = get_option('log_dir')
 if log_dir == ''
-    log_dir = join_paths(get_option('prefix'), get_option('localstatedir'), 'log')
+    log_dir = get_option('prefix') / get_option('localstatedir') / 'log'
 endif
 
-module_dir = join_paths(get_option('libdir'), get_option('module_dir'))
+module_dir = get_option('libdir') / get_option('module_dir')
 
 if glamor_option == 'auto'
     build_glamor = build_xorg
@@ -682,7 +682,7 @@ top_dir_inc = include_directories('.')
 
 serverconfigdir = get_option('serverconfigdir')
 if serverconfigdir == ''
-    serverconfigdir = join_paths(get_option('prefix'), get_option('libdir'), 'xorg')
+    serverconfigdir = get_option('prefix') / get_option('libdir') / 'xorg'
 endif
 
 subdir('man')
@@ -711,7 +711,7 @@ build_docs_pdf = (get_option('docs-pdf') != 'false' and
 
 if build_docs or build_docs_devel
     doc_sgml_path = sgml_doctools_dep.get_variable(pkgconfig : 'sgmlrootdir')
-    doc_stylesheet_srcdir = join_paths(doc_sgml_path, 'X11')
+    doc_stylesheet_srcdir = doc_sgml_path / 'X11'
 
     # Meson does not and will not support functions so we are copy-pasting
     # documentation build code around which is unfortunate
@@ -805,12 +805,12 @@ if build_xorg
 
     sdkconfig.set('prefix', get_option('prefix'))
     sdkconfig.set('exec_prefix', '${prefix}')
-    sdkconfig.set('libdir', join_paths('${exec_prefix}', get_option('libdir')))
-    sdkconfig.set('includedir', join_paths('${prefix}', get_option('includedir')))
-    sdkconfig.set('datarootdir', join_paths('${prefix}', get_option('datadir')))
-    sdkconfig.set('moduledir', join_paths('${exec_prefix}', module_dir))
-    sdkconfig.set('sdkdir', join_paths('${prefix}', get_option('includedir'), 'xorg'))
-    sdkconfig.set('sysconfigdir', join_paths('${datarootdir}', 'X11/xorg.conf.d'))
+    sdkconfig.set('libdir', '${exec_prefix}' / get_option('libdir'))
+    sdkconfig.set('includedir', '${prefix}' / get_option('includedir'))
+    sdkconfig.set('datarootdir', '${prefix}' / get_option('datadir'))
+    sdkconfig.set('moduledir', '${exec_prefix}' / module_dir)
+    sdkconfig.set('sdkdir', '${prefix}' / get_option('includedir') / 'xorg')
+    sdkconfig.set('sysconfigdir', '${datarootdir}' / 'X11/xorg.conf.d')
 
     sdkconfig.set('abi_ansic',
         run_command(awk, '-F', '[(,)]',
@@ -863,14 +863,12 @@ if build_xorg
         input: 'xorg-server.pc.in',
         output: 'xorg-server.pc',
         configuration: sdkconfig,
-        install_dir: join_paths(get_option('prefix'),
-                                get_option('libdir'),
-                                'pkgconfig'),
+        install_dir: get_option('prefix') / get_option('libdir') / 'pkgconfig',
     )
 
     install_data(
         'xorg-server.m4',
-        install_dir: join_paths(get_option('datadir'), 'aclocal'),
+        install_dir: get_option('datadir') / 'aclocal',
         install_tag: 'devel',
     )
 endif
