@@ -124,8 +124,7 @@ glamor_get_vbo_space2(ScreenPtr screen, unsigned size, Bool fallback, char **vbo
          */
         if (glamor_priv->vbo_size < size) {
             glamor_priv->vbo_size = MAX(GLAMOR_VBO_SIZE, size);
-            free(glamor_priv->vb);
-            glamor_priv->vb = XNFalloc(glamor_priv->vbo_size);
+            glamor_priv->vb = XNFrealloc(glamor_priv->vb, glamor_priv->vbo_size);
         }
         *vbo_offset = NULL;
         /* We point to the start of glamor_priv->vb every time, and
@@ -184,6 +183,8 @@ glamor_fini_vbo(ScreenPtr screen)
 
     glDeleteVertexArrays(1, &glamor_priv->vao);
     glamor_priv->vao = 0;
+    glDeleteBuffers(1, &glamor_priv->vbo);
+    glamor_priv->vbo = 0;
     if (!glamor_priv->has_map_buffer_range)
         free(glamor_priv->vb);
 }
