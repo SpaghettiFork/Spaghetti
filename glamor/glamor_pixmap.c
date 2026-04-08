@@ -30,6 +30,25 @@
 #include <stdlib.h>
 
 #include "glamor_priv.h"
+
+static const GLenum alu_op_info[] = {
+    [GXclear] = GL_CLEAR,
+    [GXand] = GL_AND,
+    [GXandReverse] = GL_AND_REVERSE,
+    [GXandInverted] = GL_AND_INVERTED,
+    [GXnoop] = GL_NOOP,
+    [GXxor] = GL_XOR,
+    [GXor] = GL_OR,
+    [GXnor] = GL_NOR,
+    [GXequiv] = GL_EQUIV,
+    [GXinvert] = GL_INVERT,
+    [GXorReverse] = GL_OR_REVERSE,
+    [GXcopyInverted] = GL_COPY_INVERTED,
+    [GXorInverted] = GL_OR_INVERTED,
+    [GXnand] = GL_NAND,
+    [GXset] = GL_SET,
+};
+
 /**
  * Sets the offsets to add to coordinates to make them address the same bits in
  * the backing drawable. These coordinates are nonzero only for redirected
@@ -137,6 +156,11 @@ glamor_set_alu(DrawablePtr drawable, unsigned char alu)
         return TRUE;
     }
 
+    if (_X_UNLIKELY(alu >= ARRAY_SIZE(alu_op_info))) {
+        glamor_fallback("unsupported alu %x\n", alu);
+        return FALSE;
+    }
+
     switch (alu) {
     case GXnoop:
     case GXor:
@@ -152,56 +176,7 @@ glamor_set_alu(DrawablePtr drawable, unsigned char alu)
     }
 
     glEnable(GL_COLOR_LOGIC_OP);
-    switch (alu) {
-    case GXclear:
-        glLogicOp(GL_CLEAR);
-        break;
-    case GXand:
-        glLogicOp(GL_AND);
-        break;
-    case GXandReverse:
-        glLogicOp(GL_AND_REVERSE);
-        break;
-    case GXandInverted:
-        glLogicOp(GL_AND_INVERTED);
-        break;
-    case GXnoop:
-        glLogicOp(GL_NOOP);
-        break;
-    case GXxor:
-        glLogicOp(GL_XOR);
-        break;
-    case GXor:
-        glLogicOp(GL_OR);
-        break;
-    case GXnor:
-        glLogicOp(GL_NOR);
-        break;
-    case GXequiv:
-        glLogicOp(GL_EQUIV);
-        break;
-    case GXinvert:
-        glLogicOp(GL_INVERT);
-        break;
-    case GXorReverse:
-        glLogicOp(GL_OR_REVERSE);
-        break;
-    case GXcopyInverted:
-        glLogicOp(GL_COPY_INVERTED);
-        break;
-    case GXorInverted:
-        glLogicOp(GL_OR_INVERTED);
-        break;
-    case GXnand:
-        glLogicOp(GL_NAND);
-        break;
-    case GXset:
-        glLogicOp(GL_SET);
-        break;
-    default:
-        glamor_fallback("unsupported alu %x\n", alu);
-        return FALSE;
-    }
+    glLogicOp(alu_op_info[alu]);
 
     return TRUE;
 }
