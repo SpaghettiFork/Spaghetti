@@ -44,6 +44,18 @@ glamor_destroy_fbo(glamor_screen_private *glamor_priv,
     free(fbo);
 }
 
+static const struct {
+    GLenum status;
+    const char *str;
+} glamor_fbo_status_strings[] = {
+    { GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT,         "incomplete attachment" },
+    { GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT, "incomplete/missing attachment" },
+    { GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER,        "incomplete draw buffer" },
+    { GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER,        "incomplete read buffer" },
+    { GL_FRAMEBUFFER_UNSUPPORTED,                   "unsupported" },
+    { GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE,        "incomplete multiple" },
+};
+
 static int
 glamor_pixmap_ensure_fb(glamor_screen_private *glamor_priv,
                         glamor_pixmap_fbo *fbo)
@@ -60,30 +72,14 @@ glamor_pixmap_ensure_fb(glamor_screen_private *glamor_priv,
                            GL_TEXTURE_2D, fbo->tex, 0);
     status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
-        const char *str;
+        const char *str = "unknown error";
+        int i;
 
-        switch (status) {
-        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-            str = "incomplete attachment";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-            str = "incomplete/missing attachment";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-            str = "incomplete draw buffer";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-            str = "incomplete read buffer";
-            break;
-        case GL_FRAMEBUFFER_UNSUPPORTED:
-            str = "unsupported";
-            break;
-        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-            str = "incomplete multiple";
-            break;
-        default:
-            str = "unknown error";
-            break;
+        for (i = 0; i < ARRAY_SIZE(glamor_fbo_status_strings); i++) {
+            if (glamor_fbo_status_strings[i].status == status) {
+                str = glamor_fbo_status_strings[i].str;
+                break;
+            }
         }
 
         glamor_fallback("glamor: Failed to create fbo, %s\n", str);
@@ -134,6 +130,7 @@ _glamor_create_tex(glamor_screen_private *glamor_priv,
     if (f->format == GL_RED)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
     glamor_priv->suppress_gl_out_of_memory_logging = true;
+    glGetError(); /* clear any prior errors before the allocation we're about to check */
     glTexImage2D(GL_TEXTURE_2D, 0, f->internalformat, w, h, 0,
                  f->format, f->type, NULL);
     glamor_priv->suppress_gl_out_of_memory_logging = false;
@@ -197,7 +194,7 @@ glamor_create_fbo_array(glamor_screen_private *glamor_priv,
     fbo_array = calloc(block_wcnt * block_hcnt, sizeof(glamor_pixmap_fbo *));
     if (fbo_array == NULL) {
         free(box_array);
-        return FALSE;
+        return NULL;
     }
     for (i = 0; i < block_hcnt; i++) {
         int block_y1, block_y2;
@@ -247,12 +244,13 @@ glamor_pixmap_clear_fbo(glamor_screen_private *glamor_priv, glamor_pixmap_fbo *f
 {
     glamor_make_current(glamor_priv);
 
-    assert(fbo->fb != 0 && fbo->tex != 0);
+    assert(fbo->tex != 0);
 
     if (glamor_priv->has_clear_texture) {
         glClearTexImage(fbo->tex, 0, pixmap_format->format, pixmap_format->type, NULL);
     }
     else {
+        assert(fbo->fb != 0);
         glamor_set_destination_pixmap_fbo(glamor_priv, fbo, 0, 0, fbo->width, fbo->height);
 
         glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -294,6 +292,7 @@ glamor_pixmap_attach_fbo(PixmapPtr pixmap, glamor_pixmap_fbo *fbo)
     case GLAMOR_TEXTURE_DRM:
         pixmap_priv->gl_fbo = GLAMOR_FBO_NORMAL;
         pixmap->devPrivate.ptr = NULL;
+        _X_FALLTHROUGH; /* fallthrough */
     default:
         break;
     }
@@ -342,10 +341,13 @@ glamor_pixmap_ensure_fbo(PixmapPtr pixmap, int flag)
     }
     else {
         /* We do have a fbo, but it may lack of fb or tex. */
-        if (!pixmap_priv->fbo->tex)
+        if (!pixmap_priv->fbo->tex) {
             pixmap_priv->fbo->tex =
                 _glamor_create_tex(glamor_priv, pixmap, pixmap->drawable.width,
                                    pixmap->drawable.height);
+            if (!pixmap_priv->fbo->tex)
+                return FALSE;
+        }
 
         if (flag != GLAMOR_CREATE_FBO_NO_FBO && pixmap_priv->fbo->fb == 0)
             if (glamor_pixmap_ensure_fb(glamor_priv, pixmap_priv->fbo) != 0)
