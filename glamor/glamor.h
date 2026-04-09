@@ -440,7 +440,6 @@ extern _X_EXPORT void glamor_destroy_gc(GCPtr gc);
 
 #define HAS_GLAMOR_DESTROY_GC 1
 
-extern Bool _X_EXPORT glamor_change_window_attributes(WindowPtr pWin, unsigned long mask);
 extern void _X_EXPORT glamor_copy_window(WindowPtr window, DDXPointRec old_origin, RegionPtr src_region);
 
 extern _X_EXPORT void glamor_finish(ScreenPtr screen);

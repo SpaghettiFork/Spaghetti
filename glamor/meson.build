@@ -26,7 +26,6 @@ srcs_glamor = [
     'glamor_largepixmap.c',
     'glamor_picture.c',
     'glamor_vbo.c',
-    'glamor_window.c',
     'glamor_fbo.c',
     'glamor_compositerects.c',
     'glamor_utils.c',
