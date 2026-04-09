@@ -217,7 +217,6 @@ struct glamor_saved_procs {
     CompositeRectsProcPtr composite_rects;
     TrapezoidsProcPtr trapezoids;
     GlyphsProcPtr glyphs;
-    ChangeWindowAttributesProcPtr change_window_attributes;
     CopyWindowProcPtr copy_window;
     BitmapToRegionProcPtr bitmap_to_region;
     TrianglesProcPtr triangles;

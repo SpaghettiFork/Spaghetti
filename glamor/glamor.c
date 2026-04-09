@@ -856,10 +856,6 @@ glamor_init(ScreenPtr screen, unsigned int flags)
     glamor_priv->saved_procs.get_image = screen->GetImage;
     screen->GetImage = glamor_get_image;
 
-    glamor_priv->saved_procs.change_window_attributes =
-        screen->ChangeWindowAttributes;
-    screen->ChangeWindowAttributes = glamor_change_window_attributes;
-
     glamor_priv->saved_procs.copy_window = screen->CopyWindow;
     screen->CopyWindow = glamor_copy_window;
 
@@ -945,8 +941,6 @@ glamor_close_screen(ScreenPtr screen)
     screen->DestroyPixmap = glamor_priv->saved_procs.destroy_pixmap;
     screen->GetSpans = glamor_priv->saved_procs.get_spans;
     screen->GetImage = glamor_priv->saved_procs.get_image;
-    screen->ChangeWindowAttributes =
-        glamor_priv->saved_procs.change_window_attributes;
     screen->CopyWindow = glamor_priv->saved_procs.copy_window;
     screen->BitmapToRegion = glamor_priv->saved_procs.bitmap_to_region;
     screen->BlockHandler = glamor_priv->saved_procs.block_handler;
