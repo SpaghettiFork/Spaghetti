@@ -119,9 +119,9 @@ static Bool ms_platform_probe(DriverPtr driver,
                               intptr_t match_data);
 #endif
 
-_X_EXPORT DriverRec modesetting = {
+_X_EXPORT DriverRec fission = {
     1,
-    "modesetting",
+    "fission",
     Identify,
     Probe,
     AvailableOptions,
@@ -165,7 +165,7 @@ int ms_entity_index = -1;
 static MODULESETUPPROTO(Setup);
 
 static XF86ModuleVersionInfo VersRec = {
-    .modname      = "modesetting",
+    .modname      = "fission",
     .vendor       = MODULEVENDORSTRING,
     ._modinfo1_   = MODINFOSTRING1,
     ._modinfo2_   = MODINFOSTRING2,
@@ -178,7 +178,7 @@ static XF86ModuleVersionInfo VersRec = {
     .moduleclass  = MOD_CLASS_VIDEODRV,
 };
 
-_X_EXPORT XF86ModuleData modesettingModuleData = {
+_X_EXPORT XF86ModuleData fissionModuleData = {
     .vers = &VersRec,
     .setup = Setup
 };
@@ -192,7 +192,7 @@ Setup(void *module, void *opts, int *errmaj, int *errmin)
      */
     if (!setupDone) {
         setupDone = 1;
-        xf86AddDriver(&modesetting, module, HaveDriverFuncs);
+        xf86AddDriver(&fission, module, HaveDriverFuncs);
 
         /*
          * The return value must be non-NULL on success even though there
@@ -210,7 +210,7 @@ Setup(void *module, void *opts, int *errmaj, int *errmin)
 static void
 Identify(int flags)
 {
-    xf86PrintChipsets("modesetting", "Driver for Modesetting Kernel Drivers",
+    xf86PrintChipsets("fission", "Driver for Atomic Modesetting Kernel Drivers",
                       Chipsets);
 }
 
@@ -390,8 +390,8 @@ static void
 ms_setup_scrn_hooks(ScrnInfoPtr scrn)
 {
     scrn->driverVersion = 1;
-    scrn->driverName = "modesetting";
-    scrn->name = "modeset";
+    scrn->driverName = "fission";
+    scrn->name = "fission";
 
     scrn->Probe = NULL;
     scrn->PreInit = PreInit;
@@ -1152,7 +1152,7 @@ load_glamor(ScrnInfoPtr pScrn)
     ms->glamor.back_pixmap_from_fd = LoaderSymbolFromModule(mod, "glamor_back_pixmap_from_fd");
     ms->glamor.block_handler = LoaderSymbolFromModule(mod, "glamor_block_handler");
     ms->glamor.clear_pixmap = LoaderSymbolFromModule(mod, "glamor_clear_pixmap");
-    ms->glamor.egl_create_textured_pixmap = LoaderSymbolFromModule(mod, "glamor_egl_create_textured_pixmap");
+    ms->glamor.glamor_pixmap_from_fds = LoaderSymbolFromModule(mod, "glamor_pixmap_from_fds");
     ms->glamor.egl_create_textured_pixmap_from_gbm_bo = LoaderSymbolFromModule(mod, "glamor_egl_create_textured_pixmap_from_gbm_bo");
     ms->glamor.egl_exchange_buffers = LoaderSymbolFromModule(mod, "glamor_egl_exchange_buffers");
     ms->glamor.egl_get_gbm_device = LoaderSymbolFromModule(mod, "glamor_egl_get_gbm_device");

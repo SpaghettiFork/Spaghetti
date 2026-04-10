@@ -253,7 +253,6 @@ typedef struct {
 
     drmmode_prop_info_rec props[DRMMODE_CRTC__COUNT];
     drmmode_prop_info_rec props_plane[DRMMODE_PLANE__COUNT];
-    drmmode_prop_info_rec props_cursor_plane[DRMMODE_PLANE__COUNT];
 
     uint16_t lut_r[256], lut_g[256], lut_b[256];
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
