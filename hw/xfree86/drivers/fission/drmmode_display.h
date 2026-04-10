@@ -155,8 +155,8 @@ typedef struct {
 typedef struct {
     const char *name;
     uint32_t prop_id;
+    uint32_t num_enum_values;
     uint64_t value;
-    unsigned int num_enum_values;
     drmmode_prop_enum_info_rec *enum_values;
 } drmmode_prop_info_rec, *drmmode_prop_info_ptr;
 
@@ -192,8 +192,13 @@ typedef struct {
 } drmmode_cursor_dim_rec, *drmmode_cursor_dim_ptr;
 
 typedef struct {
-    uint16_t num_dimensions;
     Bool up;
+    uint32_t fb_id;
+    uint32_t num_dimensions;
+    uint16_t width;
+    uint16_t height;
+    int16_t src_x;
+    int16_t src_y;
     drmmode_cursor_dim_rec* dimensions;
     struct dumb_bo *bo;
 } drmmode_cursor_rec, *drmmode_cursor_ptr;
@@ -201,21 +206,21 @@ typedef struct {
 typedef struct {
     drmmode_ptr drmmode;
     drmModeCrtcPtr mode_crtc;
+
     uint32_t vblank_pipe;
     int dpms_mode;
-    drmmode_cursor_rec cursor;
-    uint16_t lut_r[256], lut_g[256], lut_b[256];
 
-    drmmode_prop_info_rec props[DRMMODE_CRTC__COUNT];
-    drmmode_prop_info_rec props_plane[DRMMODE_PLANE__COUNT];
+    drmmode_cursor_rec cursor;
+
     uint32_t plane_id;
+    uint32_t cursor_plane_id;
     drmmode_mode_ptr current_mode;
     uint32_t num_formats;
+    uint32_t rotate_fb_id;
     drmmode_format_rec *formats;
     drmmode_format_rec *formats_async;
 
     drmmode_bo rotate_bo;
-    unsigned rotate_fb_id;
     drmmode_tearfree_rec tearfree;
 
     PixmapPtr prime_pixmap;
@@ -237,8 +242,6 @@ typedef struct {
 
     uint64_t next_msc;
 
-    int cursor_width, cursor_height;
-
     Bool need_modeset;
     struct xorg_list mode_list;
 
@@ -247,6 +250,12 @@ typedef struct {
 
     Bool vrr_enabled;
     Bool use_gamma_lut;
+
+    drmmode_prop_info_rec props[DRMMODE_CRTC__COUNT];
+    drmmode_prop_info_rec props_plane[DRMMODE_PLANE__COUNT];
+    drmmode_prop_info_rec props_cursor_plane[DRMMODE_PLANE__COUNT];
+
+    uint16_t lut_r[256], lut_g[256], lut_b[256];
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {

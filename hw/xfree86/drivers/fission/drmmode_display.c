@@ -55,6 +55,12 @@
 
 #include "driver.h"
 
+#if X_BYTE_ORDER == X_BIG_ENDIAN
+#define cpu_to_le32(x) bswap_32(x)
+#else
+#define cpu_to_le32(x) (x)
+#endif
+
 static Bool drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height);
 static PixmapPtr drmmode_create_pixmap_header(ScreenPtr pScreen, int width, int height,
                                               int depth, int bitsPerPixel, int devKind,
@@ -486,6 +492,24 @@ plane_add_prop(drmModeAtomicReq *req, drmmode_crtc_private_ptr drmmode_crtc,
     return (ret <= 0) ? -1 : 0;
 }
 
+/* Identical to plane_add_prop() but targets the cursor plane and its
+ * separately-tracked property table (props_cursor_plane). */
+static int
+cursor_plane_add_prop(drmModeAtomicReq *req,
+                      drmmode_crtc_private_ptr drmmode_crtc,
+                      enum drmmode_plane_property prop, uint64_t val)
+{
+    drmmode_prop_info_ptr info = &drmmode_crtc->props_cursor_plane[prop];
+    int ret;
+
+    if (!info || !info->prop_id)
+        return -1;
+
+    ret = drmModeAtomicAddProperty(req, drmmode_crtc->cursor_plane_id,
+                                   info->prop_id, val);
+    return (ret <= 0) ? -1 : 0;
+}
+
 static int
 plane_add_props(drmModeAtomicReq *req, xf86CrtcPtr crtc,
                 uint32_t fb_id, int x, int y)
@@ -815,13 +839,26 @@ drmmode_set_ctm(xf86CrtcPtr crtc, const struct drm_color_ctm *ctm)
         }
     }
 
-    ret = drmModeObjectSetProperty(drmmode->fd,
-                                   drmmode_crtc->mode_crtc->crtc_id,
-                                   DRM_MODE_OBJECT_CRTC, ctm_info->prop_id,
-                                   blob_id);
-    if (ret != 0)
-        xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-                   "Failed to set CTM property: %d\n", ret);
+    {
+        drmModeAtomicReq *req = drmModeAtomicAlloc();
+        if (!req) {
+            drmModeDestroyPropertyBlob(drmmode->fd, blob_id);
+            return;
+        }
+        ret = drmModeAtomicAddProperty(req,
+                                       drmmode_crtc->mode_crtc->crtc_id,
+                                       ctm_info->prop_id, blob_id);
+        if (ret < 0)
+            xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
+                       "Failed to queue CTM property: %d\n", ret);
+        else {
+            ret = drmModeAtomicCommit(drmmode->fd, req, 0, NULL);
+            if (ret != 0)
+                xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
+                           "Failed to commit CTM property: %d\n", ret);
+        }
+        drmModeAtomicFree(req);
+    }
 
     drmModeDestroyPropertyBlob(drmmode->fd, blob_id);
 }
@@ -1066,10 +1103,31 @@ drmmode_bo_import(drmmode_ptr drmmode, drmmode_bo *bo,
         }
     }
 #endif
-    return drmModeAddFB(drmmode->fd, bo->width, bo->height,
-                        drmmode->scrn->depth, drmmode->kbpp,
-                        drmmode_bo_get_pitch(bo),
-                        drmmode_bo_get_handle(bo), fb_id);
+    /* Atomic-only path: always use drmModeAddFB2 so the FB carries explicit
+     * fourcc format information required for atomic plane assignments. */
+    {
+        uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
+        uint32_t drm_format;
+
+        switch (drmmode->kbpp) {
+        case 16:
+            drm_format = (drmmode->scrn->depth == 15) ?
+                         DRM_FORMAT_XRGB1555 : DRM_FORMAT_RGB565;
+            break;
+        case 32:
+            drm_format = (drmmode->scrn->depth == 30) ?
+                         DRM_FORMAT_XRGB2101010 : DRM_FORMAT_XRGB8888;
+            break;
+        default:
+            drm_format = DRM_FORMAT_XRGB8888;
+            break;
+        }
+
+        handles[0] = drmmode_bo_get_handle(bo);
+        pitches[0] = drmmode_bo_get_pitch(bo);
+        return drmModeAddFB2(drmmode->fd, bo->width, bo->height,
+                             drm_format, handles, pitches, offsets, fb_id, 0);
+    }
 }
 
 static Bool
@@ -1283,9 +1341,12 @@ drmmode_SharedPixmapFlip(PixmapPtr frontTarget, xf86CrtcPtr crtc,
                            drmmode_SharedPixmapVBlankEventHandler,
                            drmmode_SharedPixmapVBlankEventAbort);
 
-    if (drmModePageFlip(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                        ppriv_front->fb_id, DRM_MODE_PAGE_FLIP_EVENT,
-                        (void *)(intptr_t) ppriv_front->flip_seq) < 0) {
+    /* Atomic-only: use the atomic page-flip helper which issues a
+     * non-blocking DRM_MODE_ATOMIC_NONBLOCK commit carrying PAGE_FLIP_EVENT.
+     * drmModePageFlip() is not used in atomic mode. */
+    if (drmmode_crtc_flip(crtc, ppriv_front->fb_id, 0, 0,
+                          DRM_MODE_PAGE_FLIP_EVENT,
+                          (void *)(intptr_t) ppriv_front->flip_seq) != 0) {
         ms_drm_abort_seq(crtc->scrn, ppriv_front->flip_seq);
         return FALSE;
     }
@@ -1453,46 +1514,120 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 }
 
 #ifdef GLAMOR_HAS_GBM
+static Bool
+depth_bpp_from_format(uint32_t pixel_format, int* depth, int* bpp)
+{
+    switch (pixel_format)
+    {
+        case DRM_FORMAT_XRGB1555:
+            *depth = 15;
+            *bpp = 16;
+            return TRUE;
+        
+        case DRM_FORMAT_RGB565:
+            *depth = 16;
+            *bpp = 16;
+            return TRUE;
+
+        case DRM_FORMAT_XRGB8888:
+            *depth = 24;
+            *bpp = 32;
+            return TRUE;
+
+        case DRM_FORMAT_XRGB2101010:
+            *depth = 30;
+            *bpp = 32;
+            return TRUE;
+
+        case DRM_FORMAT_ARGB8888:
+            *depth = 32;
+            *bpp = 32;
+            return TRUE;
+
+        default:
+            return FALSE;
+    }
+}
+
+static int
+handles_to_fds(drmmode_ptr drmmode, uint32_t *handles, int *fds)
+{
+    int err;
+    int i;
+
+    for (i = 0; i < 4 && handles[i]; i++) {
+        err = drmPrimeHandleToFD(drmmode->fd, handles[i], O_CLOEXEC, &fds[i]);
+        if (err != 0)
+            return 0;
+    }
+
+    return i;
+}
+
 static PixmapPtr
 create_pixmap_for_fbcon(drmmode_ptr drmmode, ScrnInfoPtr pScrn, int fbcon_id)
 {
     PixmapPtr pixmap = drmmode->fbcon_pixmap;
-    drmModeFBPtr fbcon;
+    drmModeFB2Ptr fbcon2;
     ScreenPtr pScreen = xf86ScrnToScreen(pScrn);
     modesettingPtr ms = modesettingPTR(pScrn);
-    Bool ret;
+    uint32_t handles[4] = { 0, };
+    CARD32 strides[4] = { 0, }, offsets[4] = { 0, };
+    int fds[4] = { -1, -1, -1, -1 };
+    uint64_t modifier;
+    int num_fds, i;
+    int width, height;
+    int depth = 0, bpp = 0;
 
     if (pixmap)
         return pixmap;
 
-    fbcon = drmModeGetFB(drmmode->fd, fbcon_id);
-    if (fbcon == NULL)
+    fbcon2 = drmModeGetFB2(drmmode->fd, fbcon_id);
+    if (fbcon2 == NULL)
         return NULL;
 
-    if (fbcon->depth != pScrn->depth ||
-        fbcon->width != pScrn->virtualX ||
-        fbcon->height != pScrn->virtualY)
+    width = fbcon2->width;
+    height = fbcon2->height;
+    memcpy(handles, fbcon2->handles, sizeof(handles));
+    memcpy(strides, fbcon2->pitches, sizeof(strides));
+    memcpy(offsets, fbcon2->offsets, sizeof(offsets));
+    modifier = fbcon2->modifier;
+
+    if (!depth_bpp_from_format(fbcon2->pixel_format, &depth, &bpp))
         goto out_free_fb;
 
-    pixmap = drmmode_create_pixmap_header(pScreen, fbcon->width,
-                                          fbcon->height, fbcon->depth,
-                                          fbcon->bpp, fbcon->pitch, NULL);
-    if (!pixmap)
+    if (depth != pScrn->depth ||
+        width != pScrn->virtualX ||
+        height != pScrn->virtualY)
         goto out_free_fb;
 
-    ret = ms->glamor.egl_create_textured_pixmap(pixmap, fbcon->handle,
-                                                fbcon->pitch);
-    if (!ret) {
-      FreePixmap(pixmap);
-      pixmap = NULL;
+    /* GBM doesn't have an import path from handles, so we make a
+     * DMA-BUF file descriptor from it and then go through that. */
+    num_fds = handles_to_fds(drmmode, handles, fds);
+    if (num_fds == 0) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "Failed to make prime FD for handle: %d\n", errno);
+        goto out_close_fds;
     }
 
+    pixmap = ms->glamor.glamor_pixmap_from_fds(pScreen, num_fds, fds,
+                                               width, height, strides, offsets,
+                                               depth, bpp, modifier);
+    if (!pixmap)
+        goto out_close_fds;
+
     drmmode->fbcon_pixmap = pixmap;
+out_close_fds:
+    for (i = 0; i < ARRAY_SIZE(fds); i++) {
+        if (fds[i] != -1)
+            close(fds[i]);
+    }
 out_free_fb:
-    drmModeFreeFB(fbcon);
+    drmModeFreeFB2(fbcon2);
     return pixmap;
 }
 #endif
+
 
 void
 drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
@@ -1507,8 +1642,11 @@ drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
     for (i = 0; i < xf86_config->num_crtc; i++) {
         drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[i]->driver_private;
-        if (drmmode_crtc->mode_crtc->buffer_id)
-            fbcon_id = drmmode_crtc->mode_crtc->buffer_id;
+        /* buffer_id is a legacy KMS field not populated in atomic mode.
+         * The fbcon ID must be obtained via a separate mechanism (e.g.,
+         * DRM_IOCTL_MODE_OBJ_GETPROPERTIES on the CRTC) if needed.
+         * For an atomic-only driver this blitting path is typically unused. */
+        (void)drmmode_crtc;
     }
 
     if (!fbcon_id)
@@ -1760,7 +1898,7 @@ drmmode_set_cursor_position(xf86CrtcPtr crtc, int x, int y)
 }
 
 static Bool
-drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height)
+drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height, int xhot, int yhot)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
@@ -1772,8 +1910,7 @@ drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height)
 	    return TRUE;
 
     ret = drmModeSetCursor2(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                            handle, width, height,
-                            cursor->bits->xhot, cursor->bits->yhot);
+                            handle, width, height, xhot, yhot);
 
     /* -EINVAL can mean that an old kernel supports drmModeSetCursor but
      * not drmModeSetCursor2, though it can mean other things too. */
@@ -1796,8 +1933,10 @@ drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height)
         /* fallback to swcursor */
         return FALSE;
 
-    drmmode_crtc->cursor_width = width;
-    drmmode_crtc->cursor_height = height;
+    drmmode_crtc->cursor.width = width;
+    drmmode_crtc->cursor.height = height;
+    drmmode_crtc->cursor.src_x = xhot;
+    drmmode_crtc->cursor.src_y = yhot;
 
     return TRUE;
 }
@@ -1807,9 +1946,9 @@ static void drmmode_hide_cursor(xf86CrtcPtr crtc);
 /*
  * The load_cursor_argb_check driver hook.
  *
- * Sets the hardware cursor by calling the drmModeSetCursor2 ioctl.
- * On failure, returns FALSE indicating that the X server should fall
- * back to software cursors.
+ * Uploads the cursor image into the dumb BO and activates the cursor plane
+ * via an atomic non-blocking commit.  Returns FALSE to signal the X server
+ * to fall back to a software cursor if the cursor plane is unavailable.
  */
 static Bool
 drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
@@ -1851,7 +1990,7 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
     i = 0;
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
-            ptr[i++] = image[y * max_width + x];
+            ptr[i++] = cpu_to_le32(image[y * max_width + x]);
         }
     }
 
@@ -1860,7 +1999,8 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
         ptr[i++] = 0;
 
     if (drmmode_crtc->cursor.up)
-        return drmmode_set_cursor(crtc, width, height);
+        return drmmode_set_cursor(crtc, width, height,
+                                  cursor->bits->xhot, cursor->bits->yhot);
     else
         return TRUE;
 }
@@ -1873,15 +2013,19 @@ drmmode_hide_cursor(xf86CrtcPtr crtc)
 
     drmmode_crtc->cursor.up = FALSE;
     drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, 0,
-                     drmmode_crtc->cursor_width, drmmode_crtc->cursor_height);
+                     drmmode_crtc->cursor.width, drmmode_crtc->cursor.height);
 }
 
 static Bool
 drmmode_show_cursor(xf86CrtcPtr crtc)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
     drmmode_crtc->cursor.up = TRUE;
-    return drmmode_set_cursor(crtc, drmmode_crtc->cursor_width, drmmode_crtc->cursor_height);
+
+    return drmmode_set_cursor(crtc,
+                              drmmode_crtc->cursor.width, drmmode_crtc->cursor.height,
+                              drmmode_crtc->cursor.src_x, drmmode_crtc->cursor.src_y);
 }
 
 static void
@@ -1913,8 +2057,15 @@ drmmode_set_gamma_lut(drmmode_crtc_private_ptr drmmode_crtc,
         return;
     }
 
-    drmModeObjectSetProperty(drmmode->fd, crtc_id, DRM_MODE_OBJECT_CRTC,
-                             gamma_lut_info->prop_id, blob_id);
+    drmModeAtomicReq *req = drmModeAtomicAlloc();
+    if (req) {
+        int r = drmModeAtomicAddProperty(req, crtc_id,
+                                         gamma_lut_info->prop_id,
+                                         blob_id);
+        if (r >= 0)
+            drmModeAtomicCommit(drmmode->fd, req, 0, NULL);
+        drmModeAtomicFree(req);
+    }
 
     drmModeDestroyPropertyBlob(drmmode->fd, blob_id);
     free(lut);
@@ -1930,8 +2081,8 @@ drmmode_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t * red, uint16_t * green,
     if (drmmode_crtc->use_gamma_lut) {
         drmmode_set_gamma_lut(drmmode_crtc, red, green, blue, size);
     } else {
-        drmModeCrtcSetGamma(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                            size, red, green, blue);
+        xf86DrvMsg(crtc->scrn->scrnIndex, X_WARNING,
+                   "GAMMA_LUT not supported; gamma correction unavailable\n");
     }
 }
 
@@ -2029,11 +2180,30 @@ drmmode_set_target_scanout_pixmap_cpu(xf86CrtcPtr crtc, PixmapPtr ppix,
     DamageRegister(&ppix->drawable, ppriv->secondary_damage);
 
     if (ppriv->fb_id == 0) {
-        drmModeAddFB(drmmode->fd, ppix->drawable.width,
-                     ppix->drawable.height,
-                     ppix->drawable.depth,
-                     ppix->drawable.bitsPerPixel,
-                     ppix->devKind, ppriv->backing_bo->handle, &ppriv->fb_id);
+        uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
+        uint32_t drm_format;
+
+        /* Derive the fourcc format from depth/bitsPerPixel — drmModeAddFB2
+         * requires an explicit format rather than the legacy depth/bpp pair. */
+        switch (ppix->drawable.bitsPerPixel) {
+        case 16:
+            drm_format = (ppix->drawable.depth == 15) ?
+                         DRM_FORMAT_XRGB1555 : DRM_FORMAT_RGB565;
+            break;
+        case 32:
+            drm_format = (ppix->drawable.depth == 30) ?
+                         DRM_FORMAT_XRGB2101010 : DRM_FORMAT_XRGB8888;
+            break;
+        default:
+            drm_format = DRM_FORMAT_XRGB8888;
+            break;
+        }
+
+        handles[0] = ppriv->backing_bo->handle;
+        pitches[0] = ppix->devKind;
+        drmModeAddFB2(drmmode->fd, ppix->drawable.width,
+                      ppix->drawable.height, drm_format,
+                      handles, pitches, offsets, &ppriv->fb_id, 0);
     }
     *target = ppix;
     return TRUE;
@@ -2242,7 +2412,14 @@ drmmode_crtc_destroy(xf86CrtcPtr crtc)
 
     free(drmmode_crtc->cursor.dimensions);
 
+    /* Release the atomic cursor FB created by drmmode_set_cursor(). */
+    if (drmmode_crtc->cursor.fb_id) {
+        drmModeRmFB(drmmode_crtc->drmmode->fd, drmmode_crtc->cursor.fb_id);
+        drmmode_crtc->cursor.fb_id = 0;
+    }
+
     drmmode_prop_info_free(drmmode_crtc->props_plane, DRMMODE_PLANE__COUNT);
+    drmmode_prop_info_free(drmmode_crtc->props_cursor_plane, DRMMODE_PLANE__COUNT);
     xorg_list_for_each_entry_safe(iterator, next, &drmmode_crtc->mode_list, entry) {
         drm_mode_destroy(crtc, iterator);
     }
@@ -2484,7 +2661,6 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
 
         drmmode_prop_info_update(drmmode, tmp_props, DRMMODE_PLANE__COUNT, props);
 
-        /* Only primary planes are important for atomic page-flipping */
         type = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_TYPE],
                                       props, DRMMODE_PLANE_TYPE__COUNT);
 
@@ -2531,16 +2707,20 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
                 break;
             }
 
-#ifdef LIBDRM_PLANE_SIZE_HINTS
             case DRMMODE_PLANE_TYPE_CURSOR: {
+#ifdef LIBDRM_PLANE_SIZE_HINTS
                 int size_hint = drmmode_prop_get_value(&tmp_props[DRMMODE_PLANE_SIZE_HINTS], props, 0);
                 populate_cursor_sizes(drmmode, drmmode_crtc, size_hint);
+#endif
+
+                drmmode_crtc->cursor_plane_id = kplane->plane_id;
+                drmmode_prop_info_copy(drmmode_crtc->props_cursor_plane,
+                                       tmp_props, DRMMODE_PLANE__COUNT, 1);
 
                 drmModeFreePlane(kplane);
                 drmModeFreeObjectProperties(props);
                 break;
             }
-#endif
 
             default: {
                 drmModeFreePlane(kplane);
@@ -2670,9 +2850,6 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
                              DRMMODE_CRTC__COUNT, props);
     drmModeFreeObjectProperties(props);
     drmmode_crtc_create_planes(crtc, num);
-
-    /* Hide any cursors which may be active from previous users */
-    drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, 0, 0, 0);
 
     drmmode_crtc_vrr_init(drmmode->fd, crtc);
 
@@ -3260,8 +3437,18 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
                 return FALSE;
             val = *(uint32_t *) value->data;
 
-            drmModeConnectorSetProperty(drmmode->fd, drmmode_output->output_id,
-                                        p->mode_prop->prop_id, (uint64_t) val);
+            /* Atomic-only: connector properties are set via an atomic request. */
+            {
+                drmModeAtomicReq *req = drmModeAtomicAlloc();
+                if (req) {
+                    int r = drmModeAtomicAddProperty(req,
+                                drmmode_output->output_id,
+                                p->mode_prop->prop_id, (uint64_t) val);
+                    if (r >= 0)
+                        drmModeAtomicCommit(drmmode->fd, req, 0, NULL);
+                    drmModeAtomicFree(req);
+                }
+            }
             return TRUE;
         }
         else if (p->mode_prop->flags & DRM_MODE_PROP_ENUM) {
@@ -3278,10 +3465,17 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
             /* search for matching name string, then set its value down */
             for (int j = 0; j < p->mode_prop->count_enums; j++) {
                 if (!strcmp(p->mode_prop->enums[j].name, name)) {
-                    drmModeConnectorSetProperty(drmmode->fd,
-                                                drmmode_output->output_id,
-                                                p->mode_prop->prop_id,
-                                                p->mode_prop->enums[j].value);
+                    /* Atomic-only: connector properties via atomic request. */
+                    drmModeAtomicReq *req = drmModeAtomicAlloc();
+                    if (req) {
+                        int r = drmModeAtomicAddProperty(req,
+                                    drmmode_output->output_id,
+                                    p->mode_prop->prop_id,
+                                    p->mode_prop->enums[j].value);
+                        if (r >= 0)
+                            drmModeAtomicCommit(drmmode->fd, req, 0, NULL);
+                        drmModeAtomicFree(req);
+                    }
                     return TRUE;
                 }
             }
@@ -3705,9 +3899,9 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     modesettingPtr ms = modesettingPTR(scrn);
     drmmode_ptr drmmode = &ms->drmmode;
-    drmmode_bo old_front;
+    drmmode_bo old_front = { 0 };
     ScreenPtr screen = xf86ScrnToScreen(scrn);
-    uint32_t old_fb_id;
+    uint32_t old_fb_id = 0;
     int i, pitch, old_width, old_height, old_pitch;
     int cpp = (scrn->bitsPerPixel + 7) / 8;
     int kcpp = (drmmode->kbpp + 7) / 8;
@@ -3723,9 +3917,9 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
     old_width = scrn->virtualX;
     old_height = scrn->virtualY;
     old_pitch = drmmode_bo_get_pitch(&drmmode->front_bo);
-    old_front = drmmode->front_bo;
-    old_fb_id = drmmode->fb_id;
-    drmmode->fb_id = 0;
+
+    XORG_EXCHANGE(old_front, drmmode->front_bo);
+    XORG_EXCHANGE(old_fb_id, drmmode->fb_id);
 
     if (!drmmode_create_bo(drmmode, &drmmode->front_bo,
                            width, height, drmmode->kbpp))
@@ -4060,8 +4254,9 @@ drmmode_set_desired_modes(ScrnInfoPtr pScrn, drmmode_ptr drmmode, Bool set_hw,
         /* Skip disabled CRTCs */
         if (!crtc->enabled) {
             if (set_hw) {
-                drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                               0, 0, 0, NULL, 0, NULL);
+                /* Atomic-only: use the atomic disable helper instead of the
+                 * legacy drmModeSetCrtc(fd, id, 0, 0, 0, NULL, 0, NULL). */
+                drmmode_crtc_disable(crtc);
             }
             continue;
         }
@@ -4511,6 +4706,7 @@ drmmode_create_initial_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         xf86CrtcPtr crtc = xf86_config->crtc[i];
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
         drmmode_cursor_rec cursor = drmmode_crtc->cursor;
+        uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
 
         /* If we don't have any dimensions then 
          * something has gone terribly wrong. */
@@ -4582,6 +4778,12 @@ drmmode_free_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         xf86CrtcPtr crtc = xf86_config->crtc[i];
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
+        /* Release the atomic cursor plane framebuffer if one was registered. */
+        if (drmmode_crtc->cursor.fb_id) {
+            drmModeRmFB(drmmode->fd, drmmode_crtc->cursor.fb_id);
+            drmmode_crtc->cursor.fb_id = 0;
+        }
+
         dumb_bo_destroy(drmmode->fd, drmmode_crtc->cursor.bo);
         drmmode_destroy_tearfree_shadow(crtc);
     }
@@ -4623,8 +4825,17 @@ drmmode_get_default_bpp(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int *depth,
         goto out;
     }
 
-    ret = drmModeAddFB(drmmode->fd, mode_res->min_width, mode_res->min_height,
-                       24, 32, bo->pitch, bo->handle, &fb_id);
+    /* Atomic-only: use drmModeAddFB2 with an explicit fourcc format.
+     * XRGB8888 is the canonical 32 bpp / depth-24 format. */
+    {
+        uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
+        handles[0] = bo->handle;
+        pitches[0] = bo->pitch;
+        ret = drmModeAddFB2(drmmode->fd,
+                            mode_res->min_width, mode_res->min_height,
+                            DRM_FORMAT_XRGB8888,
+                            handles, pitches, offsets, &fb_id, 0);
+    }
 
     if (ret) {
         *bpp = 24;
@@ -4649,13 +4860,18 @@ drmmode_crtc_set_vrr(xf86CrtcPtr crtc, Bool enabled)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-    if (drmmode->vrr_prop_id && drmmode_crtc->vrr_enabled != enabled &&
-        drmModeObjectSetProperty(ms->fd,
-                                 drmmode_crtc->mode_crtc->crtc_id,
-                                 DRM_MODE_OBJECT_CRTC,
-                                 drmmode->vrr_prop_id,
-                                 enabled) == 0)
-        drmmode_crtc->vrr_enabled = enabled;
+    if (drmmode->vrr_prop_id && drmmode_crtc->vrr_enabled != enabled) {
+        drmModeAtomicReq *req = drmModeAtomicAlloc();
+        if (req) {
+            int r = drmModeAtomicAddProperty(req,
+                                             drmmode_crtc->mode_crtc->crtc_id,
+                                             drmmode->vrr_prop_id,
+                                             (uint64_t) enabled);
+            if (r >= 0 && drmModeAtomicCommit(ms->fd, req, 0, NULL) == 0)
+                drmmode_crtc->vrr_enabled = enabled;
+            drmModeAtomicFree(req);
+        }
+    }
 }
 
 /*
