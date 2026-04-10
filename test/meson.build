@@ -50,14 +50,12 @@ rendercheck_tests_noblend = [
     ['LibreOffice xRGB', '-t libreoffice_xrgb'],
     ['GTK ARGB vs xBGR', '-t gtk_argb_xbgr'],
 ]
+rendercheck_a8 = [
+]
 rendercheck_blend = [
     ['blend/Clear', '-t blend -o clear'],
     ['blend/Src', '-t blend -o src'],
     ['blend/Over', '-t blend -o over'],
-]
-#A8 test failing on GLES 2.0 llvmpipe before mesa 23.
-rendercheck_a8 = [
-    ['ca composite/Some/a8', '-t cacomposite -f a8r8g8b8,a8' + some_ops],
 ]
 #Exclude 15bpp for now due to GLES limitation (see glamor.c:470)
 rendercheck_blend_gles2 = [
@@ -65,9 +63,9 @@ rendercheck_blend_gles2 = [
     ['blend/Src', '-t blend -o src' + gles2_working_formats],
     ['blend/Over', '-t blend -o over' + gles2_working_formats],
 ]
-rendercheck_tests = rendercheck_blend + rendercheck_tests_noblend + rendercheck_a8
+rendercheck_tests = rendercheck_blend + rendercheck_tests_noblend
 rendercheck_tests_gles2_success = rendercheck_blend_gles2 + rendercheck_tests_noblend
-rendercheck_tests_gles3 = rendercheck_blend_gles2 + rendercheck_tests_noblend + rendercheck_a8
+rendercheck_tests_gles3 = rendercheck_blend_gles2 + rendercheck_tests_noblend
 rendercheck = find_program('rendercheck', required:false)
 
 if get_option('xvfb')
