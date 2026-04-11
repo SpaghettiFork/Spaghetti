@@ -156,7 +156,6 @@ static const OptionInfoRec Options[] = {
     {OPTION_VARIABLE_REFRESH, "VariableRefresh", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_USE_GAMMA_LUT, "UseGammaLUT", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_ASYNC_FLIP_SECONDARIES, "AsyncFlipSecondaries", OPTV_BOOLEAN, {0}, FALSE},
-    {OPTION_TEARFREE, "TearFree", OPTV_BOOLEAN, {0}, FALSE},
     {-1, NULL, OPTV_NONE, {0}, FALSE}
 };
 
@@ -667,83 +666,6 @@ dispatch_dirty_region(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 }
 
 static void
-ms_tearfree_update_damages(ScreenPtr pScreen)
-{
-    ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-    modesettingPtr ms = modesettingPTR(scrn);
-    RegionPtr dirty = DamageRegion(ms->damage);
-    int c, i;
-
-    if (RegionNil(dirty))
-        return;
-
-    for (c = 0; c < xf86_config->num_crtc; c++) {
-        xf86CrtcPtr crtc = xf86_config->crtc[c];
-        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-        drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
-        RegionRec region;
-
-        /* Compute how much of the damage intersects with this CRTC */
-        RegionInit(&region, &crtc->bounds, 0);
-        RegionIntersect(&region, &region, dirty);
-
-        if (trf->buf[0].px) {
-            for (i = 0; i < ARRAY_SIZE(trf->buf); i++)
-                RegionUnion(&trf->buf[i].dmg, &trf->buf[i].dmg, &region);
-        } else {
-            /* Just notify the kernel of the damages if TearFree isn't used */
-            dispatch_damages(scrn, crtc, &region,
-                             pScreen->GetScreenPixmap(pScreen),
-                             NULL, ms->drmmode.fb_id, 0, 0);
-        }
-    }
-    DamageEmpty(ms->damage);
-}
-
-static void
-ms_tearfree_do_flips(ScreenPtr pScreen)
-{
-#ifdef GLAMOR_HAS_GBM
-    ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
-    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
-    modesettingPtr ms = modesettingPTR(scrn);
-    int c;
-
-    if (!ms->drmmode.tearfree_enable)
-        return;
-
-    for (c = 0; c < xf86_config->num_crtc; c++) {
-        xf86CrtcPtr crtc = xf86_config->crtc[c];
-        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-        drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
-
-        if (!ms_tearfree_is_active_on_crtc(crtc)) {
-            /* Notify any lingering DRI clients waiting for a flip to finish */
-            ms_tearfree_dri_abort_all(crtc);
-            continue;
-        }
-
-        /* Skip if the last flip is still pending, a DRI client is flipping, or
-         * there isn't any damage on the front buffer.
-         */
-        if (trf->flip_seq || ms->drmmode.dri2_flipping ||
-            ms->drmmode.present_flipping ||
-            RegionNil(&trf->buf[trf->back_idx ^ 1].dmg))
-            continue;
-
-        /* Flip. If it fails, notify the kernel of the front buffer damages */
-        if (ms_do_tearfree_flip(pScreen, crtc)) {
-            dispatch_damages(scrn, crtc, &trf->buf[trf->back_idx ^ 1].dmg,
-                             trf->buf[trf->back_idx ^ 1].px, NULL,
-                             trf->buf[trf->back_idx ^ 1].fb_id, 0, 0);
-            RegionEmpty(&trf->buf[trf->back_idx ^ 1].dmg);
-        }
-    }
-#endif
-}
-
-static void
 dispatch_dirty(ScreenPtr pScreen)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
@@ -762,7 +684,7 @@ dispatch_dirty(ScreenPtr pScreen)
         if (!drmmode_crtc)
             continue;
 
-	drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y);
+        drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y);
 
         if (crtc->rotatedPixmap)
             pmap = crtc->rotatedPixmap;
@@ -909,13 +831,10 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
     pScreen->BlockHandler = msBlockHandler;
     if (pScreen->isGPU && !ms->drmmode.reverse_prime_offload_mode)
         dispatch_secondary_dirty(pScreen);
-    else if (ms->drmmode.tearfree_enable)
-        ms_tearfree_update_damages(pScreen);
     else if (ms->dirty_enabled)
         dispatch_dirty(pScreen);
 
     ms_dirty_update(pScreen, timeout);
-    ms_tearfree_do_flips(pScreen);
 }
 
 static void
@@ -1487,20 +1406,6 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         return FALSE;
     }
 
-    /* TearFree requires glamor and, if PageFlip is enabled, universal planes */
-    if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_TEARFREE, FALSE)) {
-        if (pScrn->is_gpu) {
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                       "TearFree cannot synchronize PRIME; use 'PRIME Synchronization' instead\n");
-        } else if (ms->drmmode.glamor) {
-            ms->drmmode.tearfree_enable = TRUE;
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "TearFree: enabled\n");
-        } else {
-            xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-                       "TearFree requires Glamor acceleration\n");
-        }
-    }
-
     if (drmmode_pre_init(pScrn, &ms->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "KMS setup failed\n");
         goto fail;
@@ -1843,13 +1748,13 @@ CreateScreenResources(ScreenPtr pScreen)
 #if 0
     err = drmModeDirtyFB(ms->fd, ms->drmmode.fb_id, NULL, 0);
 
-    if ((err != -EINVAL && err != -ENOSYS) || ms->drmmode.tearfree_enable) {
+    if ((err != -EINVAL && err != -ENOSYS)) {
         ms->damage = DamageCreate(NULL, NULL, DamageReportNone, TRUE,
                                   pScreen, rootPixmap);
 
         if (ms->damage) {
             DamageRegister(&rootPixmap->drawable, ms->damage);
-            ms->dirty_enabled = err != -EINVAL && err != -ENOSYS;
+            ms->dirty_enabled = TRUE;
             xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Damage tracking initialized\n");
         }
         else {

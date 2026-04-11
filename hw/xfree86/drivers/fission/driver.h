@@ -65,7 +65,6 @@ typedef enum {
     OPTION_VARIABLE_REFRESH,
     OPTION_USE_GAMMA_LUT,
     OPTION_ASYNC_FLIP_SECONDARIES,
-    OPTION_TEARFREE,
 } modesettingOpts;
 
 typedef struct
@@ -91,13 +90,10 @@ struct ms_drm_queue {
     struct xorg_list list;
     xf86CrtcPtr crtc;
     uint32_t seq;
-    uint64_t msc;
     void *data;
     ScrnInfoPtr scrn;
     ms_drm_handler_proc handler;
     ms_drm_abort_proc abort;
-    Bool kernel_queued;
-    Bool aborted;
 };
 
 typedef struct _modesettingRec {
@@ -244,21 +240,11 @@ typedef void (*ms_pageflip_abort_proc)(modesettingPtr ms, void *data);
 Bool ms_do_pageflip(ScreenPtr screen,
                     PixmapPtr new_front,
                     void *event,
-                    xf86CrtcPtr ref_crtc,
+                    int ref_crtc_vblank_pipe,
                     Bool async,
                     ms_pageflip_handler_proc pageflip_handler,
                     ms_pageflip_abort_proc pageflip_abort,
                     const char *log_prefix);
-
-Bool
-ms_tearfree_dri_abort(xf86CrtcPtr crtc,
-                      Bool (*match)(void *data, void *match_data),
-                      void *match_data);
-
-void
-ms_tearfree_dri_abort_all(xf86CrtcPtr crtc);
-
-Bool ms_do_tearfree_flip(ScreenPtr screen, xf86CrtcPtr crtc);
 
 #endif
 
@@ -266,7 +252,6 @@ int ms_flush_drm_events(ScreenPtr screen);
 void ms_drain_drm_events(ScreenPtr screen);
 Bool ms_window_has_variable_refresh(modesettingPtr ms, WindowPtr win);
 void ms_present_set_screen_vrr(ScrnInfoPtr scrn, Bool vrr_enabled);
-Bool ms_tearfree_is_active_on_crtc(xf86CrtcPtr crtc);
 Bool ms_window_has_async_flip(WindowPtr win);
 void ms_window_update_async_flip(WindowPtr win, Bool async_flip);
 Bool ms_window_has_async_flip_modifiers(WindowPtr win);
