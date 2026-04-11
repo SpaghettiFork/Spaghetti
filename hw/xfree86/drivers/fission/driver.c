@@ -1488,7 +1488,7 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     /* TearFree requires glamor and, if PageFlip is enabled, universal planes */
-    if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_TEARFREE, TRUE)) {
+    if (xf86ReturnOptValBool(ms->drmmode.Options, OPTION_TEARFREE, FALSE)) {
         if (pScrn->is_gpu) {
             xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
                        "TearFree cannot synchronize PRIME; use 'PRIME Synchronization' instead\n");
