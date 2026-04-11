@@ -988,7 +988,17 @@ drmmode_bo_destroy(drmmode_ptr drmmode, drmmode_bo *bo)
 
 #ifdef GLAMOR_HAS_GBM
     if (bo->gbm) {
-        gbm_bo_destroy(bo->gbm);
+#ifdef GLAMOR_HAS_GBM_MAP
+        if (bo->gbm_ptr) {
+            gbm_bo_unmap(bo->gbm, bo->gbm_map_data);
+            bo->gbm_map_data = NULL;
+            bo->gbm_ptr = NULL;
+        }
+#endif
+
+        if (bo->owned_gbm)
+            gbm_bo_destroy(bo->gbm);
+
         bo->gbm = NULL;
     }
 #endif
@@ -1041,8 +1051,21 @@ drmmode_bo_map(drmmode_ptr drmmode, drmmode_bo *bo)
     int ret;
 
 #ifdef GLAMOR_HAS_GBM
-    if (bo->gbm)
+    if (bo->gbm) {
+#ifdef GLAMOR_HAS_GBM_MAP
+        uint32_t stride;
+
+        if (bo->gbm_ptr)
+            return bo->gbm_ptr;
+
+        bo->gbm_ptr = gbm_bo_map(bo->gbm, 0, 0, bo->width, bo->height,
+                                 GBM_BO_TRANSFER_READ_WRITE, &stride,
+                                 &bo->gbm_map_data);
+        return bo->gbm_ptr;
+#else
         return NULL;
+#endif
+    }
 #endif
 
     if (bo->dumb->ptr)
@@ -1191,6 +1214,8 @@ drmmode_create_bo(drmmode_ptr drmmode, drmmode_bo *bo,
             bo->used_modifiers = FALSE;
         }
 
+        bo->gbm_ptr = NULL;
+        bo->owned_gbm = TRUE;
         return bo->gbm != NULL;
     }
 #endif
@@ -3853,13 +3878,25 @@ drmmode_set_pixmap_bo(drmmode_ptr drmmode, PixmapPtr pixmap, drmmode_bo *bo)
     modesettingPtr ms = modesettingPTR(scrn);
 
     if (!drmmode->glamor)
-        return TRUE;
+        return TRUE;   
+
+#ifdef GLAMOR_HAS_GBM_MAP
+    /* Calling egl_create_textured_pixmap_from_gbm_bo in GLAMOR will
+     * destroy the GBM BO, we need to unmap pointers ahead of time. */
+    if (bo->gbm && bo->gbm_ptr) {
+        gbm_bo_unmap(bo->gbm, bo->gbm_map_data);
+        bo->gbm_ptr = NULL;
+        bo->gbm_map_data = NULL;
+    }
+#endif
 
     if (!ms->glamor.egl_create_textured_pixmap_from_gbm_bo(pixmap, bo->gbm,
                                                            bo->used_modifiers)) {
         xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Failed to create pixmap\n");
         return FALSE;
     }
+
+    bo->owned_gbm = FALSE;
 #endif
 
     return TRUE;
