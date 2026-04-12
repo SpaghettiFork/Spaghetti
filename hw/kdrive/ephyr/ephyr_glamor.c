@@ -153,6 +153,7 @@ ephyr_glamor_build_glsl_prog(GLuint vs, GLuint fs)
         if (_X_LIKELY(info)) {
             glGetProgramInfoLog(prog, size, NULL, info);
             ErrorF("Failed to link: %s\n", info);
+            free(info);
         } else {
             ErrorF("Failed to get shader link info.\n");
         }

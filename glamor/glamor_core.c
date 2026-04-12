@@ -109,6 +109,7 @@ glamor_link_glsl_prog(ScreenPtr screen, GLint prog, const char *format, ...)
         if (_X_LIKELY(info)) {
             glGetProgramInfoLog(prog, size, NULL, info);
             ErrorF("Failed to link: %s\n", info);
+            free(info);
         } else {
             ErrorF("Failed to get shader link info.\n");
         }
