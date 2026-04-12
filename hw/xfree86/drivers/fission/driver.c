@@ -1406,6 +1406,18 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         return FALSE;
     }
 
+    /**
+     * Require drmCrtcGetSequence on fission, the kernel API has been there since
+     * the start of 2018 and there has been an entire series of LTS kernels that
+     * support it. Users that want to use older kernels should use modesetting instead.
+     */
+    ret = drmCrtcGetSequence(ms->fd, 0, NULL, NULL);
+    if (ret == -1 && (errno == ENOTTY || errno == EINVAL)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                   "Missing support for drmCrtcQueueSequence\n");
+        return FALSE;
+    }
+
     if (drmmode_pre_init(pScrn, &ms->drmmode, pScrn->bitsPerPixel / 8) == FALSE) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "KMS setup failed\n");
         goto fail;

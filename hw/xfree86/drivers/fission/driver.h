@@ -127,9 +127,6 @@ typedef struct _modesettingRec {
 
     DamagePtr damage;
 
-    Bool has_queue_sequence;
-    Bool tried_queue_sequence;
-
     /* VRR support */
     WindowPtr flip_window;
     Bool vrr_support;
