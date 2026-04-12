@@ -332,14 +332,13 @@ ms_get_crtc_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc)
 static void
 ms_drm_socket_handler(int fd, int ready, void *data)
 {
-    ScreenPtr screen = data;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
+    if (_X_LIKELY(data)) {
+        ScreenPtr screen = data;
+        ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+        modesettingPtr ms = modesettingPTR(scrn);
 
-    if (data == NULL)
-        return;
-
-    drmHandleEvent(fd, &ms->event_context);
+        drmHandleEvent(fd, &ms->event_context);
+    }
 }
 
 /*
