@@ -3298,6 +3298,25 @@ drmmode_output_create_resources(xf86OutputPtr output)
     }
 }
 
+static inline void
+drmmode_output_commit(drmmode_ptr drmmode, uint32_t object_id,
+                      uint32_t property_id, uint64_t value)
+{
+    drmModeAtomicReq *req = drmModeAtomicAlloc();
+    int r;
+
+    if (!req)
+        return;
+
+    r = drmModeAtomicAddProperty(req, object_id, property_id, value);
+
+    if (r >= 0)
+        drmModeAtomicCommit(drmmode->fd, req,
+                            DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+    
+    drmModeAtomicFree(req);
+}
+
 static Bool
 drmmode_output_set_property(xf86OutputPtr output, Atom property,
                             RRPropertyValuePtr value)
@@ -3322,18 +3341,8 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
                 return FALSE;
             val = *(uint32_t *) value->data;
 
-            /* Atomic-only: connector properties are set via an atomic request. */
-            {
-                drmModeAtomicReq *req = drmModeAtomicAlloc();
-                if (req) {
-                    int r = drmModeAtomicAddProperty(req,
-                                drmmode_output->output_id,
-                                p->mode_prop->prop_id, (uint64_t) val);
-                    if (r >= 0)
-                        drmModeAtomicCommit(drmmode->fd, req, 0, NULL);
-                    drmModeAtomicFree(req);
-                }
-            }
+            drmmode_output_commit(drmmode, drmmode_output->output_id,
+                                  p->mode_prop->prop_id, (uint64_t) val);
             return TRUE;
         }
         else if (p->mode_prop->flags & DRM_MODE_PROP_ENUM) {
@@ -3350,17 +3359,8 @@ drmmode_output_set_property(xf86OutputPtr output, Atom property,
             /* search for matching name string, then set its value down */
             for (int j = 0; j < p->mode_prop->count_enums; j++) {
                 if (!strcmp(p->mode_prop->enums[j].name, name)) {
-                    /* Atomic-only: connector properties via atomic request. */
-                    drmModeAtomicReq *req = drmModeAtomicAlloc();
-                    if (req) {
-                        int r = drmModeAtomicAddProperty(req,
-                                    drmmode_output->output_id,
-                                    p->mode_prop->prop_id,
-                                    p->mode_prop->enums[j].value);
-                        if (r >= 0)
-                            drmModeAtomicCommit(drmmode->fd, req, 0, NULL);
-                        drmModeAtomicFree(req);
-                    }
+                    drmmode_output_commit(drmmode, drmmode_output->output_id,
+                                          p->mode_prop->prop_id, p->mode_prop->enums[j].value);
                     return TRUE;
                 }
             }
