@@ -14,7 +14,7 @@ fission \- video driver for framebuffer device
 .fi
 .SH DESCRIPTION
 .B fission
-is an @xservername@ driver for KMS devices.  This driver supports
+is an experimental @xservername@ driver for KMS devices.  This driver supports
 TrueColor visuals at framebuffer depths of 15, 16, 24, and 30. RandR
 1.2 is supported for multi-head configurations. Acceleration is available
 through glamor for devices supporting at least OpenGL ES 2.0 or OpenGL 2.1.
@@ -24,8 +24,19 @@ which case the shadow framebuffer is always used).
 .SH SUPPORTED HARDWARE
 The
 .B fission
-supports all hardware where an atomic modesetting capable KMS driver is available.
-fission uses the Linux DRM Atomic KMS ioctls and dumb object create/map.
+driver supports all hardware where the following is available:
+.RS
+.IP \(bu 2
+the Linux DRM KMS ioctls
+.IP \(bu 2
+dumb object create/map support
+.IP \(bu 2
+DRM_CAP_ADDFB2_MODIFIERS support
+.IP \(bu 2
+DRM_CLIENT_CAP_ATOMIC support
+.IP \(bu 2
+drmCrtcQueueSequence support
+.RE
 .SH CONFIGURATION DETAILS
 Please refer to
 .BR @xconfigfile@ (@filemansuffix@)
