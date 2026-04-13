@@ -131,11 +131,11 @@ subdir('shadowfb')
 if build_vgahw
     subdir('vgahw')
 endif
-# if build_fission
-#    subdir('drivers/fission')
-# endif
+if build_fission
+    subdir('drivers/fission')
+endif
 if build_modesetting
-   subdir('drivers/modesetting')
+    subdir('drivers/modesetting')
 endif
 if get_option('xf86-input-inputtest')
     subdir('drivers/inputtest')
