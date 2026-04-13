@@ -1757,7 +1757,6 @@ CreateScreenResources(ScreenPtr pScreen)
             return FALSE;
     }
 
-#if 0
     err = drmModeDirtyFB(ms->fd, ms->drmmode.fb_id, NULL, 0);
 
     if ((err != -EINVAL && err != -ENOSYS)) {
@@ -1775,7 +1774,6 @@ CreateScreenResources(ScreenPtr pScreen)
             return FALSE;
         }
     }
-#endif
 
     if (dixPrivateKeyRegistered(rrPrivKey)) {
         rrScrPrivPtr pScrPriv = rrGetScrPriv(pScreen);
