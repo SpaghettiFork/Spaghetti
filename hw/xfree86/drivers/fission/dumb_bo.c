@@ -41,18 +41,17 @@ struct dumb_bo *
 dumb_bo_create(int fd,
                const unsigned width, const unsigned height, const unsigned bpp)
 {
-    struct drm_mode_create_dumb arg;
+    struct drm_mode_create_dumb arg = { 
+        .width = width,
+        .height = height,
+        .bpp = bpp
+    };
     struct dumb_bo *bo;
     int ret;
 
     bo = calloc(1, sizeof(*bo));
     if (!bo)
         return NULL;
-
-    memset(&arg, 0, sizeof(arg));
-    arg.width = width;
-    arg.height = height;
-    arg.bpp = bpp;
 
     ret = drmIoctl(fd, DRM_IOCTL_MODE_CREATE_DUMB, &arg);
     if (ret)
@@ -71,16 +70,13 @@ dumb_bo_create(int fd,
 int
 dumb_bo_map(int fd, struct dumb_bo *bo)
 {
-    struct drm_mode_map_dumb arg;
+    struct drm_mode_map_dumb arg = { .handle = bo->handle };
     int ret;
     void *map;
 
     if (bo->ptr) {
         return 0;
     }
-
-    memset(&arg, 0, sizeof(arg));
-    arg.handle = bo->handle;
 
     ret = drmIoctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &arg);
     if (ret)
@@ -97,7 +93,7 @@ dumb_bo_map(int fd, struct dumb_bo *bo)
 int
 dumb_bo_destroy(int fd, struct dumb_bo *bo)
 {
-    struct drm_mode_destroy_dumb arg;
+    struct drm_mode_destroy_dumb arg = { .handle = bo->handle };
     int ret;
 
     if (bo->ptr) {
@@ -105,8 +101,6 @@ dumb_bo_destroy(int fd, struct dumb_bo *bo)
         bo->ptr = NULL;
     }
 
-    memset(&arg, 0, sizeof(arg));
-    arg.handle = bo->handle;
     ret = drmIoctl(fd, DRM_IOCTL_MODE_DESTROY_DUMB, &arg);
     if (ret)
         return -errno;

@@ -1111,15 +1111,10 @@ drmmode_bo_import(drmmode_ptr drmmode, drmmode_bo *bo,
         if (num_fds > 0) {
             int i;
             uint32_t format;
-            uint32_t handles[4];
-            uint32_t strides[4];
-            uint32_t offsets[4];
-            uint64_t modifiers[4];
-
-            memset(handles, 0, sizeof(handles));
-            memset(strides, 0, sizeof(strides));
-            memset(offsets, 0, sizeof(offsets));
-            memset(modifiers, 0, sizeof(modifiers));
+            uint32_t handles[4] = { 0 };
+            uint32_t strides[4] = { 0 };
+            uint32_t offsets[4] = { 0 };
+            uint64_t modifiers[4] = { 0 };
 
             format = gbm_bo_get_format(bo->gbm);
             format = get_opaque_format(format);
