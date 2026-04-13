@@ -1074,35 +1074,24 @@ drmmode_bo_map(drmmode_ptr drmmode, drmmode_bo *bo)
 }
 
 static inline int
-drmModeAddDumbFB(drmmode_ptr drmmode, drmmode_bo *bo, uint32_t *fb_id)
+drmModeAddDumbFB(drmmode_ptr drmmode, struct dumb_bo *bo, uint32_t *fb_id,
+                 uint32_t width, uint32_t height, uint32_t drm_format)
 {
     uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
-    uint32_t drm_format;
 
-    switch (drmmode->kbpp) {
-        case 16:
-            drm_format = (drmmode->scrn->depth == 15) ?
-                         DRM_FORMAT_XRGB1555 : DRM_FORMAT_RGB565;
-            break;
-        case 32:
-            drm_format = (drmmode->scrn->depth == 30) ?
-                         DRM_FORMAT_XRGB2101010 : DRM_FORMAT_XRGB8888;
-            break;
-        default:
-            drm_format = DRM_FORMAT_XRGB8888;
-            break;
-    }
+    handles[0] = bo->handle;
+    pitches[0] = bo->pitch;
 
-    handles[0] = drmmode_bo_get_handle(bo);
-    pitches[0] = drmmode_bo_get_pitch(bo);
-    return drmModeAddFB2(drmmode->fd, bo->width, bo->height,
-                         drm_format, handles, pitches, offsets, fb_id, 0);
+    return drmModeAddFB2(drmmode->fd, width, height, drm_format,
+                         handles, pitches, offsets, fb_id, 0);
 }
 
 int
 drmmode_bo_import(drmmode_ptr drmmode, drmmode_bo *bo,
                   uint32_t *fb_id)
 {
+    uint32_t format;
+
 #ifdef GBM_BO_WITH_MODIFIERS
     if (bo->gbm && gbm_bo_get_modifier(bo->gbm) != DRM_FORMAT_MOD_INVALID) {
         int num_fds;
@@ -1110,7 +1099,6 @@ drmmode_bo_import(drmmode_ptr drmmode, drmmode_bo *bo,
         num_fds = gbm_bo_get_plane_count(bo->gbm);
         if (num_fds > 0) {
             int i;
-            uint32_t format;
             uint32_t handles[4] = { 0 };
             uint32_t strides[4] = { 0 };
             uint32_t offsets[4] = { 0 };
@@ -1151,7 +1139,22 @@ drmmode_bo_import(drmmode_ptr drmmode, drmmode_bo *bo,
     }
 #endif
 
-    return drmModeAddDumbFB(drmmode, bo, fb_id);
+    /* Guess the format from the BPP and depth. */
+    switch (drmmode->kbpp) {
+        case 16:
+            format = (drmmode->scrn->depth == 15) ?
+                      DRM_FORMAT_XRGB1555 : DRM_FORMAT_RGB565;
+            break;
+        case 32:
+            format = (drmmode->scrn->depth == 30) ?
+                      DRM_FORMAT_XRGB2101010 : DRM_FORMAT_XRGB8888;
+            break;
+        default:
+            format = DRM_FORMAT_XRGB8888;
+            break;
+    }
+
+    return drmModeAddDumbFB(drmmode, bo->dumb, fb_id, bo->width, bo->height, format);
 }
 
 static Bool
@@ -1367,9 +1370,6 @@ drmmode_SharedPixmapFlip(PixmapPtr frontTarget, xf86CrtcPtr crtc,
                            drmmode_SharedPixmapVBlankEventHandler,
                            drmmode_SharedPixmapVBlankEventAbort);
 
-    /* Atomic-only: use the atomic page-flip helper which issues a
-     * non-blocking DRM_MODE_ATOMIC_NONBLOCK commit carrying PAGE_FLIP_EVENT.
-     * drmModePageFlip() is not used in atomic mode. */
     if (drmmode_crtc_flip(crtc, ppriv_front->fb_id, 0, 0,
                           DRM_MODE_PAGE_FLIP_EVENT,
                           (void *)(intptr_t) ppriv_front->flip_seq) != 0) {
@@ -1668,11 +1668,8 @@ drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
     for (i = 0; i < xf86_config->num_crtc; i++) {
         drmmode_crtc_private_ptr drmmode_crtc = xf86_config->crtc[i]->driver_private;
-        /* buffer_id is a legacy KMS field not populated in atomic mode.
-         * The fbcon ID must be obtained via a separate mechanism (e.g.,
-         * DRM_IOCTL_MODE_OBJ_GETPROPERTIES on the CRTC) if needed.
-         * For an atomic-only driver this blitting path is typically unused. */
-        (void)drmmode_crtc;
+        if (drmmode_crtc->mode_crtc->buffer_id)
+            fbcon_id = drmmode_crtc->mode_crtc->buffer_id;
     }
 
     if (!fbcon_id)
@@ -1880,13 +1877,6 @@ drmmode_set_cursor(xf86CrtcPtr crtc, int width, int height, int xhot, int yhot)
 
 static void drmmode_hide_cursor(xf86CrtcPtr crtc);
 
-/*
- * The load_cursor_argb_check driver hook.
- *
- * Uploads the cursor image into the dumb BO and activates the cursor plane
- * via an atomic non-blocking commit.  Returns FALSE to signal the X server
- * to fall back to a software cursor if the cursor plane is unavailable.
- */
 static Bool
 drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
 {
@@ -2080,6 +2070,36 @@ drmmode_set_target_scanout_pixmap_gpu(xf86CrtcPtr crtc, PixmapPtr ppix,
     return TRUE;
 }
 
+static inline int
+drmModeAddFBPixmap(drmmode_ptr drmmode, PixmapPtr ppix, msPixmapPrivPtr ppriv)
+{
+    uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
+    uint32_t drm_format;
+
+    /* Derive the fourcc format from depth/bitsPerPixel — drmModeAddFB2
+     * requires an explicit format rather than the legacy depth/bpp pair. */
+    switch (ppix->drawable.bitsPerPixel) {
+    case 16:
+        drm_format = (ppix->drawable.depth == 15) ?
+                     DRM_FORMAT_XRGB1555 : DRM_FORMAT_RGB565;
+        break;
+    case 32:
+        drm_format = (ppix->drawable.depth == 30) ?
+                     DRM_FORMAT_XRGB2101010 : DRM_FORMAT_XRGB8888;
+        break;
+    default:
+        drm_format = DRM_FORMAT_XRGB8888;
+        break;
+    }
+
+    handles[0] = ppriv->backing_bo->handle;
+    pitches[0] = ppix->devKind;
+    
+    return drmModeAddFB2(drmmode->fd, ppix->drawable.width,
+                         ppix->drawable.height, drm_format,
+                         handles, pitches, offsets, &ppriv->fb_id, 0);
+}
+
 static Bool
 drmmode_set_target_scanout_pixmap_cpu(xf86CrtcPtr crtc, PixmapPtr ppix,
                                       PixmapPtr *target)
@@ -2116,31 +2136,9 @@ drmmode_set_target_scanout_pixmap_cpu(xf86CrtcPtr crtc, PixmapPtr ppix,
     DamageRegister(&ppix->drawable, ppriv->secondary_damage);
 
     if (ppriv->fb_id == 0) {
-        uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
-        uint32_t drm_format;
-
-        /* Derive the fourcc format from depth/bitsPerPixel — drmModeAddFB2
-         * requires an explicit format rather than the legacy depth/bpp pair. */
-        switch (ppix->drawable.bitsPerPixel) {
-        case 16:
-            drm_format = (ppix->drawable.depth == 15) ?
-                         DRM_FORMAT_XRGB1555 : DRM_FORMAT_RGB565;
-            break;
-        case 32:
-            drm_format = (ppix->drawable.depth == 30) ?
-                         DRM_FORMAT_XRGB2101010 : DRM_FORMAT_XRGB8888;
-            break;
-        default:
-            drm_format = DRM_FORMAT_XRGB8888;
-            break;
-        }
-
-        handles[0] = ppriv->backing_bo->handle;
-        pitches[0] = ppix->devKind;
-        drmModeAddFB2(drmmode->fd, ppix->drawable.width,
-                      ppix->drawable.height, drm_format,
-                      handles, pitches, offsets, &ppriv->fb_id, 0);
+        drmModeAddFBPixmap(drmmode, ppix, ppriv);
     }
+
     *target = ppix;
     return TRUE;
 }
@@ -4697,26 +4695,16 @@ drmmode_get_default_bpp(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int *depth,
         mode_res->min_width = 1;
     if (mode_res->min_height == 0)
         mode_res->min_height = 1;
-    /*create a bo */
-    bo = dumb_bo_create(drmmode->fd, mode_res->min_width, mode_res->min_height,
-                        32);
+
+    /* create a bo */
+    bo = dumb_bo_create(drmmode->fd, mode_res->min_width, mode_res->min_height, 32);
     if (!bo) {
         *bpp = 24;
         goto out;
     }
 
-    /* Atomic-only: use drmModeAddFB2 with an explicit fourcc format.
-     * XRGB8888 is the canonical 32 bpp / depth-24 format. */
-    {
-        uint32_t handles[4] = {0}, pitches[4] = {0}, offsets[4] = {0};
-        handles[0] = bo->handle;
-        pitches[0] = bo->pitch;
-        ret = drmModeAddFB2(drmmode->fd,
-                            mode_res->min_width, mode_res->min_height,
-                            DRM_FORMAT_XRGB8888,
-                            handles, pitches, offsets, &fb_id, 0);
-    }
-
+    ret = drmModeAddDumbFB(drmmode, bo, &fb_id,
+                           mode_res->min_width, mode_res->min_height, DRM_FORMAT_XRGB8888);
     if (ret) {
         *bpp = 24;
         dumb_bo_destroy(drmmode->fd, bo);
