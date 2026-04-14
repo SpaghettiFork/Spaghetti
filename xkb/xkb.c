@@ -5606,8 +5606,8 @@ _CheckSetGeom(XkbGeometryPtr geom, xkbSetGeometryReq * req, ClientPtr client)
     }
 
     for (i = 0; i < req->nKeyAliases; i++) {
-        if (!_XkbCheckRequestBounds(client, req, wire, wire + XkbKeyNameLength))
-                return BadLength;
+        if (!_XkbCheckRequestBounds(client, req, wire, wire + 2 * XkbKeyNameLength))
+            return BadLength;
 
         if (XkbAddGeomKeyAlias(geom, &wire[XkbKeyNameLength], wire) == NULL)
             return BadAlloc;
