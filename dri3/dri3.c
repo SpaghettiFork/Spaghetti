@@ -29,6 +29,15 @@ DevPrivateKeyRec dri3_screen_private_key;
 
 static int dri3_screen_generation;
 
+static inline void
+dri3_free_formats(dri3_screen_priv_ptr screen_priv)
+{
+    for (int i = 0; i < screen_priv->num_formats; i++)
+        free(screen_priv->formats[i].modifiers);
+
+    free(screen_priv->formats);
+}
+
 static Bool
 dri3_close_screen(ScreenPtr screen)
 {
@@ -36,8 +45,7 @@ dri3_close_screen(ScreenPtr screen)
 
     unwrap(screen_priv, screen, CloseScreen);
 
-    if (screen_priv->formats)
-        free(screen_priv->formats);
+    dri3_free_formats(screen_priv);
 
     free(screen_priv);
     return (*screen->CloseScreen) (screen);
