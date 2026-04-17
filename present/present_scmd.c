@@ -80,28 +80,17 @@ present_check_flip(RRCrtcPtr            crtc,
     if (!screen_priv->info)
         return FALSE;
 
-    /* Make sure the window hasn't been redirected with Composite */
-    window_pixmap = screen->GetWindowPixmap(window);
-    if (window_pixmap != screen->GetScreenPixmap(screen) &&
-        screen_priv->flip_active != NULL &&
-        window_pixmap != screen_priv->flip_active->pixmap &&
-        window_pixmap != present_flip_pending_pixmap(screen))
+    /* Source pixmap must align with window exactly */
+    if (x_off || y_off)
         return FALSE;
 
     /* Check for full-screen window */
-    if (!RegionEqual(&window->clipList, &root->winSize)) {
+    if (!RegionEqual(&window->clipList, &root->winSize))
         return FALSE;
-    }
-
-    /* Source pixmap must align with window exactly */
-    if (x_off || y_off) {
-        return FALSE;
-    }
 
     /* Make sure the area marked as valid fills the screen */
-    if (valid && !RegionEqual(valid, &root->winSize)) {
+    if (valid && !RegionEqual(valid, &root->winSize))
         return FALSE;
-    }
 
     /* Does the window match the pixmap exactly? */
     if (window->drawable.x != 0 ||
@@ -111,9 +100,16 @@ present_check_flip(RRCrtcPtr            crtc,
         window->drawable.y != pixmap->screen_y ||
 #endif
         window->drawable.width != pixmap->drawable.width ||
-        window->drawable.height != pixmap->drawable.height) {
+        window->drawable.height != pixmap->drawable.height)
         return FALSE;
-    }
+
+    /* Make sure the window hasn't been redirected with Composite */
+    window_pixmap = screen->GetWindowPixmap(window);
+    if (window_pixmap != screen->GetScreenPixmap(screen) &&
+        screen_priv->flip_active != NULL &&
+        window_pixmap != screen_priv->flip_active->pixmap &&
+        window_pixmap != present_flip_pending_pixmap(screen))
+        return FALSE;
 
     DebugPresent(("\td %08" PRIx32 " -> %08" PRIx32 "\n", window->drawable.id, pixmap ? pixmap->drawable.id : 0));
 
