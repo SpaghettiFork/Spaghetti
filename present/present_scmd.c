@@ -526,12 +526,11 @@ present_scmd_clear_window_flip(WindowPtr window)
 static void
 present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 {
-    WindowPtr                   window = vblank->window;
-    ScreenPtr                   screen = window->drawable.pScreen;
-    present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
-    if (vblank && vblank->crtc) {
-        screen_priv=present_screen_priv(vblank->crtc->pScreen);
-    }
+    WindowPtr window = vblank->window;
+    ScreenPtr screen = window->drawable.pScreen;
+    ScreenPtr crtc_screen = (vblank->crtc) ? vblank->crtc->pScreen : screen;
+    present_screen_priv_ptr screen_priv = (crtc_screen == screen) 
+        ? present_screen_priv(screen) : present_screen_priv(crtc_screen);
 
     if (present_execute_wait(vblank, crtc_msc))
         return;
