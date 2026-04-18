@@ -138,7 +138,7 @@ present_execute_copy(present_vblank_ptr vblank, uint64_t crtc_msc)
 void
 present_execute_post(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 {
-    uint8_t mode;
+    uint8_t mode = PresentCompleteModeCopy;
 
     /* Compute correct CompleteMode
      */
@@ -152,8 +152,6 @@ present_execute_post(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             mode = PresentCompleteModeSkip;
         }
     }
-    else
-        mode = PresentCompleteModeCopy;
 
     present_vblank_notify(vblank, vblank->kind, mode, ust, crtc_msc);
     present_vblank_destroy(vblank);
