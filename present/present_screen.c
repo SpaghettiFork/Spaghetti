@@ -228,8 +228,9 @@ present_screen_init(ScreenPtr screen, present_screen_info_ptr info)
             return FALSE;
 
         screen_priv->info = info;
-        present_scmd_init_mode_hooks(screen_priv);
 
+        present_scmd_init_mode_hooks(screen_priv);
+        present_scmd_init_driver_flip(screen_priv);
         present_fake_screen_init(screen);
     }
 

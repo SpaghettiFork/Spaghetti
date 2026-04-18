@@ -116,14 +116,7 @@ present_check_flip(RRCrtcPtr            crtc,
     if (reason)
         *reason = PRESENT_FLIP_REASON_UNKNOWN;
 
-    /* Ask the driver for permission. Do this now to see if there's TearFree. */
-    if (screen_priv->info->version >= 1 && screen_priv->info->check_flip2) {
-        return (*screen_priv->info->check_flip2) (crtc, window, pixmap, sync_flip, reason);
-    } else if (screen_priv->info->check_flip) {
-        return (*screen_priv->info->check_flip) (crtc, window, pixmap, sync_flip);
-    } else {
-        return FALSE;
-    }
+    return screen_priv->check_flip_driver(crtc, window, pixmap, sync_flip, reason);
 }
 
 static Bool
@@ -916,6 +909,42 @@ present_scmd_init_mode_hooks(present_screen_priv_ptr screen_priv)
 
     screen_priv->abort_vblank       =   &present_scmd_abort_vblank;
     screen_priv->flip_destroy       =   &present_scmd_flip_destroy;
+}
+
+static Bool
+present_flip_unsupported(RRCrtcPtr crtc,
+                         WindowPtr window,
+                         PixmapPtr pixmap,
+                         Bool sync_flip,
+                         PresentFlipReason *reason)
+{
+    return FALSE;
+}
+
+static Bool
+present_flip_v1_adapter(RRCrtcPtr crtc,
+                        WindowPtr window,
+                        PixmapPtr pixmap,
+                        Bool sync_flip,
+                        PresentFlipReason *reason)
+{
+    present_screen_priv_ptr sp = present_screen_priv(crtc->pScreen);
+    return (*sp->info->check_flip)(crtc, window, pixmap, sync_flip);
+}
+
+void
+present_scmd_init_driver_flip(present_screen_priv_ptr screen_priv)
+{
+    if (!screen_priv->info)
+        goto unsupported;
+
+    if (screen_priv->info->version >= 1 && screen_priv->info->check_flip2)
+        screen_priv->check_flip_driver = screen_priv->info->check_flip2;
+    else if (screen_priv->info->check_flip)
+        screen_priv->check_flip_driver = present_flip_v1_adapter;
+    else
+unsupported:
+        screen_priv->check_flip_driver = present_flip_unsupported;
 }
 
 Bool

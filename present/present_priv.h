@@ -118,6 +118,12 @@ typedef Bool (*present_priv_check_flip_ptr)(RRCrtcPtr crtc,
                                             int16_t x_off,
                                             int16_t y_off,
                                             PresentFlipReason *reason);
+typedef Bool (*present_priv_driver_flip_ptr)(RRCrtcPtr crtc,
+                                             WindowPtr window,
+                                             PixmapPtr pixmap,
+                                             Bool sync_flip,
+                                             PresentFlipReason *reason);
+
 typedef void (*present_priv_check_flip_window_ptr)(WindowPtr window);
 typedef Bool (*present_priv_can_window_flip_ptr)(WindowPtr window);
 typedef void (*present_priv_clear_window_flip_ptr)(WindowPtr window);
@@ -182,6 +188,8 @@ struct present_screen_priv {
 
     present_priv_check_flip_ptr         check_flip;
     present_priv_check_flip_window_ptr  check_flip_window;
+    present_priv_driver_flip_ptr        check_flip_driver;
+
     present_priv_can_window_flip_ptr    can_window_flip;
     present_priv_clear_window_flip_ptr  clear_window_flip;
 
@@ -452,6 +460,9 @@ present_init(void);
 
 void
 present_scmd_init_mode_hooks(present_screen_priv_ptr screen_priv);
+
+_X_HIDDEN void
+present_scmd_init_driver_flip(present_screen_priv_ptr screen_priv);
 
 /*
  * present_screen.c
