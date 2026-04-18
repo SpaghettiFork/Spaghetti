@@ -176,20 +176,14 @@ present_get_target_msc(uint64_t target_msc_arg,
 
     /* If no divisor is specified, the modulo is undefined
      * and we do present instead asap.
+     *
+     * When no async presentation is forced, by default we sync the
+     * presentation with vblank. But in this case we can't target
+     * the current crtc-msc, which already has begun, but must aim
+     * for the upcoming one.
      */
-    if (divisor == 0) {
-        target_msc = crtc_msc;
-
-        /* When no async presentation is forced, by default we sync the
-         * presentation with vblank. But in this case we can't target
-         * the current crtc-msc, which already has begun, but must aim
-         * for the upcoming one.
-         */
-        if (synced_flip)
-            target_msc++;
-
-        return target_msc;
-    }
+    if (divisor == 0)
+        return crtc_msc + synced_flip;
 
     /* Calculate target-msc by the specified modulo parameters. According
      * to Present protocol this is after the next field with:
@@ -207,9 +201,6 @@ present_get_target_msc(uint64_t target_msc_arg,
      */
     target_msc = crtc_msc - (crtc_msc % divisor) + remainder;
 
-    /* Here we already found the correct field-msc. */
-    if (msc_is_after(target_msc, crtc_msc))
-        return target_msc;
     /*
      * Here either:
      * a) target_msc == crtc_msc, i.e. crtc_msc actually solved
@@ -222,8 +213,9 @@ present_get_target_msc(uint64_t target_msc_arg,
      *
      * => This means in any case we want to present at target_msc + divisor.
      */
-    if (synced_flip || msc_is_after(crtc_msc, target_msc))
+    if (msc_is_after(crtc_msc + synced_flip, target_msc))
         target_msc += divisor;
+
     return target_msc;
 }
 
