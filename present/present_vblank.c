@@ -27,16 +27,18 @@
 void
 present_vblank_notify(present_vblank_ptr vblank, CARD8 kind, CARD8 mode, uint64_t ust, uint64_t crtc_msc)
 {
+    uint64_t msc = crtc_msc - vblank->msc_offset;
     int n;
 
     if (vblank->window)
-        present_send_complete_notify(vblank->window, kind, mode, vblank->serial, ust, crtc_msc - vblank->msc_offset);
+        present_send_complete_notify(vblank->window, kind, mode, vblank->serial, ust, msc);
+
     for (n = 0; n < vblank->num_notifies; n++) {
         WindowPtr   window = vblank->notifies[n].window;
         CARD32      serial = vblank->notifies[n].serial;
 
         if (window)
-            present_send_complete_notify(window, kind, mode, serial, ust, crtc_msc - vblank->msc_offset);
+            present_send_complete_notify(window, kind, mode, serial, ust, msc);
     }
 }
 
