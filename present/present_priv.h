@@ -75,7 +75,7 @@ struct present_vblank {
     uint32_t            serial;
     int16_t             x_off;
     int16_t             y_off;
-    CARD16              kind;
+    Bool                kind;
     uint64_t            event_id;
     uint64_t            target_msc;     /* target MSC when present should complete */
     uint64_t            exec_msc;       /* MSC at which present can be executed */
