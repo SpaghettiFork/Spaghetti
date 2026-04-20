@@ -359,6 +359,9 @@ void
 glamor_pixmap_exchange_fbos(PixmapPtr front, PixmapPtr back)
 {
     glamor_pixmap_private *front_priv, *back_priv;
-    
+
+    front_priv = glamor_get_pixmap_private(front);
+    back_priv = glamor_get_pixmap_private(back);
+
     XORG_EXCHANGE(back_priv->fbo, front_priv->fbo);
 }

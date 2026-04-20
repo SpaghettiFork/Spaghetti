@@ -152,4 +152,6 @@ drm_format_for_depth(uint32_t depth, uint32_t bpp)
         if (format.depth == depth && format.bpp == bpp)
             return format.drm;
     }
+
+    return 0;
 }

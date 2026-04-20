@@ -202,6 +202,7 @@ typedef struct _drmmode_crtc_private_rec {
     uint32_t num_formats;
     uint32_t rotate_fb_id;
     drmmode_format_rec *formats;
+    drmmode_format_rec *formats_async;
 
     drmmode_bo rotate_bo;
     drmmode_tearfree_rec tearfree;
@@ -295,7 +296,7 @@ typedef struct _msSpritePriv {
 extern miPointerSpriteFuncRec drmmode_sprite_funcs;
 
 Bool drmmode_is_format_supported(ScrnInfoPtr scrn, uint32_t format,
-                                 uint64_t modifier);
+                                 uint64_t modifier, Bool async_flip);
 int drmmode_bo_import(drmmode_ptr drmmode, drmmode_bo *bo,
                       uint32_t *fb_id);
 int drmmode_bo_destroy(drmmode_ptr drmmode, drmmode_bo *bo);

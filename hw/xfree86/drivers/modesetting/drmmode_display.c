@@ -194,7 +194,7 @@ drmmode_is_format_supported(ScrnInfoPtr scrn, uint32_t format,
 #ifdef GBM_BO_WITH_MODIFIERS
 static uint32_t
 get_modifiers_set(ScrnInfoPtr scrn, uint32_t format, uint64_t **modifiers,
-                  Bool enabled_crtc_only, Bool exclude_multiplane)
+                  Bool enabled_crtc_only, Bool exclude_multiplane, Bool async_flip)
 {
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     modesettingPtr ms = modesettingPTR(scrn);
@@ -214,7 +214,7 @@ get_modifiers_set(ScrnInfoPtr scrn, uint32_t format, uint64_t **modifiers,
             continue;
 
         for (i = 0; i < drmmode_crtc->num_formats; i++) {
-            drmmode_format_ptr iter = &drmmode_crtc->formats[i];
+            drmmode_format_ptr iter = get_format(drmmode_crtc, async_flip, i);
 
             if (iter->format != format)
                 continue;
@@ -2185,7 +2185,7 @@ is_plane_assigned(ScrnInfoPtr scrn, int plane_id)
  */
 static Bool
 populate_format_modifiers(xf86CrtcPtr crtc, const drmModePlane *kplane,
-                          uint32_t blob_id)
+                          drmmode_format_rec *formats, uint32_t blob_id)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
@@ -2220,7 +2220,7 @@ populate_format_modifiers(xf86CrtcPtr crtc, const drmModePlane *kplane,
 
             if (!(mod->formats & (1 << (i - mod->offset))))
                 continue;
-            
+
             /* We should never arrive on this. */
             if (mod->modifier == DRM_FORMAT_MOD_INVALID)
                 continue;
@@ -2236,9 +2236,9 @@ populate_format_modifiers(xf86CrtcPtr crtc, const drmModePlane *kplane,
             modifiers[num_modifiers - 1] = mod->modifier;
         }
 
-        drmmode_crtc->formats[i].format = blob_formats[i];
-        drmmode_crtc->formats[i].modifiers = modifiers;
-        drmmode_crtc->formats[i].num_modifiers = num_modifiers;
+        formats[i].format = blob_formats[i];
+        formats[i].modifiers = modifiers;
+        formats[i].num_modifiers = num_modifiers;
     }
 
     drmModeFreePropertyBlob(blob);
@@ -2295,7 +2295,7 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
     drmModePlaneRes *kplane_res;
     drmModePlane *kplane, *best_kplane = NULL;
     drmModeObjectProperties *props;
-    uint32_t i, type, blob_id;
+    uint32_t i, type, blob_id, async_blob_id;
     int current_crtc, best_plane = 0;
 
     static drmmode_prop_enum_info_rec plane_type_enums[] = {

@@ -144,6 +144,132 @@ int XaceHookKeyAvail(xEventPtr ev, DeviceIntPtr dev, int count)
     return Success;
 }
 
+/* Entry point for hook functions.  Called by Xserver.
+ */
+int
+XaceHook(int hook, ...)
+{
+    union {
+        XaceResourceAccessRec res;
+        XaceDeviceAccessRec dev;
+        XaceSendAccessRec send;
+        XaceReceiveAccessRec recv;
+        XaceClientAccessRec client;
+        XaceExtAccessRec ext;
+        XaceServerAccessRec server;
+        XaceScreenAccessRec screen;
+        XaceAuthAvailRec auth;
+        XaceKeyAvailRec key;
+    } u;
+    int *prv = NULL;            /* points to return value from callback */
+    va_list ap;                 /* argument list */
+
+    if (!XaceHooks[hook])
+        return Success;
+
+    va_start(ap, hook);
+
+    /* Marshal arguments for passing to callback.
+     * Each callback has its own case, which sets up a structure to hold
+     * the arguments and integer return parameter, or in some cases just
+     * sets calldata directly to a single argument (with no return result)
+     */
+    switch (hook) {
+    case XACE_RESOURCE_ACCESS:
+        u.res.client = va_arg(ap, ClientPtr);
+        u.res.id = va_arg(ap, XID);
+        u.res.rtype = va_arg(ap, RESTYPE);
+        u.res.res = va_arg(ap, void *);
+        u.res.ptype = va_arg(ap, RESTYPE);
+        u.res.parent = va_arg(ap, void *);
+        u.res.access_mode = va_arg(ap, Mask);
+
+        u.res.status = Success; /* default allow */
+        prv = &u.res.status;
+        break;
+    case XACE_DEVICE_ACCESS:
+        u.dev.client = va_arg(ap, ClientPtr);
+        u.dev.dev = va_arg(ap, DeviceIntPtr);
+        u.dev.access_mode = va_arg(ap, Mask);
+
+        u.dev.status = Success; /* default allow */
+        prv = &u.dev.status;
+        break;
+    case XACE_SEND_ACCESS:
+        u.send.client = va_arg(ap, ClientPtr);
+        u.send.dev = va_arg(ap, DeviceIntPtr);
+        u.send.pWin = va_arg(ap, WindowPtr);
+
+        u.send.events = va_arg(ap, xEventPtr);
+        u.send.count = va_arg(ap, int);
+
+        u.send.status = Success;        /* default allow */
+        prv = &u.send.status;
+        break;
+    case XACE_RECEIVE_ACCESS:
+        u.recv.client = va_arg(ap, ClientPtr);
+        u.recv.pWin = va_arg(ap, WindowPtr);
+
+        u.recv.events = va_arg(ap, xEventPtr);
+        u.recv.count = va_arg(ap, int);
+
+        u.recv.status = Success;        /* default allow */
+        prv = &u.recv.status;
+        break;
+    case XACE_CLIENT_ACCESS:
+        u.client.client = va_arg(ap, ClientPtr);
+        u.client.target = va_arg(ap, ClientPtr);
+        u.client.access_mode = va_arg(ap, Mask);
+
+        u.client.status = Success;      /* default allow */
+        prv = &u.client.status;
+        break;
+    case XACE_EXT_ACCESS:
+        u.ext.client = va_arg(ap, ClientPtr);
+
+        u.ext.ext = va_arg(ap, ExtensionEntry *);
+        u.ext.access_mode = DixGetAttrAccess;
+        u.ext.status = Success; /* default allow */
+        prv = &u.ext.status;
+        break;
+    case XACE_SERVER_ACCESS:
+        u.server.client = va_arg(ap, ClientPtr);
+        u.server.access_mode = va_arg(ap, Mask);
+
+        u.server.status = Success;      /* default allow */
+        prv = &u.server.status;
+        break;
+    case XACE_SCREEN_ACCESS:
+    case XACE_SCREENSAVER_ACCESS:
+        u.screen.client = va_arg(ap, ClientPtr);
+        u.screen.screen = va_arg(ap, ScreenPtr);
+        u.screen.access_mode = va_arg(ap, Mask);
+
+        u.screen.status = Success;      /* default allow */
+        prv = &u.screen.status;
+        break;
+    case XACE_AUTH_AVAIL:
+        u.auth.client = va_arg(ap, ClientPtr);
+        u.auth.authId = va_arg(ap, XID);
+
+        break;
+    case XACE_KEY_AVAIL:
+        u.key.event = va_arg(ap, xEventPtr);
+        u.key.keybd = va_arg(ap, DeviceIntPtr);
+        u.key.count = va_arg(ap, int);
+
+        break;
+    default:
+        va_end(ap);
+        return 0;               /* unimplemented hook number */
+    }
+    va_end(ap);
+
+    /* call callbacks and return result, if any. */
+    CallCallbacks(&XaceHooks[hook], &u);
+    return prv ? *prv : Success;
+}
+
 /* XaceHookIsSet
  *
  * Utility function to determine whether there are any callbacks listening on a

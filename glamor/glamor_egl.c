@@ -63,8 +63,11 @@ static const char* ALLOWLIST_DMA_BUF_CAPABLE[] =
 };
 
 struct glamor_egl_screen_private {
+    /* Core. */
+
     EGLDisplay display;
     EGLContext context;
+    struct gbm_device *gbm;
     char *device_path;
 
     /* Screen capabilities. */
@@ -79,11 +82,6 @@ struct glamor_egl_screen_private {
 
     CreateScreenResourcesProcPtr CreateScreenResources;
     CloseScreenProcPtr CloseScreen;
-    int fd;
-    struct gbm_device *gbm;
-    int dmabuf_capable;
-    Bool high_priority_ctx;
-    char *glvnd_vendor; /* GLVND vendor if forced from options or NULL otherwise */
 
     CloseScreenProcPtr saved_close_screen;
     DestroyPixmapProcPtr saved_destroy_pixmap;
@@ -311,7 +309,7 @@ glamor_egl_create_textured_pixmap_from_gbm_bo(PixmapPtr pixmap,
     glamor_make_current(glamor_priv);
 
 #if defined(GBM_BO_FD_FOR_PLANE)
-    if (glamor_egl->flags & GLAMOR_DMABUF_CAPABLE)
+    if (glamor_egl->dmabuf_capable)
     {
 #define ADD_ATTR(attrs, num, attr)                                      \
         do {                                                            \
@@ -1112,10 +1110,11 @@ static void glamor_egl_cleanup(struct glamor_egl_screen_private *glamor_egl)
         lastGLContext = NULL;
         eglTerminate(glamor_egl->display);
     }
+
     if (glamor_egl->gbm)
         gbm_device_destroy(glamor_egl->gbm);
+
     free(glamor_egl->device_path);
-    free(glamor_egl->glvnd_vendor);
     free(glamor_egl);
 }
 
@@ -1280,7 +1279,6 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
     const char *api = NULL;
     Bool es_allowed = TRUE;
     Bool force_es = FALSE;
-    const char *glvnd_vendor = NULL;
 
     glamor_egl = calloc(1, sizeof(*glamor_egl));
     if (glamor_egl == NULL)

@@ -40,9 +40,6 @@
 #include <X11/extensions/randr.h>
 #include <X11/extensions/Xv.h>
 
-#include "config/hotplug_priv.h"
-#include "dix/dix_priv.h"
-
 #include "xf86.h"
 #include "xf86Priv.h"
 #include "xf86_OSproc.h"

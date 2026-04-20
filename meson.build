@@ -271,7 +271,6 @@ build_xvfb = get_option('xvfb')
 
 summary({
         'Xorg': build_xorg,
-        'Xwayland': build_xwayland,
         'Xephyr': build_xephyr,
         'Xnest': build_xnest,
         'Xvfb': build_xvfb,
