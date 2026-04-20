@@ -3,7 +3,7 @@ project('xserver', 'c',
             'buildtype=debugoptimized',
             'c_std=gnu99',
         ],
-        version: '21.1.99.1',
+        version: '26.2.00.1',
         meson_version: '>= 0.60.0',
 )
 release_date = '2021-07-05'
@@ -14,6 +14,8 @@ cc = meson.get_compiler('c')
 add_project_arguments('-fno-strict-aliasing', language : 'c')
 add_project_arguments('-fvisibility=hidden', language : 'c')
 add_project_arguments('-Wvla', language: 'c')
+add_project_arguments('-Wanalyzer-null-dereference', language: 'c')
+add_project_arguments('-Wanalyzer-malloc-leak', language: 'c')
 
 add_project_link_arguments('-fvisibility=hidden', language : 'c')
 
@@ -48,6 +50,8 @@ if cc.get_id() == 'gcc' or cc.get_id() == 'clang'
         '-Werror=int-to-pointer-cast',
         '-Werror=pointer-to-int-cast',
         '-Wvla',
+        '-Wanalyzer-null-dereference',
+        '-Wanalyzer-malloc-leak'
     ]
 else
     test_wflags = []
@@ -112,11 +116,21 @@ xfont2_dep = dependency('xfont2', version: '>= 2.0')
 dbus_required = get_option('systemd_logind') == 'true'
 dbus_dep = dependency('dbus-1', version: '>= 1.0', required: dbus_required)
 
-build_systemd = get_option('systemd_notify') == 'true'
-# libsystemd-daemon was moved into libsystemd in version 209
-libsystemd_daemon_dep = dependency('libsystemd', version: '>= 209', required: false)
-if not libsystemd_daemon_dep.found()
-    libsystemd_daemon_dep = dependency('libsystemd-daemon', required: false)
+systemd_notify = get_option('systemd_notify')
+libsystemd_required = systemd_notify == 'true'
+libsystemd_wanted = systemd_notify in ['auto','true']
+
+if libsystemd_wanted
+    # libsystemd-daemon was moved into libsystemd in version 209
+    libsystemd_daemon_dep = dependency('libsystemd', version: '>= 209', required: false)
+    if not libsystemd_daemon_dep.found()
+        libsystemd_daemon_dep = dependency('libsystemd-daemon', required: false)
+    endif
+    if libsystemd_required and not libsystemd_daemon_dep.found()
+        error('libsystemd required but not found')
+    endif
+else
+    libsystemd_daemon_dep = disabler()
 endif
 
 build_hashtable = false
@@ -466,7 +480,7 @@ foreach t : test_sha1
         endif
     elif t == 'libcrypto'
         # we don't need all of OpenSSL, just libcrypto
-        libcrypto_dep = cc.find_library('crypto', required: false)
+        libcrypto_dep = dependency('libcrypto', required: false)
         openssl_dep = dependency('openssl', required: false)
         if libcrypto_dep.found() or openssl_dep.found()
             sha1_found = true
