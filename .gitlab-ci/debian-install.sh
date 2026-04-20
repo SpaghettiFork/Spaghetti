@@ -30,7 +30,6 @@ apt-get install -y \
 	libcairo2 \
 	libcairo2-dev \
 	libdbus-1-dev \
-	libdecor-0-dev \
 	libdrm-dev \
 	libegl1-mesa-dev \
 	libepoxy-dev \
@@ -44,7 +43,6 @@ apt-get install -y \
 	libglx-mesa0 \
 	libinput10 \
 	libinput-dev \
-	libnvidia-egl-wayland-dev \
 	libpango1.0-0 \
 	libpango1.0-dev \
 	libpciaccess-dev \
@@ -55,7 +53,6 @@ apt-get install -y \
 	libtool \
 	libudev-dev \
 	libunwind-dev \
-	libwayland-dev \
 	libx11-dev \
 	libx11-xcb-dev \
 	libxau-dev \
@@ -153,31 +150,6 @@ pushd libxtrans
 make -j${FDO_CI_CONCURRENT:-4} install
 popd
 rm -rf libxtrans
-
-# wayland-protocols 1.38 requires either wayland-scanner 1.23 or a build with
-# dtd_validation=false, but Debian bookworm has only 1.21 w/ dtd_validation=true
-git clone https://gitlab.freedesktop.org/wayland/wayland.git --depth 1 --branch=1.21.0
-cd wayland
-meson -Dtests=false -Ddocumentation=false -Ddtd_validation=false _build
-ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
-cd ..
-rm -rf wayland
-
-# Xwayland requires wayland-protocols >= 1.38, but Debian bookworm has 1.31 only
-git clone https://gitlab.freedesktop.org/wayland/wayland-protocols.git --depth 1 --branch=1.38
-cd wayland-protocols
-meson _build
-ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
-cd ..
-rm -rf wayland-protocols
-
-# Install libei for Xwayland, as Debian didn't add until trixie
-git clone https://gitlab.freedesktop.org/libinput/libei.git --depth 1 --branch=1.0.0
-cd libei
-meson setup _build -Dtests=disabled -Ddocumentation=[] -Dliboeffis=enabled
-ninja -C _build -j${FDO_CI_CONCURRENT:-4} install
-cd ..
-rm -rf libei
 
 git clone https://gitlab.freedesktop.org/mesa/piglit.git
 cd piglit
