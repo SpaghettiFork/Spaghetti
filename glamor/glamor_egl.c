@@ -42,6 +42,8 @@
 #include <gbm.h>
 #include <drm_fourcc.h>
 
+#include "minivec.h"
+
 #include "glamor_egl.h"
 
 #include "glamor.h"
@@ -70,6 +72,7 @@ struct glamor_egl_screen_private {
     int fd;
     struct gbm_device *gbm;
     int dmabuf_capable;
+    Bool high_priority_ctx;
     char *glvnd_vendor; /* GLVND vendor if forced from options or NULL otherwise */
 
     CloseScreenProcPtr saved_close_screen;
@@ -1013,28 +1016,44 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn)
         glamor_egl_get_screen_private(scrn);
 
     if (eglBindAPI(EGL_OPENGL_API)) {
-        static const EGLint config_attribs_core[] = {
-            EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR,
-            EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
-            EGL_CONTEXT_MAJOR_VERSION_KHR,
-            GLAMOR_GL_CORE_VER_MAJOR,
-            EGL_CONTEXT_MINOR_VERSION_KHR,
-            GLAMOR_GL_CORE_VER_MINOR,
-            EGL_NONE
-        };
+        mini_vector config;
+
+        if (!mini_vector_init(&config, sizeof(EGLint), 5)) {
+            xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+                       "mini_vector_init allocation failed\n");
+            return FALSE;
+        }
+
+        insert_mini_vector(&config, EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR);
+        insert_mini_vector(&config, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR);
+
+        /*
+         * If the user has requested a high priority context,
+         * set up the context with the hint for the driver.
+         */
+        if (glamor_egl->high_priority_ctx)
+        {
+            insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_LEVEL_IMG);
+            insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_HIGH_IMG);
+        }
+
+        insert_mini_vector(&config, EGL_NONE);
+
         static const EGLint config_attribs[] = {
             EGL_NONE
         };
 
         glamor_egl->context = eglCreateContext(glamor_egl->display,
                                                EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT,
-                                               config_attribs_core);
+                                               config.array);
+        free_mini_vector(&config);
 
         if (glamor_egl->context == EGL_NO_CONTEXT)
             glamor_egl->context = eglCreateContext(glamor_egl->display,
                                                    EGL_NO_CONFIG_KHR,
                                                    EGL_NO_CONTEXT,
                                                    config_attribs);
+
     }
 
     if (glamor_egl->context != EGL_NO_CONTEXT) {
@@ -1045,12 +1064,14 @@ glamor_egl_try_big_gl_api(ScrnInfoPtr scrn)
             return FALSE;
         }
 
-        if (epoxy_gl_version() < 21) {
+        if (epoxy_gl_version() < 21)
+        {
             xf86DrvMsg(scrn->scrnIndex, X_INFO,
-                       "glamor: Ignoring GL < 2.1, falling back to GLES.\n");
+                       "glamor: Ignoring OpenGL < 2.1, falling back to GLES.\n");
             eglDestroyContext(glamor_egl->display, glamor_egl->context);
             glamor_egl->context = EGL_NO_CONTEXT;
         }
+
         xf86DrvMsg(scrn->scrnIndex, X_INFO,
             "glamor: Using OpenGL %d.%d context.\n",
             epoxy_gl_version() / 10,
@@ -1065,11 +1086,30 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
     struct glamor_egl_screen_private *glamor_egl =
         glamor_egl_get_screen_private(scrn);
 
-    static const EGLint config_attribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 2,
-        EGL_NONE
-    };
+    mini_vector config;
+    if (!mini_vector_init(&config, sizeof(EGLint), 5)) {
+        xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+                   "mini_vector_init allocation failed\n");
+        return FALSE;
+    }
+
+    insert_mini_vector(&config, EGL_CONTEXT_CLIENT_VERSION);
+    insert_mini_vector(&config, 2);
+
+    /*
+     * If the user has requested a high priority context,
+     * set up the context with the hint for the driver.
+     */
+    if (glamor_egl->high_priority_ctx)
+    {
+        insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_LEVEL_IMG);
+        insert_mini_vector(&config, EGL_CONTEXT_PRIORITY_HIGH_IMG);
+    }
+
+    insert_mini_vector(&config, EGL_NONE);
+
     if (!eglBindAPI(EGL_OPENGL_ES_API)) {
+        free_mini_vector(&config);
         xf86DrvMsg(scrn->scrnIndex, X_ERROR,
                     "glamor: Failed to bind GLES API.\n");
         return FALSE;
@@ -1077,7 +1117,9 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
 
     glamor_egl->context = eglCreateContext(glamor_egl->display,
                                             EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT,
-                                            config_attribs);
+                                            config.array);
+
+    free_mini_vector(&config);
 
     if (glamor_egl->context != EGL_NO_CONTEXT) {
         if (!eglMakeCurrent(glamor_egl->display,
@@ -1086,6 +1128,7 @@ glamor_egl_try_gles_api(ScrnInfoPtr scrn)
                        "Failed to make GLES context current\n");
             return FALSE;
         }
+
         xf86DrvMsg(scrn->scrnIndex, X_INFO,
                 "glamor: Using OpenGL ES %d.%d context.\n",
                 epoxy_gl_version() / 10,
@@ -1172,6 +1215,17 @@ glamor_egl_init(ScrnInfoPtr scrn, int fd)
 
     GLAMOR_CHECK_EGL_EXTENSION(KHR_surfaceless_context);
     GLAMOR_CHECK_EGL_EXTENSION(KHR_no_config_context);
+
+    /* Check if we have context priority first up
+     * since we'll need to set that up at context creation. */
+    if (xf86Info.debug != NULL && epoxy_has_egl_extension(glamor_egl->display, "EGL_IMG_context_priority")) {
+        if (!!strstr(xf86Info.debug, "high_priority")) {
+            glamor_egl->high_priority_ctx = TRUE;
+
+            xf86DrvMsg(scrn->scrnIndex, X_INFO,
+                "Requesting a high priority EGL context\n");
+        }
+    }
 
     if (!force_es) {
         if(!glamor_egl_try_big_gl_api(scrn))
