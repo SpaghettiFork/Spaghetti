@@ -6025,6 +6025,9 @@ ProcXkbGetKbdByName(ClientPtr client)
     if (stuff->load && dev->hasDdxKeymap)
         return BadAccess;
 
+    CHK_MASK_LEGAL(0x01, stuff->want, XkbGBN_AllComponentsMask);
+    CHK_MASK_LEGAL(0x02, stuff->need, XkbGBN_AllComponentsMask);
+
     xkb = dev->key->xkbInfo->desc;
     status = Success;
     str = (unsigned char *) &stuff[1];
@@ -6054,9 +6057,6 @@ ProcXkbGetKbdByName(ClientPtr client)
         free(names.geometry);
         return status;
     }
-
-    CHK_MASK_LEGAL(0x01, stuff->want, XkbGBN_AllComponentsMask);
-    CHK_MASK_LEGAL(0x02, stuff->need, XkbGBN_AllComponentsMask);
 
     if (stuff->load)
         fwant = XkbGBN_AllComponentsMask;
