@@ -1283,7 +1283,7 @@ ProcSyncListSystemCounters(ClientPtr client)
     }
 
     if (len) {
-        walklist = list = malloc(len);
+        walklist = list = calloc(1, len);
         if (!list)
             return BadAlloc;
     }

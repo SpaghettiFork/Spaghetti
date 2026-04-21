@@ -318,7 +318,7 @@ ProcXGetFeedbackControl(ClientPtr client)
     if (total_length == 0)
         return BadMatch;
 
-    buf = (char *) malloc(total_length);
+    buf = (char *) calloc(1, total_length);
     if (!buf)
         return BadAlloc;
     savbuf = buf;
