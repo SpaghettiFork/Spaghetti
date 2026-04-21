@@ -462,7 +462,7 @@ ConstructClientIdValue(ClientPtr sendClient, ClientPtr client, CARD32 mask,
     xXResClientIdValue rep;
 
     rep.spec.client = client->clientAsMask;
-    if (client->swapped) {
+    if (sendClient->swapped) {
         swapl (&rep.spec.client);
     }
 
