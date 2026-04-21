@@ -531,7 +531,7 @@ static int _X_COLD
 SProcDamageAdd(ClientPtr client)
 {
     REQUEST(xDamageAddReq);
-    REQUEST_SIZE_MATCH(xDamageSubtractReq);
+    REQUEST_SIZE_MATCH(xDamageAddReq);
     swapl(&stuff->drawable);
     swapl(&stuff->region);
     return (*ProcDamageVector[stuff->damageReqType]) (client);
