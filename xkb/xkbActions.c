@@ -1176,8 +1176,10 @@ _XkbNextFreeFilter(XkbSrvInfoPtr xkbi)
     if (xkbi->szFilters == 0) {
         xkbi->szFilters = 4;
         xkbi->filters = calloc(xkbi->szFilters, sizeof(XkbFilterRec));
-        if (!xkbi->filters)
+        if (!xkbi->filters) {
+            xkbi->szFilters = 0;
             return NULL;
+        }
     }
     for (i = 0; i < xkbi->szFilters; i++) {
         if (!xkbi->filters[i].active) {
@@ -1185,11 +1187,16 @@ _XkbNextFreeFilter(XkbSrvInfoPtr xkbi)
             return &xkbi->filters[i];
         }
     }
-    xkbi->szFilters *= 2;
-    xkbi->filters = reallocarray(xkbi->filters,
-                                 xkbi->szFilters, sizeof(XkbFilterRec));
-    if (!xkbi->filters)
+
+    XkbFilterPtr newFilters;
+    int newSize = xkbi->szFilters * 2;
+
+    newFilters = reallocarray(xkbi->filters,
+                                  newSize, sizeof(XkbFilterRec));
+    if (!newFilters)
         return NULL;
+    xkbi->szFilters = newSize;
+    xkbi->filters = newFilters;
 
     memset(&xkbi->filters[xkbi->szFilters / 2], 0,
            (xkbi->szFilters / 2) * sizeof(XkbFilterRec));
@@ -1364,12 +1371,14 @@ XkbActionGetFilter(DeviceIntPtr dev, DeviceEvent *event, KeyCode key,
         break;
     case XkbSA_RedirectKey:
         filter = _XkbNextFreeFilter(xkbi);
-        /* redirect actions must create a new DeviceEvent.  The
-         * source device id for this event cannot be obtained from
-         * xkbi, so we pass it here explicitly. The field deviceid
-         * equals to xkbi->device->id. */
-        filter->priv = event->sourceid;
-        *sendEvent = _XkbFilterRedirectKey(xkbi, filter, key, act);
+        if (filter) {
+            /* redirect actions must create a new DeviceEvent.  The
+             * source device id for this event cannot be obtained from
+             * xkbi, so we pass it here explicitly. The field deviceid
+             * equals to xkbi->device->id. */
+            filter->priv = event->sourceid;
+            *sendEvent = _XkbFilterRedirectKey(xkbi, filter, key, act);
+        }
         break;
     case XkbSA_DeviceBtn:
     case XkbSA_LockDeviceBtn:
