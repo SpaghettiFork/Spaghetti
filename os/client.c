@@ -321,11 +321,13 @@ DetermineClientCmd(pid_t pid, const char **cmdname, const char **cmdargs)
         kp = kvm_getprocs(kd, KERN_PROC_PID, pid, sizeof(struct kinfo_proc),
                           &n);
         if (n != 1)
-            return;
+            goto done_kvm;
         argv = kvm_getargv(kd, kp, 0);
+        if (argv == NULL)
+            goto done_kvm;
         if (cmdname) {
-            if (argv == NULL || argv[0] == NULL)
-                return;
+            if (argv[0] == NULL)
+                goto done_kvm;
             else
                 *cmdname = strdup(argv[0]);
         }
@@ -336,13 +338,16 @@ DetermineClientCmd(pid_t pid, const char **cmdname, const char **cmdargs)
                 i++;
             }
             *cmdargs = calloc(1, len);
-            i = 1;
-            while (argv[i] != NULL) {
-                strlcat(*(char **)cmdargs, argv[i], len);
-                strlcat(*(char **)cmdargs, " ", len);
-                i++;
+            if (*cmdargs) {
+                i = 1;
+                while (argv[i] != NULL) {
+                    strlcat(*(char **)cmdargs, argv[i], len);
+                    strlcat(*(char **)cmdargs, " ", len);
+                    i++;
+                }
             }
         }
+ done_kvm:
         kvm_close(kd);
     }
 #else                           /* Linux using /proc/pid/cmdline */
