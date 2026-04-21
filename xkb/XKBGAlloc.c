@@ -555,7 +555,7 @@ XkbAddGeomProperty(XkbGeometryPtr geom, char *name, char *value)
         if ((prop->name) && (strcmp(name, prop->name) == 0)) {
             free(prop->value);
             prop->value = strdup(value);
-            return prop;
+            return (prop->value) ? prop : NULL;
         }
     }
     if ((geom->num_properties >= geom->sz_properties) &&
