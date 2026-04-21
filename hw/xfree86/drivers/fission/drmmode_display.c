@@ -3488,7 +3488,10 @@ drmmode_connector_check_vrr_capable(uint32_t drm_fd, int connector_id)
     const char* prop_name = "VRR_CAPABLE";
 
     props = drmModeObjectGetProperties(drm_fd, connector_id,
-                                    DRM_MODE_OBJECT_CONNECTOR);
+                                       DRM_MODE_OBJECT_CONNECTOR);
+
+    if (!props)
+        return FALSE;
 
     for (i = 0; !found && i < props->count_props; ++i) {
         drmModePropertyPtr drm_prop = drmModeGetProperty(drm_fd, props->props[i]);
