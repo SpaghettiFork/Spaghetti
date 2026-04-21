@@ -164,7 +164,7 @@ drmmode_is_format_supported(ScrnInfoPtr scrn, uint32_t format,
             continue;
 
         for (i = 0; i < drmmode_crtc->num_formats; i++) {
-            drmmode_format_ptr iter = &drmmode_crtc->formats[i];
+            drmmode_format_ptr iter = get_format(drmmode_crtc, async_flip, i);
 
             if (iter->format != format)
                 continue;
