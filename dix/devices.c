@@ -1724,6 +1724,7 @@ InitTouchClassDeviceStruct(DeviceIntPtr device, unsigned int max_touches,
 
     free(touch->touches);
     free(touch);
+    device->touch = NULL;
 
     return FALSE;
 }
@@ -2871,6 +2872,15 @@ AllocDevicePair(ClientPtr client, const char *name,
     if (IsMaster(pointer)) {
         pointer->unused_classes = calloc(1, sizeof(ClassesRec));
         keyboard->unused_classes = calloc(1, sizeof(ClassesRec));
+        if (!pointer->unused_classes || !keyboard->unused_classes) {
+            free(pointer->unused_classes);
+            pointer->unused_classes = NULL;
+            free(keyboard->unused_classes);
+            keyboard->unused_classes = NULL;
+            RemoveDevice(keyboard, FALSE);
+            RemoveDevice(pointer, FALSE);
+            return BadAlloc;
+        }
     }
 
     *ptr = pointer;
