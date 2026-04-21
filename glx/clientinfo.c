@@ -71,6 +71,8 @@ set_client_info(__GLXclientState * cl, xGLXSetClientInfoARBReq * req,
 
     free(cl->GLClientextensions);
     cl->GLClientextensions = strdup(gl_extensions);
+    if (!cl->GLClientextensions)
+        return BadAlloc;
 
     return 0;
 }
