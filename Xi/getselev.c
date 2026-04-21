@@ -136,6 +136,9 @@ ProcXGetSelectedExtensionEvents(ClientPtr client)
         if (!buf)
             return BadAlloc;
 
+        if (!buf)
+            return BadAlloc;
+
         tclient = buf;
         aclient = buf + rep.this_client_count;
         if (others)
