@@ -808,8 +808,11 @@ WriteToClient(ClientPtr who, int count, const void *__buf)
     }
 #endif
     if ((oco->count == 0 && who->local) || oco->count + count + padBytes > oco->size) {
-        if (!any_output_pending())
+        output_pending_clear(who);
+        
+        if (!any_output_pending()) {
             CriticalOutputPending = FALSE;
+        }
 
         return FlushClient(who, oc, buf, count);
     }
@@ -948,7 +951,7 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
 
     output_pending_clear(who);
     if (!oco)
-	    return 0;
+        return 0;
 
     written = 0;
     padsize = padding_for_int32(extraCount);
@@ -1017,7 +1020,6 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
             /* If we've arrived here, then the client is stuffed to the gills
                and not ready to accept more.  Make a note of it and buffer
                the rest. */
-            output_pending_mark(who);
 
             if (written < oco->count) {
                 if (written > 0) {
@@ -1068,7 +1070,6 @@ FlushClient(ClientPtr who, OsCommPtr oc, const void *__extraBuf, int extraCount)
     /* everything was flushed out */
     oco->start = 0;
     oco->count = 0;
-    output_pending_clear(who);
 
     if (oco->size > BUFWATERMARK) {
         free(oco->buf);
