@@ -312,6 +312,8 @@ ProcXResQueryClientResources(ClientPtr client)
     }
 
     counts = calloc(lastResourceType + 1, sizeof(int));
+    if (!counts)
+        return BadAlloc;
 
     FindAllClientResources(clients[clientID], ResFindAllRes, counts);
 

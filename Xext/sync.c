@@ -1012,6 +1012,14 @@ SyncCreateSystemCounter(const char *name,
         pCounter->pSysCounterInfo = psci;
         psci->pCounter = pCounter;
         psci->name = strdup(name);
+
+        if (!psci->name) {
+            pCounter->pSysCounterInfo = NULL;
+            free(psci);
+            FreeResource(pCounter->sync.id, X11_RESTYPE_NONE);
+            return NULL;
+        }
+
         psci->resolution = resolution;
         psci->counterType = counterType;
         psci->QueryValue = QueryValue;
@@ -1170,7 +1178,7 @@ FreeCounter(void *env, XID id)
             pnext = ptl->next;
             free(ptl); /* destroy the trigger list as we go */
         }
-        if (IsSystemCounter(pCounter)) {
+        if (IsSystemCounter(pCounter) && pCounter->pSysCounterInfo) {
             xorg_list_del(&pCounter->pSysCounterInfo->entry);
             free(pCounter->pSysCounterInfo->name);
             free(pCounter->pSysCounterInfo->private);
