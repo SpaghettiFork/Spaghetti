@@ -1409,7 +1409,7 @@ GetHosts(void **data, int *pnHosts, int *pLen, BOOL * pEnabled)
             break;
     }
     if (n) {
-        *data = ptr = malloc(n);
+        *data = ptr = calloc(1, n);
         if (!ptr) {
             return BadAlloc;
         }

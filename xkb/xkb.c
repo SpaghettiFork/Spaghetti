@@ -2675,7 +2675,7 @@ _XkbSetMap(ClientPtr client, DeviceIntPtr dev, xkbSetMapReq * req, char *values)
     if ((xkb->min_key_code != req->minKeyCode) ||
         (xkb->max_key_code != req->maxKeyCode)) {
         Status status;
-        xkbNewKeyboardNotify nkn;
+        xkbNewKeyboardNotify nkn = { 0 };
 
         nkn.deviceID = nkn.oldDeviceID = dev->id;
         nkn.oldMinKeyCode = xkb->min_key_code;
@@ -5688,7 +5688,7 @@ _XkbSetGeometry(ClientPtr client, DeviceIntPtr dev, xkbSetGeometryReq * stuff)
 {
     XkbDescPtr xkb;
     Bool new_name;
-    xkbNewKeyboardNotify nkn;
+    xkbNewKeyboardNotify nkn = { 0 };
     XkbGeometryPtr geom, old;
     XkbGeometrySizesRec sizes;
     Status status;
@@ -6280,7 +6280,7 @@ ProcXkbGetKbdByName(ClientPtr client)
         XkbSendGeometry(client, new->geom, &grep);
     if (rep.loaded) {
         XkbDescPtr old_xkb;
-        xkbNewKeyboardNotify nkn;
+        xkbNewKeyboardNotify nkn = { 0 };
 
         old_xkb = xkb;
         xkb = new;

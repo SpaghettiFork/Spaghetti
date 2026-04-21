@@ -3656,7 +3656,7 @@ SendConnSetup(ClientPtr client, const char *reason)
     xConnSetupPrefix *lconnSetupPrefix;
 
     if (reason) {
-        xConnSetupPrefix csp;
+        xConnSetupPrefix csp = { 0 };
 
         csp.success = xFalse;
         csp.lengthReason = strlen(reason);
