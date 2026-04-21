@@ -4951,9 +4951,15 @@ SetInputFocus(ClientPtr client,
         for (pWin = focusWin; pWin; pWin = pWin->parent)
             depth++;
         if (depth > focus->traceSize) {
-            focus->traceSize = depth + 1;
-            focus->trace = reallocarray(focus->trace, focus->traceSize,
-                                        sizeof(WindowPtr));
+            WindowPtr *newTrace;
+            int newSize = depth + 1;
+
+            newTrace = reallocarray(focus->trace, newSize,
+                                    sizeof(WindowPtr));
+            if (!newTrace)
+                return BadAlloc;
+            focus->traceSize = newSize;
+            focus->trace = newTrace;
         }
         focus->traceGood = depth;
         for (pWin = focusWin, depth--; pWin; pWin = pWin->parent, depth--)
