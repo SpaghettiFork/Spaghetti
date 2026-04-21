@@ -1073,6 +1073,9 @@ ComputeLocalClient(ClientPtr client)
         char *cmd = strdup(cmdname);
         Bool ret;
 
+        if (!cmd)
+            return TRUE;
+
         /* Cut off any colon and whatever comes after it, see
          * https://lists.freedesktop.org/archives/xorg-devel/2015-December/048164.html
          */
