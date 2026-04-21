@@ -420,6 +420,7 @@ SProcPseudoramiXGetState(ClientPtr client)
     TRACE;
 
     REQUEST_SIZE_MATCH(xPanoramiXGetStateReq);
+    swapl(&stuff->window);
     return ProcPseudoramiXGetState(client);
 }
 
@@ -431,6 +432,7 @@ SProcPseudoramiXGetScreenCount(ClientPtr client)
     TRACE;
 
     REQUEST_SIZE_MATCH(xPanoramiXGetScreenCountReq);
+    swapl(&stuff->window);
     return ProcPseudoramiXGetScreenCount(client);
 }
 
@@ -442,6 +444,8 @@ SProcPseudoramiXGetScreenSize(ClientPtr client)
     TRACE;
 
     REQUEST_SIZE_MATCH(xPanoramiXGetScreenSizeReq);
+    swapl(&stuff->window);
+    swapl(&stuff->screen);
     return ProcPseudoramiXGetScreenSize(client);
 }
 
