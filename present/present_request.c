@@ -353,14 +353,18 @@ sproc_present_pixmap(ClientPtr client)
 
     swapl(&stuff->window);
     swapl(&stuff->pixmap);
+    swapl(&stuff->serial);
     swapl(&stuff->valid);
     swapl(&stuff->update);
     swaps(&stuff->x_off);
     swaps(&stuff->y_off);
+    swapl(&stuff->target_crtc);
+    swapl(&stuff->wait_fence);
+    swapl(&stuff->idle_fence);
+    swapl(&stuff->options);
     swapll(&stuff->target_msc);
     swapll(&stuff->divisor);
     swapll(&stuff->remainder);
-    swapl(&stuff->idle_fence);
     return (*proc_present_vector[stuff->presentReqType]) (client);
 }
 
@@ -383,8 +387,10 @@ sproc_present_select_input (ClientPtr client)
     REQUEST(xPresentSelectInputReq);
     REQUEST_SIZE_MATCH(xPresentSelectInputReq);
 
+    swapl(&stuff->eid);
     swapl(&stuff->window);
     swapl(&stuff->eventMask);
+
     return (*proc_present_vector[stuff->presentReqType]) (client);
 }
 
