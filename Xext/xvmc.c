@@ -130,7 +130,7 @@ ProcXvMCListSurfaceTypes(ClientPtr client)
     int i;
     XvMCScreenPtr pScreenPriv;
     xvmcListSurfaceTypesReply rep;
-    xvmcSurfaceInfo info;
+    xvmcSurfaceInfo info = { 0 };
     XvMCAdaptorPtr adaptor = NULL;
     XvMCSurfaceInfoPtr surface;
     int num_surfaces;
@@ -508,7 +508,7 @@ ProcXvMCListSubpictureTypes(ClientPtr client)
     ScreenPtr pScreen;
     XvMCAdaptorPtr adaptor = NULL;
     XvMCSurfaceInfoPtr surface = NULL;
-    xvImageFormatInfo info;
+    xvImageFormatInfo info = { 0 };
     XvImagePtr pImage;
     int i, j;
 
