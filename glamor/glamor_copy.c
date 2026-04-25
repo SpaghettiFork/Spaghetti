@@ -558,92 +558,63 @@ glamor_copy_fbo_fbo_temp(DrawablePtr src,
     ScreenPtr screen = dst->pScreen;
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
     PixmapPtr tmp_pixmap;
-    BoxRec bounds;
     int n;
-    BoxPtr tmp_box;
 
     if (nbox == 0)
         return TRUE;
 
-    /* Sanity check state to avoid getting halfway through and bailing
-     * at the last second. Might be nice to have checks that didn't
-     * involve setting state.
-     */
     glamor_make_current(glamor_priv);
 
     if (gc && !glamor_set_planemask(gc->depth, gc->planemask))
-        goto bail_ctx;
+        return FALSE;
 
     if (!glamor_set_alu(dst, gc ? gc->alu : GXcopy))
-        goto bail_ctx;
+        return FALSE;
 
-    /* Find the size of the area to copy
-     */
-    bounds = box[0];
-    for (n = 1; n < nbox; n++) {
-        bounds.x1 = min(bounds.x1, box[n].x1);
-        bounds.x2 = max(bounds.x2, box[n].x2);
-        bounds.y1 = min(bounds.y1, box[n].y1);
-        bounds.y2 = max(bounds.y2, box[n].y2);
+    /* Find the largest box dimensions so one temp pixmap can serve
+     * all iterations without reallocation. */
+    int max_w = 0, max_h = 0;
+    for (n = 0; n < nbox; n++) {
+        max_w = max(max_w, box[n].x2 - box[n].x1);
+        max_h = max(max_h, box[n].y2 - box[n].y1);
     }
 
-    /* Allocate a suitable temporary pixmap
-     */
-    tmp_pixmap = glamor_create_pixmap(screen,
-                                      bounds.x2 - bounds.x1,
-                                      bounds.y2 - bounds.y1,
+    tmp_pixmap = glamor_create_pixmap(screen, max_w, max_h,
                                       glamor_drawable_effective_depth(src), 0);
     if (!tmp_pixmap)
-        goto bail;
+        return FALSE;
 
-    tmp_box = calloc(nbox, sizeof (BoxRec));
-    if (!tmp_box)
-        goto bail_pixmap;
-
-    /* Convert destination boxes into tmp pixmap boxes
-     */
     for (n = 0; n < nbox; n++) {
-        tmp_box[n].x1 = box[n].x1 - bounds.x1;
-        tmp_box[n].x2 = box[n].x2 - bounds.x1;
-        tmp_box[n].y1 = box[n].y1 - bounds.y1;
-        tmp_box[n].y2 = box[n].y2 - bounds.y1;
+        int bw = box[n].x2 - box[n].x1;
+        int bh = box[n].y2 - box[n].y1;
+        BoxRec tmp_box = { 0, 0, bw, bh };
+
+        if (!glamor_copy_fbo_fbo_draw(src,
+                                      &tmp_pixmap->drawable,
+                                      NULL,
+                                      &tmp_box, 1,
+                                      dx + box[n].x1,
+                                      dy + box[n].y1,
+                                      FALSE, FALSE,
+                                      0, NULL))
+            goto bail;
+
+        if (!glamor_copy_fbo_fbo_draw(&tmp_pixmap->drawable,
+                                      dst,
+                                      gc,
+                                      &box[n], 1,
+                                      -box[n].x1,
+                                      -box[n].y1,
+                                      FALSE, FALSE,
+                                      bitplane, closure))
+            goto bail;
     }
 
-    if (!glamor_copy_fbo_fbo_draw(src,
-                                  &tmp_pixmap->drawable,
-                                  NULL,
-                                  tmp_box,
-                                  nbox,
-                                  dx + bounds.x1,
-                                  dy + bounds.y1,
-                                  FALSE, FALSE,
-                                  0, NULL))
-        goto bail_box;
-
-    if (!glamor_copy_fbo_fbo_draw(&tmp_pixmap->drawable,
-                                  dst,
-                                  gc,
-                                  box,
-                                  nbox,
-                                  -bounds.x1,
-                                  -bounds.y1,
-                                  FALSE, FALSE,
-                                  bitplane, closure))
-        goto bail_box;
-
-    free(tmp_box);
-
     glamor_destroy_pixmap(tmp_pixmap);
-
     return TRUE;
-bail_box:
-    free(tmp_box);
-bail_pixmap:
-    glamor_destroy_pixmap(tmp_pixmap);
-bail:
-    return FALSE;
 
-bail_ctx:
+bail:
+    glamor_destroy_pixmap(tmp_pixmap);
     return FALSE;
 }
 
