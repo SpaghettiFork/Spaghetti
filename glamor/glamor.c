@@ -341,20 +341,45 @@ glamor_gldrawarrays_quads_using_indices(glamor_screen_private *glamor_priv,
             goto fallback;
         } else {
             uint16_t *data;
-            size_t size = count * 6 * sizeof(GLushort);
+            unsigned int old_count = glamor_priv->ib_size;
+            size_t old_size = old_count * 6 * sizeof(GLushort);
+            size_t new_size = count * 6 * sizeof(GLushort);
 
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, NULL, GL_STATIC_DRAW);
+            /* Orphan the old buffer at the new size, re-supply the
+             * already-valid entries unsynchronized, then append only
+             * the new entries with GL_MAP_INVALIDATE_RANGE_BIT.
+             */
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, new_size, NULL, GL_STATIC_DRAW);
+
+            if (old_count > 0) {
+                data = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER,
+                                        0, old_size,
+                                        GL_MAP_WRITE_BIT |
+                                        GL_MAP_UNSYNCHRONIZED_BIT);
+                for (i = 0; i < old_count; i++) {
+                    data[i * 6 + 0] = i * 4 + 0;
+                    data[i * 6 + 1] = i * 4 + 1;
+                    data[i * 6 + 2] = i * 4 + 2;
+                    data[i * 6 + 3] = i * 4 + 0;
+                    data[i * 6 + 4] = i * 4 + 2;
+                    data[i * 6 + 5] = i * 4 + 3;
+                }
+                glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+            }
+
+            /* Write only the newly required entries. */
             data = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER,
-                                    0, size,
+                                    old_size, new_size - old_size,
                                     GL_MAP_WRITE_BIT |
-                                    GL_MAP_INVALIDATE_BUFFER_BIT);
-            for (i = 0; i < count; i++) {
-                data[i * 6 + 0] = i * 4 + 0;
-                data[i * 6 + 1] = i * 4 + 1;
-                data[i * 6 + 2] = i * 4 + 2;
-                data[i * 6 + 3] = i * 4 + 0;
-                data[i * 6 + 4] = i * 4 + 2;
-                data[i * 6 + 5] = i * 4 + 3;
+                                    GL_MAP_INVALIDATE_RANGE_BIT |
+                                    GL_MAP_UNSYNCHRONIZED_BIT);
+            for (i = old_count; i < count; i++) {
+                data[(i - old_count) * 6 + 0] = i * 4 + 0;
+                data[(i - old_count) * 6 + 1] = i * 4 + 1;
+                data[(i - old_count) * 6 + 2] = i * 4 + 2;
+                data[(i - old_count) * 6 + 3] = i * 4 + 0;
+                data[(i - old_count) * 6 + 4] = i * 4 + 2;
+                data[(i - old_count) * 6 + 5] = i * 4 + 3;
             }
             glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 
@@ -729,7 +754,7 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         goto fail;
     }
 
-    if (epoxy_has_gl_extension("GL_KHR_debug") &&
+    if (epoxy_has_gl_extension("GL_KHR_debug") ||
         epoxy_has_gl_extension("GL_ARB_debug_output"))
         glamor_setup_debug_output(screen);
 
@@ -790,8 +815,10 @@ glamor_init(ScreenPtr screen, unsigned int flags)
 #ifdef MAX_FBO_SIZE
     glamor_priv->max_fbo_size = MAX_FBO_SIZE;
 #else
+    int tex_size;
     glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &glamor_priv->max_fbo_size);
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glamor_priv->max_fbo_size);
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &tex_size);
+    glamor_priv->max_fbo_size = MIN(glamor_priv->max_fbo_size, tex_size);
     glGetIntegerv(GL_MAX_VIEWPORT_DIMS, max_viewport_size);
     glamor_priv->max_fbo_size = MIN(glamor_priv->max_fbo_size, max_viewport_size[0]);
     glamor_priv->max_fbo_size = MIN(glamor_priv->max_fbo_size, max_viewport_size[1]);
@@ -917,6 +944,7 @@ glamor_close_screen(ScreenPtr screen)
     screen->CreatePixmap = glamor_priv->saved_procs.create_pixmap;
     screen->DestroyPixmap = glamor_priv->saved_procs.destroy_pixmap;
     screen->GetSpans = glamor_priv->saved_procs.get_spans;
+    screen->GetImage = glamor_priv->saved_procs.get_image;
     screen->ChangeWindowAttributes =
         glamor_priv->saved_procs.change_window_attributes;
     screen->CopyWindow = glamor_priv->saved_procs.copy_window;
@@ -927,6 +955,7 @@ glamor_close_screen(ScreenPtr screen)
         ps->Composite = glamor_priv->saved_procs.composite;
         ps->Trapezoids = glamor_priv->saved_procs.trapezoids;
         ps->Triangles = glamor_priv->saved_procs.triangles;
+        ps->AddTraps = glamor_priv->saved_procs.addtraps;
         ps->CompositeRects = glamor_priv->saved_procs.composite_rects;
         ps->Glyphs = glamor_priv->saved_procs.glyphs;
     }
@@ -956,7 +985,7 @@ glamor_set_glvnd_vendor(ScreenPtr screen, const char *vendor_name)
     if (glamor_priv->glvnd_vendor)
         free(glamor_priv->glvnd_vendor);
 
-    glamor_priv->glvnd_vendor = XNFstrdup(vendor_name);
+    glamor_priv->glvnd_vendor = vendor_name ? XNFstrdup(vendor_name) : NULL;
 }
 
 const char *
