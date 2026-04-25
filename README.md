@@ -1,35 +1,43 @@
-X Server
---------
+# Spaghetti
 
-The X server accepts requests from client applications to create windows,
-which are (normally rectangular) "virtual screens" that the client program
-can draw into.
+Yet _another_ fork of the X.Org Display Server.
 
-Windows are then composed on the actual screen by the X server
-(or by a separate composite manager) as directed by the window manager,
-which usually communicates with the user via graphical controls such as buttons
-and draggable titlebars and borders.
+## Why?
 
-For a comprehensive overview of X Server and X Window System, consult the
-following article:
-https://en.wikipedia.org/wiki/X_server
+![https://xkcd.com/927/](.repo/images/standards.png)
 
-All questions regarding this software should be directed at the
-Xorg mailing list:
+*replace standards with display servers
 
-  https://lists.freedesktop.org/mailman/listinfo/xorg
+## Goals
 
-The primary development code repository can be found at:
+- Maintain ABI compatibility
+- Provide continued support for users either stuck with closed source drivers or legacy pre-OpenGL 3.3 hardware.
+- Provide a stopgap until either Wayland finally reaches feature parity or a superior display server comes to fruition.
+- Introduce additional features and fixes.
+- Security hardening of the server.
+- Introduction of Meatball, an implementation of Wayland on X11 based upon 12to11.
+- Introduction of Fission, an improved version of modesetting designed for the Atomic Kernel Modesetting future.
 
-  https://gitlab.freedesktop.org/xorg/xserver
+## Credits.
 
-For patch submission instructions, see:
+The Spaghetti Display Server is licensed under the GPLv3.
 
-  https://www.x.org/wiki/Development/Documentation/SubmittingPatches
+Additional license notices are available under the `COPYING` file.
 
-As with other projects hosted on freedesktop.org, X.Org follows its
-Code of Conduct, based on the Contributor Covenant. Please conduct
-yourself in a respectful and civilized manner when using the above
-mailing lists, bug trackers, etc:
+```
+Spaghetti Display Server
+Copyright (C) 2025-2026  SpaghettiFork
 
-  https://www.freedesktop.org/wiki/CodeOfConduct
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+```
