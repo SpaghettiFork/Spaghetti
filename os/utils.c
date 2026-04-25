@@ -87,9 +87,6 @@ __stdcall unsigned long GetTickCount(void);
 #ifndef WIN32
 #include <sys/wait.h>
 #endif
-#if !defined(WIN32)
-#include <sys/resource.h>
-#endif
 #include <sys/stat.h>
 #include <ctype.h>              /* for isspace */
 #include <stdarg.h>
@@ -276,8 +273,9 @@ LockServer(void)
     len += strlen(tmppath) + strlen(port) + strlen(LOCK_SUFFIX) + 1;
     if (len > sizeof(LockFile))
         FatalError("Display name `%s' is too long\n", port);
-    (void) sprintf(tmp, "%s" LOCK_TMP_PREFIX "%s" LOCK_SUFFIX, tmppath, port);
-    (void) sprintf(LockFile, "%s" LOCK_PREFIX "%s" LOCK_SUFFIX, tmppath, port);
+
+    (void) snprintf(tmp, sizeof(tmp), "%s" LOCK_TMP_PREFIX "%s" LOCK_SUFFIX, tmppath, port);
+    (void) snprintf(LockFile, sizeof(LockFile), "%s" LOCK_PREFIX "%s" LOCK_SUFFIX, tmppath, port);
 
     /*
      * Create a temporary file containing our PID.  Attempt three times
@@ -307,9 +305,11 @@ LockServer(void)
     }
     if (lfd < 0)
         FatalError("Could not create lock file in %s\n", tmp);
+        
     snprintf(pid_str, sizeof(pid_str), "%10lu\n", (unsigned long) getpid());
     if (write(lfd, pid_str, 11) != 11)
         FatalError("Could not write pid to lock file in %s\n", tmp);
+
     (void) fchmod(lfd, 0444);
     (void) close(lfd);
 
@@ -461,7 +461,7 @@ GetTimeInMicros(void)
     static Bool firstTime = TRUE;
     static LPFN_GETTICKCOUNT64 fnGetTickCount64 = NULL;
 
-    if (firstTime) {
+    if (_X_UNLIKELY(!firstTime)) {
         HMODULE module = GetModuleHandle(TEXT("kernel32"));
         fnGetTickCount64 =
             (LPFN_GETTICKCOUNT64) GetProcAddress(module, "GetTickCount64");
@@ -479,12 +479,10 @@ GetTimeInMicros(void)
 CARD32
 GetTimeInMillis(void)
 {
-    struct timeval tv;
-
 #ifdef MONOTONIC_CLOCK
     struct timespec tp;
 
-    if (!clockid) {
+    if (_X_UNLIKELY(!clockid)) {
 #ifdef CLOCK_MONOTONIC_COARSE
         if (clock_getres(CLOCK_MONOTONIC_COARSE, &tp) == 0 &&
             (tp.tv_nsec / 1000) <= 1000 &&
@@ -497,10 +495,12 @@ GetTimeInMillis(void)
         else
             clockid = ~0L;
     }
-    if (clockid != ~0L && clock_gettime(clockid, &tp) == 0)
+
+    if (_X_LIKELY(clockid != ~0L) && clock_gettime(clockid, &tp) == 0)
         return (tp.tv_sec * 1000) + (tp.tv_nsec / 1000000L);
 #endif
 
+    struct timeval tv;
     X_GETTIMEOFDAY(&tv);
     return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 }
@@ -508,20 +508,21 @@ GetTimeInMillis(void)
 CARD64
 GetTimeInMicros(void)
 {
-    struct timeval tv;
 #ifdef MONOTONIC_CLOCK
     struct timespec tp;
 
-    if (!clockid_micro) {
+    if (_X_UNLIKELY(!clockid_micro)) {
         if (clock_gettime(CLOCK_MONOTONIC, &tp) == 0)
             clockid_micro = CLOCK_MONOTONIC;
         else
             clockid_micro = ~0L;
     }
-    if (clockid_micro != ~0L && clock_gettime(clockid_micro, &tp) == 0)
+
+    if (_X_LIKELY(clockid_micro != ~0L) && clock_gettime(clockid_micro, &tp) == 0)
         return (CARD64) tp.tv_sec * (CARD64)1000000 + tp.tv_nsec / 1000;
 #endif
 
+    struct timeval tv;
     X_GETTIMEOFDAY(&tv);
     return (CARD64) tv.tv_sec * (CARD64)1000000 + (CARD64) tv.tv_usec;
 }
@@ -639,7 +640,8 @@ VerifyDisplayName(const char *d)
     /* Since we run atoi() on the display later, only allow
        for digits, or exception of :0.0 and similar (two decimal points max)
        */
-    for (i = 0; i < strlen(d); i++) {
+    size_t len = strlen(d);
+    for (i = 0; i < len; i++) {
         if (!isdigit((unsigned char)d[i])) {
             if (d[i] != '.' || period_found)
                 return 0;
@@ -1712,7 +1714,7 @@ PrivsElevated(void)
                 privsElevated = (euid != suid) || (egid != sgid);
             }
             else {
-                printf("Failed getresuid or getresgid");
+                ErrorF("Failed getresuid or getresgid\n");
                 /* Something went wrong, make defensive assumption */
                 privsElevated = TRUE;
             }
@@ -1768,7 +1770,6 @@ PrivsElevated(void)
 
 #define MAX_ARG_LENGTH          128
 #define MAX_ENV_LENGTH          256
-#define MAX_ENV_PATH_LENGTH     2048    /* Limit for *PATH and TERMCAP */
 
 #define checkPrintable(c) (((c) & 0x7f) >= 0x20 && ((c) & 0x7f) != 0x7f)
 
@@ -1824,6 +1825,7 @@ CheckUserParameters(int argc, char **argv, char **envp)
                     for (j = i; envp[j]; j++) {
                         envp[j] = envp[j + 1];
                     }
+                    i--;
                 }
                 if (envp[i] && (strlen(envp[i]) > MAX_ENV_LENGTH)) {
                     for (j = i; envp[j]; j++) {
@@ -1962,7 +1964,7 @@ FormatInt64(int64_t num, char *string)
 
     if (num < 0) {
         string[0] = '-';
-        unum = num * -1;
+        unum = -(uint64_t)num;
         string++;
     }
     FormatUInt64(unum, string);
