@@ -364,14 +364,10 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     int src_box_index, dst_box_index;
     int dst_off_x, dst_off_y;
     int src_off_x, src_off_y;
-    GLshort *v;
-    char *vbo_offset;
     struct copy_args args;
     glamor_program *prog;
     const glamor_facet *copy_facet;
-    int n;
     Bool ret = FALSE;
-    BoxRec bounds = glamor_no_rendering_bounds();
 
     glamor_make_current(glamor_priv);
 
@@ -404,12 +400,6 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     args.src_drawable = src;
     args.bitplane = bitplane;
 
-    /* Set up the vertex buffers for the points */
-
-    v = glamor_get_vbo_space(dst->pScreen, nbox * 8 * sizeof (int16_t), &vbo_offset);
-    if (_X_UNLIKELY(v == 0))
-        goto bail_ctx;
-
     if (src_pixmap == dst_pixmap && glamor_priv->has_mesa_tile_raster_order) {
         glEnable(GL_TILE_RASTER_ORDER_FIXED_MESA);
         if (dx >= 0)
@@ -423,26 +413,6 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     }
 
     glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
-    glVertexAttribPointer(GLAMOR_VERTEX_POS, 2, GL_SHORT, GL_FALSE,
-                          2 * sizeof (GLshort), vbo_offset);
-
-    if (nbox < 100) {
-        bounds = glamor_start_rendering_bounds();
-        for (int i = 0; i < nbox; i++)
-            glamor_bounds_union_box(&bounds, &box[i]);
-    }
-
-    for (n = 0; n < nbox; n++) {
-        v[0] = box->x1; v[1] = box->y1;
-        v[2] = box->x1; v[3] = box->y2;
-        v[4] = box->x2; v[5] = box->y2;
-        v[6] = box->x2; v[7] = box->y1;
-
-        v += 8;
-        box++;
-    }
-
-    glamor_put_vbo_space(screen);
 
     glamor_get_drawable_deltas(src, src_pixmap, &src_off_x, &src_off_y);
 
@@ -458,37 +428,107 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
         if (!glamor_use_program(dst, gc, prog, &args))
             goto bail_ctx;
 
-        glamor_pixmap_loop(dst_priv, dst_box_index) {
-            BoxRec scissor = {
-                .x1 = max(-args.dx, bounds.x1),
-                .y1 = max(-args.dy, bounds.y1),
-                .x2 = min(-args.dx + src_box->x2 - src_box->x1, bounds.x2),
-                .y2 = min(-args.dy + src_box->y2 - src_box->y1, bounds.y2),
-            };
-            if (scissor.x1 >= scissor.x2 || scissor.y1 >= scissor.y2)
-                continue;
+        /* The region of drawable-space that this src tile can cover,
+         * computed once per src tile and reused across all dst tiles.
+         */
+        BoxRec src_tile_in_dst = {
+            .x1 = src_box->x1 - dx - src_off_x,
+            .y1 = src_box->y1 - dy - src_off_y,
+            .x2 = src_box->x2 - dx - src_off_x,
+            .y2 = src_box->y2 - dy - src_off_y,
+        };
 
+        glamor_pixmap_loop(dst_priv, dst_box_index) {
+            BoxPtr dst_box = glamor_pixmap_box_at(dst_priv, dst_box_index);
+
+            /* glamor_set_destination_drawable must come first: it sets
+             * dst_off_x/dst_off_y which are needed to convert dst_box
+             * (pixmap coords) into drawable coords for the tile cull and
+             * quad clipping below.
+             */
             if (!glamor_set_destination_drawable(dst, dst_box_index, FALSE, FALSE,
                                                  prog->matrix_uniform,
                                                  &dst_off_x, &dst_off_y))
                 goto bail_ctx;
 
-            glScissor(scissor.x1 + dst_off_x,
-                      scissor.y1 + dst_off_y,
-                      scissor.x2 - scissor.x1,
-                      scissor.y2 - scissor.y1);
+            /* Tile-level cull: skip if this src tile cannot reach this
+             * dst tile at all.
+             */
+            if (src_tile_in_dst.x2 <= dst_box->x1 - dst_off_x ||
+                src_tile_in_dst.x1 >= dst_box->x2 - dst_off_x ||
+                src_tile_in_dst.y2 <= dst_box->y1 - dst_off_y ||
+                src_tile_in_dst.y1 >= dst_box->y2 - dst_off_y)
+                continue;
 
-            glamor_glDrawArrays_GL_QUADS(glamor_priv, nbox);
+            /* Pre-clip each box to the intersection of (src tile projection
+             * ∩ dst tile) and emit only the surviving quads.  Replaces the
+             * full nbox draw + scissor approach: rasterization is bounded
+             * to geometry that will actually produce fragments.
+             */
+            char *vbo_offset;
+            GLshort *v = glamor_get_vbo_space(screen,
+                                              nbox * 8 * sizeof(GLshort),
+                                              &vbo_offset);
+            if (_X_UNLIKELY(!v))
+                goto bail_ctx;
+
+            int nquads = 0;
+            for (int n = 0; n < nbox; n++) {
+                BoxRec b = box[n];
+
+                /* Clip to dst tile (in drawable coords). */
+                b.x1 = max(b.x1, dst_box->x1 - dst_off_x);
+                b.y1 = max(b.y1, dst_box->y1 - dst_off_y);
+                b.x2 = min(b.x2, dst_box->x2 - dst_off_x);
+                b.y2 = min(b.y2, dst_box->y2 - dst_off_y);
+
+                /* Clip to src tile projection (in drawable coords). */
+                b.x1 = max(b.x1, src_tile_in_dst.x1);
+                b.y1 = max(b.y1, src_tile_in_dst.y1);
+                b.x2 = min(b.x2, src_tile_in_dst.x2);
+                b.y2 = min(b.y2, src_tile_in_dst.y2);
+
+                if (b.x1 >= b.x2 || b.y1 >= b.y2)
+                    continue;
+
+                v[0] = b.x1; v[1] = b.y1;
+                v[2] = b.x1; v[3] = b.y2;
+                v[4] = b.x2; v[5] = b.y2;
+                v[6] = b.x2; v[7] = b.y1;
+                v += 8;
+                nquads++;
+            }
+
+            /* glVertexAttribPointer must be called while GL_ARRAY_BUFFER is
+             * still bound, i.e. before glamor_put_vbo_space unbinds it.
+             */
+            glVertexAttribPointer(GLAMOR_VERTEX_POS, 2, GL_SHORT, GL_FALSE,
+                                  2 * sizeof(GLshort), vbo_offset);
+ 
+            glamor_put_vbo_space(screen);
+
+            if (nquads == 0)
+                continue;
+
+            /* Scissor to the dst tile as a safety net for drawable/FBO
+             * coordinate edge cases.  With pre-clipped geometry it rarely
+             * discards anything, but keeps the rasterizer strictly bounded.
+             */
+            glScissor(dst_box->x1,
+                      dst_box->y1,
+                      dst_box->x2 - dst_box->x1,
+                      dst_box->y2 - dst_box->y1);
+
+            glamor_glDrawArrays_GL_QUADS(glamor_priv, nquads);
         }
     }
 
     ret = TRUE;
 
 bail_ctx:
-    if (src_pixmap == dst_pixmap && glamor_priv->has_mesa_tile_raster_order) {
+    if (src_pixmap == dst_pixmap && glamor_priv->has_mesa_tile_raster_order)
         glDisable(GL_TILE_RASTER_ORDER_FIXED_MESA);
-    }
-    
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_SCISSOR_TEST);
