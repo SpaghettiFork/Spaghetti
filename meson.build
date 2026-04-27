@@ -166,7 +166,7 @@ if dfp == ''
         if fontutil_dep.found()
             fontrootdir = fontutil_dep.get_variable(pkgconfig : 'fontrootdir')
         else
-            fontrootdir = get_option('prefix') / get_option('datadir', 'fonts', 'X11')
+            fontrootdir = get_option('prefix') / get_option('datadir') / 'fonts' / 'X11'
         endif
     endif
     dfp_elements = [
