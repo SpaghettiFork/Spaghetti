@@ -65,11 +65,18 @@ _X_EXPORT XF86ModuleData glxModuleData = {
     .setup = glxSetup
 };
 
+static inline void
+TryProvider(const char* symbol)
+{
+    __GLXprovider *provider = LoaderSymbol(symbol);
+    if (provider)
+        GlxPushProvider(provider);
+}
+
 static void *
 glxSetup(void *module, void *opts, int *errmaj, int *errmin)
 {
     static Bool setupDone = FALSE;
-    __GLXprovider *provider;
 
     if (setupDone) {
         if (errmaj)
@@ -79,9 +86,11 @@ glxSetup(void *module, void *opts, int *errmaj, int *errmin)
 
     setupDone = TRUE;
 
-    provider = LoaderSymbol("__glXDRI2Provider");
-    if (provider)
-        GlxPushProvider(provider);
+    TryProvider("__glXDRI2Provider");
+#if X_BYTE_ORDER == X_LITTLE_ENDIAN
+    TryProvider("__glXDRI3Provider");
+#endif
+
     xorgGlxCreateVendor();
 
     return module;

@@ -29,7 +29,7 @@ shared_module(
 if build_glx
     shared_module(
         'glx',
-        [ 'glxmodule.c', srcs_glxdri2 ],
+        [ 'glxmodule.c', srcs_glxdri2, srcs_glxdri3 ],
 
         include_directories: [ inc, xorg_inc, glx_inc ],
         c_args: [ xorg_c_args, glx_align64 ],
