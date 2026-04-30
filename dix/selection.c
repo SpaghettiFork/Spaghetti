@@ -66,6 +66,7 @@ SOFTWARE.
 
 Selection *CurrentSelections;
 CallbackListPtr SelectionCallback;
+CallbackListPtr SelectionBridgeCallback;
 
 int
 dixLookupSelection(Selection ** result, Atom selectionName,
@@ -247,6 +248,25 @@ ProcGetSelectionOwner(ClientPtr client)
     return Success;
 }
 
+static void
+CallSelectionBridgeCallback(ClientPtr pClient, Selection *pSel, xEvent *event)
+{
+    SelectionBridgeInfoRec info;
+
+    if (!pSel->pWin)
+        return;
+
+    info.screen = pSel->pWin->drawable.pScreen;
+    info.client = pClient;
+    info.requestor = event->u.selectionRequest.requestor;
+    info.selection = event->u.selectionRequest.selection;
+    info.target = event->u.selectionRequest.target;
+    info.property = event->u.selectionRequest.property;
+    info.time = ClientTimeToServerTime(event->u.selectionRequest.time);
+
+    CallCallbacks(&SelectionBridgeCallback, &info);
+}
+
 int
 ProcConvertSelection(ClientPtr client)
 {
@@ -289,6 +309,14 @@ ProcConvertSelection(ClientPtr client)
         if (pSel->client && pSel->client != serverClient &&
             !pSel->client->clientGone) {
             WriteEventsToClient(pSel->client, 1, &event);
+            return Success;
+        }
+
+        /* If the selection is owned by the server client, and there are
+         * selection bridge callbacks registered, call them now.
+         */
+        if (pSel->client == serverClient && SelectionBridgeCallback != NULL) {
+            CallSelectionBridgeCallback(client, pSel, &event);
             return Success;
         }
     }

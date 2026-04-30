@@ -49,6 +49,7 @@ SOFTWARE.
 
 #include "dixstruct.h"
 #include "privates.h"
+#include "screenint.h"
 
 /*
  *  Selection data structures
@@ -86,6 +87,22 @@ typedef struct {
     ClientPtr client;
     SelectionCallbackKind kind;
 } SelectionInfoRec;
+
+/*
+ * Selection bridge callback:
+ * can be used to bridge a selection request to the target clients.
+ */
+extern _X_EXPORT CallbackListPtr SelectionBridgeCallback;
+
+typedef struct {
+    ScreenPtr screen;
+    ClientPtr client;
+    Window requestor;
+    Atom selection;
+    Atom target;
+    Atom property;
+    TimeStamp time;
+} SelectionBridgeInfoRec;
 
 /*
  *  Selection server internals
