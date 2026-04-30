@@ -520,6 +520,7 @@ static void
 present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 {
     WindowPtr window = vblank->window;
+    PixmapPtr pixmap = vblank->pixmap;
     ScreenPtr screen = window->drawable.pScreen;
     ScreenPtr crtc_screen = (vblank->crtc) ? vblank->crtc->pScreen : screen;
     present_screen_priv_ptr screen_priv = (crtc_screen == screen) 
@@ -528,7 +529,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     if (present_execute_wait(vblank, crtc_msc))
         return;
 
-    if (vblank->flip && vblank->pixmap && vblank->window) {
+    if (vblank->flip && pixmap && window) {
         if (screen_priv->flip_pending || screen_priv->unflip_event_id) {
             DebugPresent(("\tr %" PRIu64 " %p (pending %p unflip %" PRIu64 ")\n",
                           vblank->event_id, vblank,
@@ -544,15 +545,16 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     xorg_list_del(&vblank->window_list);
     vblank->queued = FALSE;
 
-    if (vblank->pixmap && vblank->window &&
+    if (pixmap && window &&
         (vblank->reason < PRESENT_FLIP_REASON_DRIVER_TEARFREE ||
          vblank->exec_msc != vblank->target_msc)) {
 
         if (vblank->flip) {
+            RegionPtr damage = vblank->update;
 
             DebugPresent(("\tf %" PRIu64 " %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
                           vblank->event_id, vblank, crtc_msc,
-                          vblank->pixmap->drawable.id, vblank->window->drawable.id));
+                          pixmap->drawable.id, window->drawable.id));
 
             /* Prepare to flip by placing it in the flip queue and
              * and sticking it into the flip_pending field
@@ -562,9 +564,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             xorg_list_add(&vblank->event_queue, &present_flip_queue);
             /* Try to flip
              */
-            if (present_flip(vblank->crtc, vblank->event_id, vblank->target_msc, vblank->pixmap, vblank->sync_flip)) {
-                RegionPtr damage;
-
+            if (present_flip(vblank->crtc, vblank->event_id, vblank->target_msc, pixmap, vblank->sync_flip)) {
                 /* Fix window pixmaps:
                  *  1) Restore previous flip window pixmap
                  *  2) Set current flip window pixmap to the new pixmap
@@ -573,18 +573,18 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
                     present_set_tree_pixmap(screen_priv->flip_window,
                                             screen_priv->flip_pixmap,
                                             (*screen->GetScreenPixmap)(screen));
-                present_set_tree_pixmap(vblank->window, NULL, vblank->pixmap);
-                present_set_tree_pixmap(screen->root, NULL, vblank->pixmap);
+                present_set_tree_pixmap(window, NULL, pixmap);
+                present_set_tree_pixmap(screen->root, NULL, pixmap);
 
                 /* Report update region as damaged
                  */
-                if (vblank->update) {
-                    damage = vblank->update;
+                if (damage) {
                     RegionIntersect(damage, damage, &window->clipList);
-                } else
+                } else {
                     damage = &window->clipList;
+                }
 
-                DamageDamageRegion(&vblank->window->drawable, damage);
+                DamageDamageRegion(&window->drawable, damage);
                 return;
             }
 
@@ -596,7 +596,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             vblank->exec_msc = vblank->target_msc;
         }
         DebugPresent(("\tc %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 "\n",
-                      vblank, crtc_msc, vblank->pixmap->drawable.id, vblank->window->drawable.id));
+                      vblank, crtc_msc, pixmap->drawable.id, window->drawable.id));
         if (screen_priv->flip_pending) {
 
             /* Check pending flip
@@ -611,7 +611,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
                 present_unflip(screen);
         }
 
-        present_execute_copy(vblank, crtc_msc);
+        present_execute_copy(vblank, pixmap, window, crtc_msc);
 
         /* With TearFree, there's no way to tell exactly when the presentation
          * will be visible except by waiting for a notification from the kernel
@@ -666,7 +666,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
         }
     }
 
-    present_execute_post(vblank, ust, crtc_msc);
+    present_execute_post(vblank, pixmap, window, ust, crtc_msc);
 }
 
 static void

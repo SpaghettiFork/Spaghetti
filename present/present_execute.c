@@ -99,10 +99,9 @@ present_execute_wait(present_vblank_ptr vblank, uint64_t crtc_msc)
 }
 
 void
-present_execute_copy(present_vblank_ptr vblank, uint64_t crtc_msc)
+present_execute_copy(present_vblank_ptr vblank, PixmapPtr pixmap, WindowPtr window, uint64_t crtc_msc)
 {
-    WindowPtr                   window = vblank->window;
-    ScreenPtr                   screen = window->drawable.pScreen;
+    ScreenPtr screen = window->drawable.pScreen;
     present_screen_priv_ptr screen_priv = present_screen_priv(screen);
 
     /* If present_flip failed, we may have to requeue for the next MSC */
@@ -116,7 +115,7 @@ present_execute_copy(present_vblank_ptr vblank, uint64_t crtc_msc)
         return;
     }
 
-    present_copy_region(&window->drawable, vblank->pixmap, vblank->update, vblank->x_off, vblank->y_off);
+    present_copy_region(&window->drawable, pixmap, vblank->update, vblank->x_off, vblank->y_off);
 
     /* present_copy_region sticks the region into a scratch GC,
      * which is then freed, freeing the region
@@ -131,19 +130,20 @@ present_execute_copy(present_vblank_ptr vblank, uint64_t crtc_msc)
 #endif /* DRI3 */
     {
         screen_priv->flush(window);
-        present_pixmap_idle(vblank->pixmap, vblank->window, vblank->serial, vblank->idle_fence);
+        present_pixmap_idle(pixmap, window, vblank->serial, vblank->idle_fence);
     }
 }
 
 void
-present_execute_post(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
+present_execute_post(present_vblank_ptr vblank, PixmapPtr pixmap,
+                     WindowPtr window, uint64_t ust, uint64_t crtc_msc)
 {
     uint8_t mode = PresentCompleteModeCopy;
 
     /* Compute correct CompleteMode
      */
     if (vblank->kind == PresentCompleteKindPixmap) {
-        if (vblank->pixmap && vblank->window) {
+        if (pixmap && window) {
             if (vblank->has_suboptimal && vblank->reason == PRESENT_FLIP_REASON_BUFFER_FORMAT)
                 mode = PresentCompleteModeSuboptimalCopy;
             else
