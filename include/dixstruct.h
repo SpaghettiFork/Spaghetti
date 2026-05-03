@@ -123,7 +123,7 @@ SetReqFds(ClientPtr client, int req_fds) {
 /*
  * Scheduling interface
  */
-extern long SmartScheduleTime;
+extern volatile long SmartScheduleTime;
 extern long SmartScheduleInterval;
 extern long SmartScheduleSlice;
 extern long SmartScheduleMaxSlice;

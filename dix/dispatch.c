@@ -174,7 +174,7 @@ OsTimerPtr dispatchExceptionTimer;
  * signal handlers.
  */
 volatile char dispatchException = 0;
-volatile char isItTimeToYield;
+volatile char isItTimeToYield = 0;
 
 #define SAME_SCREENS(a, b) (\
     (a.pScreen == b.pScreen))
@@ -248,7 +248,7 @@ Bool SmartScheduleSignalEnable = TRUE;
 long SmartScheduleSlice = SMART_SCHEDULE_DEFAULT_INTERVAL;
 long SmartScheduleInterval = SMART_SCHEDULE_DEFAULT_INTERVAL;
 long SmartScheduleMaxSlice = SMART_SCHEDULE_MAX_SLICE;
-long SmartScheduleTime;
+volatile long SmartScheduleTime;
 int SmartScheduleLatencyLimited = 0;
 static ClientPtr SmartLastClient;
 static int SmartLastIndex[SMART_MAX_PRIORITY - SMART_MIN_PRIORITY + 1];
@@ -1367,18 +1367,19 @@ ProcQueryFont(ClientPtr client)
         rlength = sizeof(xQueryFontReply) +
             FONTINFONPROPS(FONTCHARSET(pFont)) * sizeof(xFontProp) +
             nprotoxcistructs * sizeof(xCharInfo);
-        reply = calloc(1, rlength);
+
+        reply = ReserveClientOutputSpace(client, rlength);
         if (!reply) {
             return BadAlloc;
         }
 
+        memset(reply, 0, rlength);
         reply->type = X_Reply;
         reply->length = bytes_to_int32(rlength - sizeof(xGenericReply));
         reply->sequenceNumber = client->sequence;
-        QueryFont(pFont, reply, nprotoxcistructs);
 
-        WriteReplyToClient(client, rlength, reply);
-        free(reply);
+        QueryFont(pFont, reply, nprotoxcistructs);
+        CommitClientOutputSpace(client, rlength);
         return Success;
     }
 }
@@ -2269,21 +2270,24 @@ DoGetImage(ClientPtr client, int format, Drawable drawable,
                       BitsPerPixel(pDraw->depth), ClientOrder(client));
     } else { /* XYPixmap */
         int plane_size = height * widthBytesLine;
-        
-        (*pDraw->pScreen->GetImage) (pDraw,
-                                     x,
-                                     y,
-                                     width,
-                                     height,
-                                     format, plane, (void *) pBuf);
-        if (pVisibleRegion)
-            XaceCensorImage(client, pVisibleRegion, widthBytesLine,
-                            pDraw, x, y, width, height, format, pBuf);
 
-        /* Note: NOT a call to WriteSwappedDataToClient,
-         * as we do NOT byte swap */
-        ReformatImage(pBuf, plane_size, 1, ClientOrder(client));
-        pBuf += plane_size;
+        while (plane) {
+            if (planemask & plane) {
+                (*pDraw->pScreen->GetImage) (pDraw,
+                                             x,
+                                             y,
+                                             width,
+                                             height,
+                                             format, plane, (void *) pBuf);
+                if (pVisibleRegion)
+                    XaceCensorImage(client, pVisibleRegion, widthBytesLine,
+                                    pDraw, x, y, width, height, format, pBuf);
+
+                ReformatImage(pBuf, plane_size, 1, ClientOrder(client));
+                pBuf += plane_size;
+            }
+            plane >>= 1;
+        }
     }
     CommitClientOutputSpace (client, sizeof (xGetImageReply) + length);
     return Success;
@@ -2994,18 +2998,15 @@ ProcCreateCursor(ClientPtr client)
     (*src->drawable.pScreen->GetImage) ((DrawablePtr) src, 0, 0, width, height,
                                         XYPixmap, 1, (void *) srcbits);
     if (msk == (PixmapPtr) NULL) {
-        unsigned char *bits = mskbits;
-
-        while (--n >= 0)
-            *bits++ = ~0;
-    }
-    else {
+        memset((unsigned char *) mskbits, 0xFF, n);
+    } else {
         /* zeroing the (pad) bits helps some ddx cursor handling */
-        memset((char *) mskbits, 0, n);
+        memset((unsigned char *) mskbits, 0, n);
         (*msk->drawable.pScreen->GetImage) ((DrawablePtr) msk, 0, 0, width,
                                             height, XYPixmap, 1,
                                             (void *) mskbits);
     }
+
     cm.width = width;
     cm.height = height;
     cm.xhot = stuff->x;
@@ -3401,8 +3402,6 @@ ProcChangeCloseDownMode(ClientPtr client)
 int
 ProcForceScreenSaver(ClientPtr client)
 {
-    int rc;
-
     REQUEST(xForceScreenSaverReq);
 
     REQUEST_SIZE_MATCH(xForceScreenSaverReq);
@@ -3411,10 +3410,8 @@ ProcForceScreenSaver(ClientPtr client)
         client->errorValue = stuff->mode;
         return BadValue;
     }
-    rc = dixSaveScreens(client, SCREEN_SAVER_FORCER, (int) stuff->mode);
-    if (rc != Success)
-        return rc;
-    return Success;
+
+    return dixSaveScreens(client, SCREEN_SAVER_FORCER, (int) stuff->mode);
 }
 
 int
@@ -3446,7 +3443,7 @@ CloseDownClient(ClientPtr client)
         /* A screen locker has just crashed!  Set stopAllEventDelivery
          * to prevent any further delivery of events, then shut down.
          */
-        ErrorF("Client that set XFixesClientDisconnectFlagForceTerminate exited, aborting!");
+        ErrorF("Client that set XFixesClientDisconnectFlagForceTerminate exited, aborting!\n");
         stopAllEventDelivery = xTrue;
         dispatchException |= DE_TERMINATE;
     }
@@ -3961,10 +3958,12 @@ AddScreen(Bool (*pfnInit) (ScreenPtr /*pScreen */ ,
      */
     screenInfo.screens[i] = pScreen;
     screenInfo.numScreens++;
+
     if (!(*pfnInit) (pScreen, argc, argv)) {
         dixFreeScreenSpecificPrivates(pScreen);
         dixFreePrivates(pScreen->devPrivates, PRIVATE_SCREEN);
         free(pScreen);
+        screenInfo.screens[i] = NULL;
         screenInfo.numScreens--;
         return -1;
     }
@@ -4009,9 +4008,12 @@ AddGPUScreen(Bool (*pfnInit) (ScreenPtr /*pScreen */ ,
      */
     screenInfo.gpuscreens[i] = pScreen;
     screenInfo.numGPUScreens++;
+
     if (!(*pfnInit) (pScreen, argc, argv)) {
+        dixFreeScreenSpecificPrivates(pScreen);
         dixFreePrivates(pScreen->devPrivates, PRIVATE_SCREEN);
         free(pScreen);
+        screenInfo.gpuscreens[i] = NULL;
         screenInfo.numGPUScreens--;
         return -1;
     }
