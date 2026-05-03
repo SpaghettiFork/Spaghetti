@@ -2134,8 +2134,10 @@ TryClientEvents(ClientPtr client, DeviceIntPtr dev, xEvent *pEvents,
     }
 
     if (BitIsOn(criticalEvents, type)) {
-        if (client->smart_priority < SMART_MAX_PRIORITY)
+        if (client->smart_priority < SMART_MAX_PRIORITY) {
             client->smart_priority++;
+            boost_client(client);
+        }
         SetCriticalOutputPending();
     }
 
