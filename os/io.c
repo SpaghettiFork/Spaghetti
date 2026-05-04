@@ -224,6 +224,34 @@ NextAvailableInput(OsCommPtr oc)
     }
 }
 
+static inline Bool
+parse_request_header(xReq *request, ClientPtr client,
+                     unsigned int gotnow,
+                     unsigned int *needed,
+                     Bool *move_header,
+                     Bool *need_header)
+{
+    *needed = get_req_len(request, client);
+
+    if (!*needed && client->big_requests) {
+        *move_header = TRUE;
+        if (gotnow < sizeof(xBigReq)) {
+            *needed = bytes_to_int32(sizeof(xBigReq));
+            *need_header = TRUE;
+        } else {
+            *needed = get_big_req_len(request, client);
+        }
+    }
+
+    client->req_len = *needed;
+
+    if (*needed > MAXINT >> 2)
+        return FALSE;
+
+    *needed <<= 2;
+    return TRUE;
+}
+
 int
 ReadRequestFromClient(ClientPtr client)
 {
@@ -284,24 +312,9 @@ ReadRequestFromClient(ClientPtr client)
          * request will be unless it is a Big Request.
          */
         request = (xReq *) oci->bufptr;
-        needed = get_req_len(request, client);
-        if (!needed && client->big_requests) {
-            /* It's a Big Request. */
-            move_header = TRUE;
-            if (gotnow < sizeof(xBigReq)) {
-                /* Still need more data to tell just how big. */
-                needed = bytes_to_int32(sizeof(xBigReq));       /* needed is in CARD32s now */
-                need_header = TRUE;
-            }
-            else
-                needed = get_big_req_len(request, client);
-        }
-        client->req_len = needed;
-        if (needed > MAXINT >> 2) {
-            /* Check for potential integer overflow */
+        if (!parse_request_header(request, client, gotnow,
+                                  &needed, &move_header, &need_header))
             return -(BadLength);
-        }
-        needed <<= 2;           /* needed is in bytes now */
     }
     if (gotnow < needed) {
         /* Need to read more data, either so that we can get a
@@ -382,18 +395,9 @@ ReadRequestFromClient(ClientPtr client)
         if (need_header && gotnow >= needed) {
             /* We wanted an xReq, now we've gotten it. */
             request = (xReq *) oci->bufptr;
-            needed = get_req_len(request, client);
-            if (!needed && client->big_requests) {
-                move_header = TRUE;
-                if (gotnow < sizeof(xBigReq))
-                    needed = bytes_to_int32(sizeof(xBigReq));
-                else
-                    needed = get_big_req_len(request, client);
-            }
-            client->req_len = needed;
-            if (needed > MAXINT >> 2)
+            if (!parse_request_header(request, client, gotnow,
+                                      &needed, &move_header, &need_header))
                 return -(BadLength);
-            needed <<= 2;
         }
         if (gotnow < needed) {
             /* Still don't have enough; punt. */
@@ -538,7 +542,7 @@ InsertFakeRequest(ClientPtr client, char *data, int count)
         oci->bufptr += moveup;
         oci->bufcnt += moveup;
     }
-    memmove(oci->bufptr - count, data, count);
+    memcpy(oci->bufptr - count, data, count);
     oci->bufptr -= count;
     gotnow += count;
     if ((gotnow >= sizeof(xReq)) &&
@@ -611,25 +615,24 @@ FlushAllOutput(void)
 {
     OsCommPtr oc;
     register ClientPtr client, tmp;
+    Bool flushed_any = FALSE;
 
     if (!any_output_pending())
         return;
-
-    /*
-     * It may be that some client still has critical output pending,
-     * but he is not yet ready to receive it anyway, so we will
-     * simply wait for the select to tell us when he's ready to receive.
-     */
-    CriticalOutputPending = FALSE;
 
     xorg_list_for_each_entry_safe(client, tmp, &output_pending_clients, output_pending) {
         if (client->clientGone)
             continue;
         if (!client_is_ready(client)) {
             oc = (OsCommPtr) client->osPrivate;
-            (void) FlushClient(client, oc, (char *) NULL, 0);
+            int remaining = FlushClient(client, oc, (char *)NULL, 0);
+            if (remaining == 0)
+                flushed_any = TRUE;
         }
     }
+
+    if (flushed_any)
+        CriticalOutputPending = FALSE;
 }
 
 void
@@ -653,12 +656,12 @@ AppendToOutputBuffer(ConnectionOutputPtr oco, const char *buf, int count)
     start = (oco->start + oco->count) % oco->size;
     todo = count;
     if (start + todo > oco->size) {
-        memmove((char *) oco->buf + start, buf, oco->size - start);
+        memcpy((char *) oco->buf + start, buf, oco->size - start);
         todo -= (oco->size - start);
         buf += (oco->size - start);
         start = 0;
     }
-    memmove((char *) oco->buf + start, buf, todo);
+    memcpy((char *) oco->buf + start, buf, todo);
     oco->count += count;
 }
 
@@ -767,7 +770,7 @@ WriteToClient(ClientPtr who, int count, const void *__buf)
 
     padBytes = padding_for_int32(count);
 
-    if (ReplyCallback) {
+    if (_X_UNLIKELY(ReplyCallback)) {
         ReplyInfoRec replyinfo;
 
         replyinfo.client = who;
@@ -809,11 +812,6 @@ WriteToClient(ClientPtr who, int count, const void *__buf)
 #endif
     if ((oco->count == 0 && who->local) || oco->count + count + padBytes > oco->size) {
         output_pending_clear(who);
-        
-        if (!any_output_pending()) {
-            CriticalOutputPending = FALSE;
-        }
-
         return FlushClient(who, oc, buf, count);
     }
 
@@ -830,28 +828,38 @@ ResizeOutputBuffer(ClientPtr who, OsCommPtr oc, int size)
     ConnectionOutputPtr oco = oc->output;
     uint8_t *obuf;
 
-    obuf = malloc (size);
-    if (!obuf) {
-        _XSERVTransDisconnect(oc->trans_conn);
-        _XSERVTransClose(oc->trans_conn);
-        oc->trans_conn = NULL;
-        MarkClientException(who);
-        oco->start = 0;
-        oco->count = 0;
-        return FALSE;
-    }
-    if (oco->start + oco->count > oco->size) {
-        memcpy(obuf, (char *)oco->buf + oco->start, oco->size - oco->start);
-        memcpy((char *) obuf + (oco->size - oco->start), oco->buf, oco->count - (oco->size - oco->start));
-        oco->start = 0;
+    if (oco->start == 0) {
+        /* Data is already linearised at the base of the buffer.
+         * realloc can expand in place, avoiding a copy. */
+        obuf = realloc(oco->buf, size);
+        if (!obuf)
+            goto bail;
+
+        oco->buf = obuf;
+        oco->size = size;
     } else {
-        memcpy((char *) obuf, (char *) oco->buf + oco->start, oco->count);
+        obuf = malloc(size);
+        if (!obuf)
+            goto bail;
+
+        memcpy(obuf, (char *)oco->buf + oco->start, oco->size - oco->start);
+        memcpy((char *)obuf + (oco->size - oco->start), oco->buf,
+               oco->count - (oco->size - oco->start));
         oco->start = 0;
+        oco->size = size;
+        free(oco->buf);
+        oco->buf = obuf;
     }
-    oco->size = size;
-    free(oco->buf);
-    oco->buf = obuf;
+
     return TRUE;
+bail:
+    _XSERVTransDisconnect(oc->trans_conn);
+    _XSERVTransClose(oc->trans_conn);
+    oc->trans_conn = NULL;
+    MarkClientException(who);
+    oco->start = 0;
+    oco->count = 0;
+    return FALSE;
 }
 
 /********************
@@ -894,7 +902,7 @@ ReserveClientOutputSpace(ClientPtr who, int count)
             return NULL;
     }
 
-    return oco->buf + oco->count + oco->start;
+    return oco->buf + ((oco->start + oco->count) % oco->size);
 }
 
 /********************
@@ -1112,7 +1120,7 @@ AllocateOutputBuffer(void)
     oco = malloc(sizeof(ConnectionOutput));
     if (!oco)
         return NULL;
-    oco->buf = calloc(1, BUFSIZE);
+    oco->buf = malloc(BUFSIZE);
     if (!oco->buf) {
         free(oco);
         return NULL;
