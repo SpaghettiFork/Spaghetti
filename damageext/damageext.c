@@ -61,6 +61,7 @@ DamageNoteCritical(ClientPtr pClient)
     if (pDamageClient->critical > 0) {
         SetCriticalOutputPending();
         pClient->smart_priority = SMART_MAX_PRIORITY;
+        boost_client(pClient);
     }
 }
 

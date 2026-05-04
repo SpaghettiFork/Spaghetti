@@ -612,6 +612,11 @@ ProcShmPutImage(ClientPtr client)
             .offset = stuff->offset
         };
         WriteEventsToClient(client, 1, (xEvent *) &ev);
+
+        if (client->smart_priority < SMART_MAX_PRIORITY) {
+            client->smart_priority++;
+            boost_client(client);
+        }
     }
 
     return Success;

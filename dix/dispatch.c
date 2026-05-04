@@ -239,7 +239,8 @@ UpdateCurrentTimeIf(void)
 
 /* in milliseconds */
 #define SMART_SCHEDULE_DEFAULT_INTERVAL	5
-#define SMART_SCHEDULE_MAX_SLICE	15
+#define SMART_SCHEDULE_MAX_SLICE	    15
+#define SMART_SCHEDULE_DRR_QUANTUM      100
 
 #ifdef HAVE_SETITIMER
 Bool SmartScheduleSignalEnable = TRUE;
@@ -250,8 +251,9 @@ long SmartScheduleInterval = SMART_SCHEDULE_DEFAULT_INTERVAL;
 long SmartScheduleMaxSlice = SMART_SCHEDULE_MAX_SLICE;
 volatile long SmartScheduleTime;
 int SmartScheduleLatencyLimited = 0;
+
 static ClientPtr SmartLastClient;
-static int SmartLastIndex[SMART_MAX_PRIORITY - SMART_MIN_PRIORITY + 1];
+static int client_deficit[MAXCLIENTS];
 
 #ifdef SMART_DEBUG
 long SmartLastPrint;
@@ -262,6 +264,19 @@ void Dispatch(void);
 static struct xorg_list ready_clients;
 static struct xorg_list saved_ready_clients;
 struct xorg_list output_pending_clients;
+
+static inline int
+client_quantum(ClientPtr client)
+{
+    int w = client->priority * 10 + client->smart_priority + 21;
+    return (w < 1 ? 1 : w) * SMART_SCHEDULE_DRR_QUANTUM;
+}
+
+static void
+drr_client_reset(ClientPtr client)
+{
+    client_deficit[client->index] = 0;
+}
 
 static void
 init_client_ready(void)
@@ -281,8 +296,10 @@ clients_are_ready(void)
 void
 mark_client_ready(ClientPtr client)
 {
-    if (xorg_list_is_empty(&client->ready))
+    if (xorg_list_is_empty(&client->ready)) {
+        drr_client_reset(client);
         xorg_list_append(&client->ready, &ready_clients);
+    }
 }
 
 /*
@@ -300,6 +317,13 @@ void
 mark_client_not_ready(ClientPtr client)
 {
     xorg_list_del(&client->ready);
+}
+
+void
+boost_client(ClientPtr client)
+{
+    /* Top up by several quanta to push to front */
+    client_deficit[client->index] += client_quantum(client) * 4;
 }
 
 static void
@@ -329,76 +353,59 @@ mark_client_ungrab(void)
 static ClientPtr
 SmartScheduleClient(void)
 {
-    ClientPtr pClient, best = NULL;
-    int bestRobin, robin;
+    ClientPtr client, best = NULL;
     long now = SmartScheduleTime;
-    long idle;
     int nready = 0;
 
-    bestRobin = 0;
-    idle = 2 * SmartScheduleSlice;
-
-    xorg_list_for_each_entry(pClient, &ready_clients, ready) {
+    xorg_list_for_each_entry(client, &ready_clients, ready) {
         nready++;
 
         /* Praise clients which haven't run in a while */
-        if ((now - pClient->smart_stop_tick) >= idle) {
-            if (pClient->smart_priority < 0)
-                pClient->smart_priority++;
-        }
+        if (client->smart_priority < 0 &&
+            (now - client->smart_stop_tick) >= 2 * SmartScheduleSlice)
+            client->smart_priority++;
 
-        /* check priority to select best client */
-        robin =
-            (pClient->index -
-             SmartLastIndex[pClient->smart_priority -
-                            SMART_MIN_PRIORITY]) & 0xff;
+        /* Top up deficit each round */
+        client_deficit[client->index] += client_quantum(client);
 
-        /* pick the best client */
         if (!best ||
-            pClient->priority > best->priority ||
-            (pClient->priority == best->priority &&
-             (pClient->smart_priority > best->smart_priority ||
-              (pClient->smart_priority == best->smart_priority && robin > bestRobin))))
-        {
-            best = pClient;
-            bestRobin = robin;
-        }
+            client_deficit[client->index] > client_deficit[best->index])
+            best = client;
+
 #ifdef SMART_DEBUG
         if ((now - SmartLastPrint) >= 5000)
-            fprintf(stderr, " %2d: %3d", pClient->index, pClient->smart_priority);
+            fprintf(stderr, " %2d: deficit=%d quantum=%d pri=%d smart=%d",
+                    client->index,
+                    client_deficit[client->index],
+                    client_quantum(client),
+                    client->priority,
+                    client->smart_priority);
 #endif
     }
+
 #ifdef SMART_DEBUG
     if ((now - SmartLastPrint) >= 5000) {
-        fprintf(stderr, " use %2d\n", best->index);
+        fprintf(stderr, " -> use %2d\n", best->index);
         SmartLastPrint = now;
     }
 #endif
-    SmartLastIndex[best->smart_priority - SMART_MIN_PRIORITY] = best->index;
-    /*
-     * Set current client pointer
-     */
+
+    /* Deduct a quantum from the winner */
+    client_deficit[best->index] -= client_quantum(best);
+
     if (SmartLastClient != best) {
         best->smart_start_tick = now;
         SmartLastClient = best;
     }
-    /*
-     * Adjust slice
-     */
+
     if (nready == 1 && SmartScheduleLatencyLimited == 0) {
-        /*
-         * If it's been a long time since another client
-         * has run, bump the slice up to get maximal
-         * performance from a single client
-         */
         if ((now - best->smart_start_tick) > 1000 &&
-            SmartScheduleSlice < SmartScheduleMaxSlice) {
+            SmartScheduleSlice < SmartScheduleMaxSlice)
             SmartScheduleSlice += SmartScheduleInterval;
-        }
-    }
-    else {
+    } else {
         SmartScheduleSlice = SmartScheduleInterval;
     }
+
     return best;
 }
 
@@ -3480,7 +3487,9 @@ CloseDownClient(ClientPtr client)
         client->clientGone = TRUE;      /* so events aren't sent to client */
         if (ClientIsAsleep(client))
             ClientSignal(client);
+
         ProcessWorkQueueZombies();
+        drr_client_reset(client);
         CloseDownConnection(client);
         output_pending_clear(client);
         mark_client_not_ready(client);
