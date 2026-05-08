@@ -1897,7 +1897,7 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
     }
 
     /* Clear the remainder for good measure. */
-    while (i < ms->max_cursor_width * ms->max_cursor_height)
+    while (i < max_width * max_height)
         ptr[i++] = 0;
 
     if (drmmode_crtc->cursor.up)
