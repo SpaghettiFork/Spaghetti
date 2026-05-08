@@ -99,6 +99,8 @@ present_create_notifies(ClientPtr client, int num_notifies, xPresentNotify *x_no
 
         added++;
     }
+
+    *p_notifies = notifies;
     return Success;
 
 bail:
