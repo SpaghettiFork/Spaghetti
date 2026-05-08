@@ -42,6 +42,12 @@ typedef enum {
     PRESENT_FLIP_REASON_DRIVER_TEARFREE_FLIPPING
 } PresentFlipReason;
 
+typedef enum {
+    PRESENT_TYPE_SYNCHRONOUS,
+    PRESENT_TYPE_ASYNCHRONOUS,
+    PRESENT_TYPE_ASYNC_TEARING
+} present_flip_type;
+
 typedef struct present_vblank present_vblank_rec, *present_vblank_ptr;
 
 /* Return the current CRTC for 'window'.
@@ -103,6 +109,25 @@ typedef Bool (*present_flip_ptr) (RRCrtcPtr crtc,
                                   uint64_t target_msc,
                                   PixmapPtr pixmap,
                                   Bool sync_flip);
+
+/* Flip pixmap, return false if it didn't happen.
+ *
+ * 'crtc' is to be used for any necessary synchronization.
+ *
+ * 'type' represents the choice between one of the following flips:
+ * - SYNCHRONOUS (sync_flip)
+ * - ASYNCHRONOUS (!sync_flip)
+ * - ASYNC_TEARING (!sync_flip if not supported)
+ *
+ * present_event_notify should be called with 'event_id' when the flip
+ * occurs
+ */
+typedef Bool (*present_flip2_ptr) (RRCrtcPtr crtc,
+                                   uint64_t event_id,
+                                   uint64_t target_msc,
+                                   PixmapPtr pixmap,
+                                   present_flip_type type);
+
 /* Flip pixmap for window, return false if it didn't happen.
  *
  * Like present_flip_ptr, additionally with:
@@ -131,7 +156,7 @@ typedef void (*present_unflip_ptr) (ScreenPtr screen,
  */
 typedef void (*present_wnmd_flips_stop_ptr) (WindowPtr window);
 
-#define PRESENT_SCREEN_INFO_VERSION        1
+#define PRESENT_SCREEN_INFO_VERSION        2
 
 typedef struct present_screen_info {
     uint32_t                            version;
@@ -146,6 +171,9 @@ typedef struct present_screen_info {
     present_flip_ptr                    flip;
     present_unflip_ptr                  unflip;
     present_check_flip2_ptr             check_flip2;
+
+    /* version 2 - Spaghetti */
+    present_flip2_ptr                   flip2;
 
 } present_screen_info_rec, *present_screen_info_ptr;
 
