@@ -365,6 +365,9 @@ sproc_present_pixmap(ClientPtr client)
     swapll(&stuff->target_msc);
     swapll(&stuff->divisor);
     swapll(&stuff->remainder);
+
+    SwapRestL(stuff);
+
     return (*proc_present_vector[stuff->presentReqType]) (client);
 }
 
