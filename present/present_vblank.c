@@ -56,6 +56,17 @@ present_want_async_flip(uint32_t options, uint32_t capabilities)
 	return FALSE;
 }
 
+static inline void
+set_vblank_flip_type(present_vblank_ptr vblank, uint32_t options, Bool sync_flip)
+{
+    Bool wants_tearing = (options & PresentOptionAsyncMayTear);
+
+    if (sync_flip)
+        vblank->flip_type = PRESENT_TYPE_SYNCHRONOUS;
+    else
+        vblank->flip_type = (wants_tearing ? PRESENT_TYPE_ASYNC_TEARING : PRESENT_TYPE_ASYNCHRONOUS);
+}
+
 /* The memory vblank points to must be 0-initialized before calling this function.
  *
  * If this function returns FALSE, present_vblank_destroy must be called to clean
@@ -141,7 +152,7 @@ present_vblank_init(present_vblank_ptr vblank,
                                      sync_flip, valid, x_off, y_off, &reason))
         {
             vblank->flip = TRUE;
-            vblank->sync_flip = sync_flip;
+            set_vblank_flip_type(vblank, options, sync_flip);
         }
     }
     vblank->reason = reason;
@@ -178,7 +189,7 @@ present_vblank_init(present_vblank_ptr vblank,
         DebugPresent(("q %" PRIu64 " %p %" PRIu64 ": %08" PRIx32 " -> %08" PRIx32 " (crtc %p) flip %d vsync %d serial %d\n",
                       vblank->event_id, vblank, target_msc,
                       vblank->pixmap->drawable.id, vblank->window->drawable.id,
-                      target_crtc, vblank->flip, vblank->sync_flip, vblank->serial));
+                      target_crtc, vblank->flip, vblank->flip_type, vblank->serial));
     return TRUE;
 
 no_mem:
