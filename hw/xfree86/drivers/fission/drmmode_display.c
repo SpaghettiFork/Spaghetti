@@ -66,6 +66,7 @@ static Bool drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height);
 static PixmapPtr drmmode_create_pixmap_header(ScreenPtr pScreen, int width, int height,
                                               int depth, int bitsPerPixel, int devKind,
                                               void *pPixData);
+static void drmmode_tearfree_realloc_crtc(xf86CrtcPtr crtc);
 
 static const struct drm_color_ctm ctm_identity = { {
     1ULL << 32, 0, 0,
@@ -1749,6 +1750,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
         } else
             ret = TRUE;
 
+        if (drmmode->tearfree)
+            drmmode_tearfree_realloc_crtc(crtc);
+
         if (crtc->scrn->pScreen)
             xf86CrtcSetScreenSubpixelOrder(crtc->scrn->pScreen);
 
@@ -1785,6 +1789,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
         crtc->y = saved_y;
         crtc->rotation = saved_rotation;
         crtc->mode = saved_mode;
+
+        if (drmmode->tearfree)
+            drmmode_tearfree_realloc_crtc(crtc);
     } else
         crtc->active = TRUE;
 
@@ -4568,6 +4575,114 @@ drmmode_create_initial_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
     return TRUE;
 }
 
+Bool
+drmmode_tearfree_alloc_crtc(xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr scrn = crtc->scrn;
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    drmmode_ptr drmmode = drmmode_crtc->drmmode;
+    ScreenPtr screen = xf86ScrnToScreen(scrn);
+    unsigned width  = scrn->virtualX;
+    unsigned height = scrn->virtualY;
+    int i;
+
+    RegionNull(&drmmode_crtc->tearfree.stale[0]);
+    RegionNull(&drmmode_crtc->tearfree.stale[1]);
+
+    for (i = 0; i < 2; i++) {
+        if (!drmmode_create_bo(drmmode, &drmmode_crtc->tearfree.bo[i],
+                               width, height, drmmode->kbpp))
+            goto fail;
+
+        if (drmmode_bo_import(drmmode, &drmmode_crtc->tearfree.bo[i],
+                              &drmmode_crtc->tearfree.fb_id[i]) < 0) {
+            drmmode_bo_destroy(drmmode, &drmmode_crtc->tearfree.bo[i]);
+            goto fail;
+        }
+
+        drmmode_crtc->tearfree.pixmap[i] =
+            drmmode_create_pixmap_header(screen, width, height,
+                                         scrn->depth, scrn->bitsPerPixel,
+                                         drmmode_bo_get_pitch(&drmmode_crtc->tearfree.bo[i]),
+                                         NULL);
+        if (!drmmode_crtc->tearfree.pixmap[i])
+            goto fail;
+
+        if (!drmmode_set_pixmap_bo(drmmode, drmmode_crtc->tearfree.pixmap[i],
+                                   &drmmode_crtc->tearfree.bo[i]))
+            goto fail;
+    }
+
+    drmmode_crtc->tearfree.back_idx     = 0;
+    drmmode_crtc->tearfree.flip_pending = FALSE;
+
+    drmmode_crtc->tearfree.damage = DamageCreate(NULL, NULL,
+                                                 DamageReportNone, TRUE,
+                                                 screen, screen);
+    if (!drmmode_crtc->tearfree.damage)
+        goto fail;
+
+    DamageRegister(&screen->GetScreenPixmap(screen)->drawable,
+                   drmmode_crtc->tearfree.damage);
+    return TRUE;
+
+fail:
+    while (--i >= 0) {
+        if (drmmode_crtc->tearfree.pixmap[i]) {
+            screen->DestroyPixmap(drmmode_crtc->tearfree.pixmap[i]);
+            drmmode_crtc->tearfree.pixmap[i] = NULL;
+        }
+        if (drmmode_crtc->tearfree.fb_id[i]) {
+            drmModeRmFB(drmmode->fd, drmmode_crtc->tearfree.fb_id[i]);
+            drmmode_crtc->tearfree.fb_id[i] = 0;
+        }
+        drmmode_bo_destroy(drmmode, &drmmode_crtc->tearfree.bo[i]);
+    }
+
+    return FALSE;
+}
+
+void
+drmmode_tearfree_free_crtc(xf86CrtcPtr crtc)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    drmmode_ptr drmmode = drmmode_crtc->drmmode;
+    ScreenPtr screen = xf86ScrnToScreen(crtc->scrn);
+    int i;
+
+    if (!drmmode_crtc->tearfree.fb_id[0] &&
+        !drmmode_crtc->tearfree.fb_id[1])
+        return;
+
+    if (drmmode_crtc->tearfree.damage) {
+        DamageUnregister(drmmode_crtc->tearfree.damage);
+        DamageDestroy(drmmode_crtc->tearfree.damage);
+        drmmode_crtc->tearfree.damage = NULL;
+    }
+
+    for (i = 0; i < 2; i++) {
+        if (drmmode_crtc->tearfree.pixmap[i]) {
+            screen->DestroyPixmap(drmmode_crtc->tearfree.pixmap[i]);
+            drmmode_crtc->tearfree.pixmap[i] = NULL;
+        }
+        if (drmmode_crtc->tearfree.fb_id[i]) {
+            drmModeRmFB(drmmode->fd, drmmode_crtc->tearfree.fb_id[i]);
+            drmmode_crtc->tearfree.fb_id[i] = 0;
+        }
+        drmmode_bo_destroy(drmmode, &drmmode_crtc->tearfree.bo[i]);
+    }
+}
+
+static void
+drmmode_tearfree_realloc_crtc(xf86CrtcPtr crtc)
+{
+    drmmode_tearfree_free_crtc(crtc);
+    if (!drmmode_tearfree_alloc_crtc(crtc))
+        xf86DrvMsg(crtc->scrn->scrnIndex, X_WARNING,
+                   "TearFree reallocation failed; "
+                   "TearFree inactive on this CRTC until next resize\n");
+}
+
 void *
 drmmode_map_front_bo(drmmode_ptr drmmode)
 {
@@ -4630,6 +4745,8 @@ drmmode_free_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
         }
 
         dumb_bo_destroy(drmmode->fd, drmmode_crtc->cursor.bo);
+
+        drmmode_tearfree_free_crtc(crtc);
     }
 }
 

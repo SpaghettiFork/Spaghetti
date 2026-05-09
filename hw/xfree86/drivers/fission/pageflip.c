@@ -93,9 +93,9 @@ struct ms_flipdata {
     ms_pageflip_abort_proc abort_handler;
     /* number of CRTC events referencing this */
     int flip_count;
+    uint32_t old_fb_id;
     uint64_t fe_msc;
     uint64_t fe_usec;
-    uint32_t old_fb_id;
 };
 
 /*
@@ -318,6 +318,14 @@ ms_print_pageflip_error(int screen_index, const char *log_prefix,
     }
 }
 
+static inline Bool
+ms_can_promote_to_async(drmmode_crtc_private_ptr drmmode_crtc,
+                        Bool async, int ref_crtc_vblank_pipe)
+{
+    return async || (ref_crtc_vblank_pipe >= 0 &&
+                     drmmode_crtc->vblank_pipe != ref_crtc_vblank_pipe);
+}
+
 Bool
 ms_do_pageflip(ScreenPtr screen,
                PixmapPtr new_front,
@@ -332,7 +340,6 @@ ms_do_pageflip(ScreenPtr screen,
     modesettingPtr ms = modesettingPTR(scrn);
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
     drmmode_bo new_front_bo;
-    uint32_t flags;
     int i;
     struct ms_flipdata *flipdata;
 
@@ -402,28 +409,23 @@ ms_do_pageflip(ScreenPtr screen,
         enum queue_flip_status flip_status;
         xf86CrtcPtr crtc = config->crtc[i];
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+        uint32_t flags = DRM_MODE_PAGE_FLIP_EVENT;
 
         if (!xf86_crtc_on(crtc))
             continue;
 
-        flags = DRM_MODE_PAGE_FLIP_EVENT;
-        if (ms->drmmode.can_async_flip && async)
-            flags |= DRM_MODE_PAGE_FLIP_ASYNC;
-
         /*
-         * If this is not the reference crtc used for flip timing and flip event
-         * delivery and timestamping, ie. not the one whose presentation timing
-         * we do really care about, and async flips are possible, and requested
-         * by an xorg.conf option, then we flip this "secondary" crtc without
-         * sync to vblank. This may cause tearing on such "secondary" outputs,
-         * but it will prevent throttling of multi-display flips to the refresh
-         * cycle of any of the secondary crtcs, avoiding periodic slowdowns and
-         * judder caused by unsynchronized outputs. This is especially useful for
-         * outputs in a "clone-mode" or "mirror-mode" configuration.
+         * Promote this CRTC's flip to async in two cases: the flip was already
+         * requested as async (e.g. PRESENT_TYPE_ASYNC_TEARING), or this is a
+         * secondary CRTC not used for flip timing and event delivery.  In the
+         * latter case, tearing may occur on the secondary output, but it
+         * prevents multi-display flips from being throttled to the refresh
+         * cycle of every active CRTC, avoiding periodic slowdowns and judder
+         * on unsynchronised outputs.  This is especially beneficial in
+         * clone-mode or mirror-mode configurations.
          */
-        if (ms->drmmode.can_async_flip && ms->drmmode.async_flip_secondaries &&
-            (drmmode_crtc->vblank_pipe != ref_crtc_vblank_pipe) &&
-            (ref_crtc_vblank_pipe >= 0))
+        if (ms->drmmode.can_async_flip &&
+            ms_can_promote_to_async(drmmode_crtc, async, ref_crtc_vblank_pipe))
             flags |= DRM_MODE_PAGE_FLIP_ASYNC;
 
         flip_status = queue_flip_on_crtc(screen, crtc, flipdata,
@@ -490,3 +492,23 @@ error_free_event:
     return FALSE;
 }
 #endif
+
+void
+ms_tearfree_flip_handler(uint64_t frame, uint64_t usec, void *data)
+{
+    xf86CrtcPtr crtc = data;
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+    /* Back buffer is now being scanned out; swap roles. */
+    drmmode_crtc->tearfree.back_idx    ^= 1;
+    drmmode_crtc->tearfree.flip_pending = FALSE;
+}
+
+void
+ms_tearfree_flip_abort(void *data)
+{
+    xf86CrtcPtr crtc = data;
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+    drmmode_crtc->tearfree.flip_pending = FALSE;
+}

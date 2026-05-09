@@ -51,6 +51,7 @@
 
 struct ms_present_vblank_event {
     uint64_t        event_id;
+    xf86CrtcPtr     tearfree_crtc; /* CRTC with TearFree suspended, or NULL */
     Bool            unflip;
 };
 
@@ -203,6 +204,16 @@ ms_present_flip_handler(modesettingPtr ms, uint64_t msc,
     if (event->unflip)
         ms->drmmode.present_flipping = FALSE;
 
+    /*
+     * A Present flip completing means any async-tearing suspension of
+     * TearFree is over; clear the flag on all CRTCs so the back-buffer
+     * blit loop can resume on the next BlockHandler pass.
+     */
+    if (ms->drmmode.tearfree && event->tearfree_crtc) {
+        drmmode_crtc_private_ptr dc = event->tearfree_crtc->driver_private;
+        dc->tearfree.async_tear = FALSE;
+    }
+
     ms_present_vblank_handler(msc, ust, event);
 }
 
@@ -290,13 +301,17 @@ ms_present_check_unflip(RRCrtcPtr crtc,
     }
 #endif
 
-    /* Make sure there's a bo we can get to */
-    /* XXX: actually do this.  also...is it sufficient?
-     * if (!glamor_get_pixmap_private(pixmap))
-     *     return FALSE;
-     */
-
     return TRUE;
+}
+
+static Bool
+ms_tearfree_is_active_on_crtc(xf86CrtcPtr crtc)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+    return drmmode_crtc->tearfree.fb_id[0] &&
+           crtc->scrn->vtSema &&
+           xf86_crtc_on(crtc);
 }
 
 static Bool
@@ -311,37 +326,112 @@ ms_present_check_flip(RRCrtcPtr crtc,
     modesettingPtr ms = modesettingPTR(scrn);
     Bool async_flip = !sync_flip;
 
+    if (reason)
+        *reason = PRESENT_FLIP_REASON_UNKNOWN;
+
     if (ms->drmmode.sprites_visible > 0)
-        return FALSE;
+        goto no_flip;
 
     if (ms->drmmode.pending_modeset)
-        return FALSE;
+        goto no_flip;
 
     if (!ms_present_check_unflip(crtc, window, pixmap, sync_flip, reason)) {
         if (reason && *reason == PRESENT_FLIP_REASON_BUFFER_FORMAT)
             ms_window_update_async_flip(window, async_flip);
-        return FALSE;
+        goto no_flip;
     }
 
     ms_window_update_async_flip(window, async_flip);
 
-    /*
-     * Force a format renegotiation when switching between sync and async,
-     * otherwise we may end up with a working but suboptimal modifier.
-     */
     if (reason && async_flip != ms_window_has_async_flip_modifiers(window)) {
         *reason = PRESENT_FLIP_REASON_BUFFER_FORMAT;
-        return FALSE;
+        goto no_flip;
     }
 
     ms->flip_window = window;
     return TRUE;
+
+no_flip:
+    if (reason && *reason == PRESENT_FLIP_REASON_UNKNOWN && crtc) {
+        xf86CrtcPtr xf86_crtc = crtc->devPrivate;
+
+        if (ms_tearfree_is_active_on_crtc(xf86_crtc)) {
+            drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+
+            *reason = drmmode_crtc->tearfree.flip_pending ?
+                      PRESENT_FLIP_REASON_DRIVER_TEARFREE_FLIPPING :
+                      PRESENT_FLIP_REASON_DRIVER_TEARFREE;
+        }
+    }
+
+    return FALSE;
 }
 
 /*
  * Queue a flip on 'crtc' to 'pixmap' at 'target_msc'. If 'sync_flip' is true,
  * then wait for vblank. Otherwise, flip immediately
  */
+
+#if PRESENT_SCREEN_INFO_VERSION >= 2
+static Bool
+ms_present_flip2(RRCrtcPtr crtc,
+                 uint64_t event_id,
+                 uint64_t target_msc,
+                 PixmapPtr pixmap,
+                 present_flip_type type)
+{
+    ScreenPtr screen = crtc->pScreen;
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    modesettingPtr ms = modesettingPTR(scrn);
+    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
+    drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+    Bool sync_flip = (type == PRESENT_TYPE_SYNCHRONOUS);
+    Bool async_tear = (type == PRESENT_TYPE_ASYNC_TEARING);
+    struct ms_present_vblank_event *event;
+    Bool ret;
+    int i;
+
+    if (!ms_present_check_flip(crtc, ms->flip_window, pixmap, sync_flip, NULL))
+        return FALSE;
+
+    event = calloc(1, sizeof(struct ms_present_vblank_event));
+    if (!event)
+        return FALSE;
+
+    DebugPresent(("\t\tms:pf2 %lld msc %llu type %d\n",
+                  (long long) event_id, (long long) target_msc, (int) type));
+
+    event->event_id = event_id;
+    event->unflip = FALSE;
+
+    if (ms->vrr_support && ms->is_connector_vrr_capable &&
+        ms_window_has_variable_refresh(ms, ms->flip_window))
+        ms_present_set_screen_vrr(scrn, TRUE);
+
+    /*
+     * Suspend TearFree on all active CRTCs for the duration of this flip.
+     * The client has opted into tearing so we must not queue a competing
+     * back-buffer flip on top of the async page flip.
+     */
+    if (async_tear && ms->drmmode.tearfree) {
+        drmmode_crtc->tearfree.async_tear = TRUE;
+        event->tearfree_crtc = xf86_crtc;
+    }
+
+    ret = ms_do_pageflip(screen, pixmap, event, drmmode_crtc->vblank_pipe,
+                         !sync_flip,
+                         ms_present_flip_handler, ms_present_flip_abort,
+                         "Present-flip2");
+    if (ret) {
+        ms->drmmode.present_flipping = TRUE;
+    } else if (async_tear && ms->drmmode.tearfree) {
+        drmmode_crtc->tearfree.async_tear = FALSE;
+    }
+
+    return ret;
+}
+#else
 static Bool
 ms_present_flip(RRCrtcPtr crtc,
                 uint64_t event_id,
@@ -389,6 +479,7 @@ ms_present_flip(RRCrtcPtr crtc,
 
     return ret;
 }
+#endif
 
 /*
  * Queue a flip back to the normal frame buffer
@@ -463,8 +554,15 @@ static present_screen_info_rec ms_present_screen_info = {
 #ifdef GLAMOR_HAS_GBM
     .check_flip = NULL,
     .check_flip2 = ms_present_check_flip,
+
+#if PRESENT_SCREEN_INFO_VERSION >= 2
+    .flip = NULL,
+    .unflip = ms_present_unflip,
+    .flip2 = ms_present_flip2
+#else
     .flip = ms_present_flip,
     .unflip = ms_present_unflip,
+#endif
 #endif
 };
 
@@ -483,6 +581,11 @@ ms_present_screen_init(ScreenPtr screen)
     ret = drmGetCap(ms->fd, DRM_CAP_ATOMIC_ASYNC_PAGE_FLIP, &value);
     if (ret == 0 && value == 1) {
         ms_present_screen_info.capabilities |= PresentCapabilityAsync;
+
+#if PRESENT_SCREEN_INFO_VERSION >= 2
+        ms_present_screen_info.capabilities |= PresentCapabilityAsyncMayTear;
+#endif
+
         ms->drmmode.can_async_flip = TRUE;
     }
 
