@@ -103,7 +103,9 @@ typedef struct {
 #endif
     drmEventContext event_context;
     drmmode_bo front_bo;
+
     Bool sw_cursor;
+    Bool tearfree;
 
     /* Broken-out options. */
     OptionInfoPtr Options;
@@ -135,7 +137,6 @@ typedef struct {
     Bool flip_bo_import_failed;
 
     Bool can_async_flip;
-    Bool async_flip_secondaries;
     Bool dri2_enable;
     Bool present_enable;
 
@@ -188,6 +189,16 @@ typedef struct {
 } drmmode_cursor_rec, *drmmode_cursor_ptr;
 
 typedef struct {
+    drmmode_bo bo[2];
+    uint32_t   fb_id[2];
+    int        back_idx;   /* index of the buffer being written to */
+    Bool       flip_pending;
+    DamagePtr  damage;
+    PixmapPtr  pixmap[2];  /* pixmap wrappers for blitting */
+    Bool       async_tear;
+} drmmode_tearfree_rec, *drmmode_tearfree_ptr;
+
+typedef struct {
     drmmode_ptr drmmode;
     drmModeCrtcPtr mode_crtc;
 
@@ -205,6 +216,8 @@ typedef struct {
     drmmode_format_rec *formats_async;
 
     drmmode_bo rotate_bo;
+
+    drmmode_tearfree_rec tearfree;
 
     PixmapPtr prime_pixmap;
     PixmapPtr prime_pixmap_back;
@@ -344,5 +357,8 @@ Bool drmmode_crtc_get_fb_id(xf86CrtcPtr crtc, uint32_t *fb_id, int *x, int *y);
 
 void drmmode_set_dpms(ScrnInfoPtr scrn, int PowerManagementMode, int flags);
 void drmmode_crtc_set_vrr(xf86CrtcPtr crtc, Bool enabled);
+
+Bool drmmode_tearfree_alloc_crtc(xf86CrtcPtr crtc);
+void drmmode_tearfree_free_crtc(xf86CrtcPtr crtc);
 
 #endif

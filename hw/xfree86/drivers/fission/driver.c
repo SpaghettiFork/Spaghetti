@@ -152,7 +152,7 @@ static const OptionInfoRec Options[] = {
     {OPTION_DOUBLE_SHADOW, "DoubleShadow", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_VARIABLE_REFRESH, "VariableRefresh", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_USE_GAMMA_LUT, "UseGammaLUT", OPTV_BOOLEAN, {0}, FALSE},
-    {OPTION_ASYNC_FLIP_SECONDARIES, "AsyncFlipSecondaries", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_TEARFREE, "TearFree", OPTV_BOOLEAN, {0}, FALSE},
     {-1, NULL, OPTV_NONE, {0}, FALSE}
 };
 
@@ -818,6 +818,79 @@ ms_dirty_get_ent(ScreenPtr screen, PixmapPtr secondary_dst)
 }
 
 static void
+ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    modesettingPtr ms = modesettingPTR(scrn);
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    drmmode_tearfree_rec tearfree = drmmode_crtc->tearfree;
+    int back = tearfree.back_idx;
+    GCPtr gc;
+    uint32_t seq;
+
+    if (!crtc->enabled)
+        return;
+
+    if (tearfree.flip_pending || tearfree.async_tear)
+        return;
+
+    if (ms->drmmode.present_flipping)
+        return;
+
+    if (!tearfree.damage ||
+        !RegionNotEmpty(DamageRegion(tearfree.damage)))
+        return;
+
+    gc = GetScratchGC(scrn->depth, screen);
+    if (!gc)
+        return;
+
+    ValidateGC(&tearfree.pixmap[back]->drawable, gc);
+    (*gc->ops->CopyArea)(&screen->GetScreenPixmap(screen)->drawable,
+                         &tearfree.pixmap[back]->drawable,
+                         gc,
+                         crtc->x, crtc->y,
+                         crtc->mode.HDisplay, crtc->mode.VDisplay,
+                         0, 0);
+    FreeScratchGC(gc);
+
+    DamageEmpty(tearfree.damage);
+
+#ifdef GLAMOR_HAS_GBM
+    /* Ensure the blit is visible to the display engine before the flip. */
+    glamor_finish(screen);
+#endif
+
+    seq = ms_drm_queue_alloc(crtc, crtc,
+                             ms_tearfree_flip_handler,
+                             ms_tearfree_flip_abort);
+    if (!seq)
+        return;
+
+    if (drmmode_crtc_flip(crtc,
+                          tearfree.fb_id[back],
+                          0, 0,
+                          DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK,
+                          (void *)(intptr_t) seq) != 0) {
+        ms_drm_abort_seq(scrn, seq);
+        return;
+    }
+
+    drmmode_crtc->tearfree.flip_pending = TRUE;
+}
+
+static void
+ms_tearfree_update(ScreenPtr screen)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+    int c;
+
+    for (c = 0; c < xf86_config->num_crtc; c++)
+        ms_tearfree_update_crtc(screen, xf86_config->crtc[c]);
+}
+
+static void
 msBlockHandler(ScreenPtr pScreen, void *timeout)
 {
     modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(pScreen));
@@ -832,6 +905,9 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
         dispatch_dirty(pScreen);
 
     ms_dirty_update(pScreen, timeout);
+
+    if (ms->drmmode.tearfree)
+        ms_tearfree_update(pScreen);
 }
 
 static void
@@ -1361,11 +1437,10 @@ PreInit(ScrnInfoPtr pScrn, int flags)
             xf86DrvMsg(pScrn->scrnIndex, from, "VariableRefresh: %sabled\n",
                        ms->vrr_support ? "en" : "dis");
 
-            ms->drmmode.async_flip_secondaries = FALSE;
-            from = xf86GetOptValBool(ms->drmmode.Options, OPTION_ASYNC_FLIP_SECONDARIES,
-                                     &ms->drmmode.async_flip_secondaries) ? X_CONFIG : X_DEFAULT;
-            xf86DrvMsg(pScrn->scrnIndex, from, "AsyncFlipSecondaries: %sabled\n",
-                       ms->drmmode.async_flip_secondaries ? "en" : "dis");
+            from = xf86GetOptValBool(ms->drmmode.Options, OPTION_TEARFREE,
+                                     &ms->drmmode.tearfree) ? X_CONFIG : X_DEFAULT;
+            xf86DrvMsg(pScrn->scrnIndex, from, "TearFree: %sabled\n",
+                       ms->drmmode.tearfree ? "en" : "dis");
         }
     }
 
@@ -1792,6 +1867,20 @@ CreateScreenResources(ScreenPtr pScreen)
                                PRIVATE_WINDOW,
                                sizeof(struct ms_async_flip_priv)))
             return FALSE;
+
+    if (ms->drmmode.tearfree) {
+        xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+        int c;
+
+        for (c = 0; c < xf86_config->num_crtc; c++) {
+            if (!drmmode_tearfree_alloc_crtc(xf86_config->crtc[c])) {
+                xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                           "TearFree buffer allocation failed; disabling\n");
+                ms->drmmode.tearfree = FALSE;
+                break;
+            }
+        }
+    }
 
     return ret;
 }
