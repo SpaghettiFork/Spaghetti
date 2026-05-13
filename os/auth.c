@@ -47,6 +47,9 @@ from The Open Group.
 #include    <X11/Xw32defs.h>
 #endif
 #include   <stdlib.h>       /* for arc4random_buf() */
+#ifdef HAVE_GETRANDOM
+#include   <sys/random.h>   /* for getrandom() */
+#endif
 
 struct protocol {
     unsigned short name_length;
@@ -302,7 +305,21 @@ GenerateAuthorization(unsigned name_length,
 void
 GenerateRandomData(int len, char *buf)
 {
-#ifdef HAVE_ARC4RANDOM_BUF
+#ifdef HAVE_GETRANDOM
+    ssize_t ret;
+    int pos = 0;
+
+    while (pos < len) {
+        ret = getrandom(buf + pos, len - pos, 0);
+        if (ret <= 0) {
+            if (ret < 0 && errno == EINTR)
+                continue;
+            FatalError("Cannot read random data via getrandom(): %s\n",
+                       strerror(errno));
+        }
+        pos += ret;
+    }
+#elif defined(HAVE_ARC4RANDOM_BUF)
     arc4random_buf(buf, len);
 #else
     int fd;
