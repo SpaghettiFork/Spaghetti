@@ -508,11 +508,11 @@ ConstructClientIdValue(ClientPtr sendClient, ClientPtr client, CARD32 mask,
                 swapl (&rep.length);
             }
 
+            memcpy(ptr, &rep, sizeof(rep));
+            *value = pid;
             if (sendClient->swapped) {
                 swapl (value);
             }
-            memcpy(ptr, &rep, sizeof(rep));
-            *value = pid;
 
             ctx->resultBytes += sizeof(rep) + sizeof(CARD32);
             ++ctx->numIds;
