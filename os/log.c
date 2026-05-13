@@ -418,7 +418,7 @@ vpnprintf(char *string, int size_in, const char *f, va_list args)
     int f_idx = 0;
     int s_idx = 0;
     int f_len = strlen_sigsafe(f);
-    char *string_arg;
+    const char *string_arg;
     char number[21];
     int p_len;
     int i;
@@ -474,6 +474,8 @@ vpnprintf(char *string, int size_in, const char *f, va_list args)
         switch (f[f_idx]) {
         case 's':
             string_arg = va_arg(args, char*);
+            if (!string_arg)
+                string_arg = "(null)";
 
             for (i = 0; string_arg[i] != 0 && s_idx < size - 1 && s_idx < precision; i++)
                 string[s_idx++] = string_arg[i];
