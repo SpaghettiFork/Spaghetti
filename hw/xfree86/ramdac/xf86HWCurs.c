@@ -434,11 +434,7 @@ RealizeCursorInterleave0(xf86CursorInfoPtr infoPtr, CursorPtr pCurs)
     DstM = DstS + words;
 
     if (infoPtr->Flags & HARDWARE_CURSOR_SWAP_SOURCE_AND_MASK) {
-        SCANLINE *tmp;
-
-        tmp = DstS;
-        DstS = DstM;
-        DstM = tmp;
+        XORG_EXCHANGE(DstS, DstM);
     }
 
     if (infoPtr->Flags & HARDWARE_CURSOR_AND_SOURCE_WITH_MASK) {
