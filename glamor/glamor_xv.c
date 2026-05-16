@@ -652,7 +652,7 @@ glamor_xv_put_image(glamor_port_private *port_priv,
     ScreenPtr pScreen = pDrawable->pScreen;
     int srcPitch, srcPitch2;
     int top, nlines;
-    int s2offset, s3offset, tmp;
+    int s2offset, s3offset;
     BoxRec full_box, half_box;
 
     s2offset = s3offset = srcPitch2 = 0;
@@ -746,9 +746,7 @@ glamor_xv_put_image(glamor_port_private *port_priv,
         s2offset += ((top >> 1) * srcPitch2);
         s3offset += ((top >> 1) * srcPitch2);
         if (id == FOURCC_YV12) {
-            tmp = s2offset;
-            s2offset = s3offset;
-            s3offset = tmp;
+            XORG_EXCHANGE(s2offset, s3offset);
         }
 
         full_box.x1 = 0;
