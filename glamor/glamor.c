@@ -727,7 +727,7 @@ glamor_init(ScreenPtr screen, unsigned int flags)
                 glamor_priv->glsl_version = 120;
     } else {
         if (gl_version < 20) {
-            ErrorF("Require Open GLES2.0 or later.\n");
+            ErrorF("Require OpenGLES 2.0 or later.\n");
             goto fail;
         }
 
