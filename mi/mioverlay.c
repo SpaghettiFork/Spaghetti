@@ -630,13 +630,7 @@ miOverlayComputeClips(WindowPtr pParent,
     }
 
     /* HACK ALERT - copying contents of regions, instead of regions */
-    {
-        RegionRec tmp;
-
-        tmp = tParent->clipList;
-        tParent->clipList = *universe;
-        *universe = tmp;
-    }
+    XORG_EXCHANGE(tParent->clipList, *universe);
 
     pParent->drawable.serialNumber = NEXT_SERIAL_NUMBER;
 
