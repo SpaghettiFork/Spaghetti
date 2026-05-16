@@ -604,19 +604,13 @@ ms_dri2_exchange_buffers(DrawablePtr draw, DRI2BufferPtr front,
     modesettingPtr ms = modesettingPTR(scrn);
     msPixmapPrivPtr front_pix = msGetPixmapPriv(&ms->drmmode, front_priv->pixmap);
     msPixmapPrivPtr back_pix = msGetPixmapPriv(&ms->drmmode, back_priv->pixmap);
-    msPixmapPrivRec tmp_pix;
     RegionRec region;
-    int tmp;
 
     /* Swap BO names so DRI works */
-    tmp = front->name;
-    front->name = back->name;
-    back->name = tmp;
+    XORG_EXCHANGE(front->name, back->name);
 
     /* Swap pixmap privates */
-    tmp_pix = *front_pix;
-    *front_pix = *back_pix;
-    *back_pix = tmp_pix;
+    XORG_EXCHANGE(*front_pix, *back_pix);
 
     /* Post damage on the front buffer so that listeners, such
      * as DisplayLink know take a copy and shove it over the USB.
