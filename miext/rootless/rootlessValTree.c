@@ -382,13 +382,7 @@ RootlessComputeClips(WindowPtr pParent, ScreenPtr pScreen,
     }
 
     /* HACK ALERT - copying contents of regions, instead of regions */
-    {
-        RegionRec tmp;
-
-        tmp = pParent->clipList;
-        pParent->clipList = *universe;
-        *universe = tmp;
-    }
+    XORG_EXCHANGE(pParent->clipList, *universe);
 
 #ifdef NOTDEF
     RegionCopy(&pParent->clipList, universe);
