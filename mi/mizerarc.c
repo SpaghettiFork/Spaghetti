@@ -321,11 +321,7 @@ miZeroArcSetup(xArc * arc, miZeroArcRec * info, Bool ok360)
     if (endseg & 1) {
         info->altend = end;
         if (info->altend.x < info->end.x || info->altend.y < info->end.y) {
-            miZeroArcPtRec tmp;
-
-            tmp = info->altend;
-            info->altend = info->end;
-            info->end = tmp;
+            XORG_EXCHANGE(info->altend, info->end);
         }
         info->altstart = oob;
     }
@@ -333,11 +329,7 @@ miZeroArcSetup(xArc * arc, miZeroArcRec * info, Bool ok360)
         info->altstart = end;
         if (info->altstart.x < info->start.x ||
             info->altstart.y < info->start.y) {
-            miZeroArcPtRec tmp;
-
-            tmp = info->altstart;
-            info->altstart = info->start;
-            info->start = tmp;
+            XORG_EXCHANGE(info->altstart, info->start);
         }
         info->altend = oob;
     }
