@@ -817,16 +817,74 @@ ms_dirty_get_ent(ScreenPtr screen, PixmapPtr secondary_dst)
     return NULL;
 }
 
+static Bool
+ms_copy_area(PixmapPtr pSrc, PixmapPtr pDst,
+             pixman_f_transform_t *transform, RegionPtr clip)
+{
+    ScreenPtr screen = pSrc->drawable.pScreen;
+    PictFormatPtr format = PictureWindowFormat(screen->root);
+    PicturePtr src = NULL, dst = NULL;
+    pixman_transform_t t;
+    Bool ret = FALSE;
+    BoxPtr box;
+    int n, error;
+
+    src = CreatePicture(None, &pSrc->drawable,
+                        format, 0L, NULL, serverClient, &error);
+    if (!src)
+        return FALSE;
+
+    dst = CreatePicture(None, &pDst->drawable,
+                        format, 0L, NULL, serverClient, &error);
+    if (!dst)
+        goto out;
+
+    if (transform) {
+        if (!pixman_transform_from_pixman_f_transform(&t, transform))
+            goto out;
+
+        error = SetPictureTransform(src, &t);
+        if (error)
+            goto out;
+    }
+
+    box = REGION_RECTS(clip);
+    n = REGION_NUM_RECTS(clip);
+
+    while (n--) {
+        CompositePicture(PictOpSrc,
+                         src, NULL, dst,
+                         box->x1, box->y1, 0, 0, box->x1,
+                         box->y1, box->x2 - box->x1,
+                         box->y2 - box->y1);
+
+        box++;
+    }
+
+    ret = TRUE;
+out:
+    if (src)
+        FreePicture(src, None);
+    if (dst)
+        FreePicture(dst, None);
+
+    return ret;
+}
+
 static void
 ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
+    SourceValidateProcPtr SourceValidate = screen->SourceValidate;
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_tearfree_rec tearfree = drmmode_crtc->tearfree;
+    pixman_f_transform_t transform;
+    RegionRec blit_region;
+    BoxRec crtc_box;
     int back = tearfree.back_idx;
-    GCPtr gc;
     uint32_t seq;
+    Bool ret;
 
     if (!crtc->enabled)
         return;
@@ -841,24 +899,53 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
         !RegionNotEmpty(DamageRegion(tearfree.damage)))
         return;
 
-    gc = GetScratchGC(scrn->depth, screen);
-    if (!gc)
-        return;
+    /*
+     * Clip damage to this CRTC's viewport then translate into buffer-local
+     * coordinates.  Both the stale region and the ms_copy_area clip operate
+     * in buffer-local (0,0-based) space; the transform shifts the source
+     * sample point back into screen coordinates.
+     */
+    crtc_box.x1 = crtc->x;
+    crtc_box.y1 = crtc->y;
+    crtc_box.x2 = crtc->x + crtc->mode.HDisplay;
+    crtc_box.y2 = crtc->y + crtc->mode.VDisplay;
 
-    ValidateGC(&tearfree.pixmap[back]->drawable, gc);
-    (*gc->ops->CopyArea)(&screen->GetScreenPixmap(screen)->drawable,
-                         &tearfree.pixmap[back]->drawable,
-                         gc,
-                         crtc->x, crtc->y,
-                         crtc->mode.HDisplay, crtc->mode.VDisplay,
-                         0, 0);
-    FreeScratchGC(gc);
+    RegionInitBoxes(&blit_region, &crtc_box, 1);
+    RegionIntersect(&blit_region, &blit_region,
+                    DamageRegion(tearfree.damage));
+    RegionTranslate(&blit_region, -crtc->x, -crtc->y);
+
+    /* Include regions this buffer missed while it was being scanned out. */
+    RegionUnion(&blit_region, &blit_region, &tearfree.stale[back]);
+
+    if (!RegionNotEmpty(&blit_region)) {
+        RegionUninit(&blit_region);
+        return;
+    }
+
+    pixman_f_transform_init_translate(&transform, crtc->x, crtc->y);
+
+    screen->SourceValidate = miSourceValidate;
+    ret = ms_copy_area(screen->GetScreenPixmap(screen),
+                       tearfree.pixmap[back],
+                       &transform, &blit_region);
+    screen->SourceValidate = SourceValidate;
+
+    if (!ret) {
+        goto bail;
+    }
+
+    RegionUnion(&tearfree.stale[back ^ 1],
+                &tearfree.stale[back ^ 1],
+                &blit_region);
+    RegionEmpty(&tearfree.stale[back]);
 
     DamageEmpty(tearfree.damage);
 
 #ifdef GLAMOR_HAS_GBM
     /* Ensure the blit is visible to the display engine before the flip. */
-    glamor_finish(screen);
+    if (ms->drmmode.glamor)
+        glamor_finish(screen);
 #endif
 
     seq = ms_drm_queue_alloc(crtc, crtc,
@@ -877,6 +964,9 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     }
 
     drmmode_crtc->tearfree.flip_pending = TRUE;
+
+bail:
+    RegionUninit(&blit_region);
 }
 
 static void

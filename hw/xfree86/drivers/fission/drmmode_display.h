@@ -195,6 +195,7 @@ typedef struct {
     Bool       flip_pending;
     DamagePtr  damage;
     PixmapPtr  pixmap[2];  /* pixmap wrappers for blitting */
+    RegionRec  stale[2];
     Bool       async_tear;
 } drmmode_tearfree_rec, *drmmode_tearfree_ptr;
 
