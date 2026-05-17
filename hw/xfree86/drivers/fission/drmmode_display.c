@@ -4616,6 +4616,16 @@ drmmode_tearfree_alloc_crtc(xf86CrtcPtr crtc)
     drmmode_crtc->tearfree.back_idx     = 0;
     drmmode_crtc->tearfree.flip_pending = FALSE;
 
+    /*
+     * Mark both buffers as fully stale so the first blit to each
+     * populates the entire CRTC viewport rather than just the
+     * first damaged region.
+     */
+    BoxRec full_viewport = { .x1 = 0, .y1 = 0, .x2 = width, .y2 = height };
+
+    RegionInitBoxes(&drmmode_crtc->tearfree.stale[0], &full_viewport, 1);
+    RegionInitBoxes(&drmmode_crtc->tearfree.stale[1], &full_viewport, 1);
+
     drmmode_crtc->tearfree.damage = DamageCreate(NULL, NULL,
                                                  DamageReportNone, TRUE,
                                                  screen, screen);
@@ -4659,6 +4669,9 @@ drmmode_tearfree_free_crtc(xf86CrtcPtr crtc)
         DamageDestroy(drmmode_crtc->tearfree.damage);
         drmmode_crtc->tearfree.damage = NULL;
     }
+
+    RegionUninit(&drmmode_crtc->tearfree.stale[0]);
+    RegionUninit(&drmmode_crtc->tearfree.stale[1]);
 
     for (i = 0; i < 2; i++) {
         if (drmmode_crtc->tearfree.pixmap[i]) {
