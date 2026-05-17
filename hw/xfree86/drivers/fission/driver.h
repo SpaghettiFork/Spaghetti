@@ -125,8 +125,6 @@ typedef struct _modesettingRec {
     Bool dirty_enabled;
     /** @} */
 
-    DamagePtr damage;
-
     /* VRR support */
     WindowPtr flip_window;
     Bool vrr_support;
