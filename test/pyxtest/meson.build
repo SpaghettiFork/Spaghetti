@@ -53,6 +53,7 @@ if pytest.found()
     tests_pyxtest = [
         'test_randr.py',
         'test_record.py',
+        'test_screensaver.py',
         'test_xi.py',
         'test_xkb.py',
     ]
