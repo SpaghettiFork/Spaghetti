@@ -94,6 +94,12 @@
 	res = (char *)answerBuffer;					 \
     }
 
+#define __GLX_VALIDATE_SIZE(sz, state) \
+	if (_X_UNLIKELY(sz < 0)) { \
+		state->client->errorValue = sz; \
+		return BadValue; \
+	}
+
 #define __GLX_SEND_BYTE_ARRAY(len) \
 	WriteToClient(client, __GLX_PAD((len)*__GLX_SIZE_INT8), answer)
 
