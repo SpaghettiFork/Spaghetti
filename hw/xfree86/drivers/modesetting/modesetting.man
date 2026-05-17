@@ -121,10 +121,6 @@ applications will still have the discretion to not use tearing prevention.
 The default is
 .B on.
 .TP
-.BI "Option \*qAtomic\*q \*q" boolean \*q
-Enable atomic modesetting when supported.  The default is
-.B off.
-.TP
 .SH "SEE ALSO"
 .BR @xservername@ (@appmansuffix@),
 .BR @xconfigfile@ (@filemansuffix@),

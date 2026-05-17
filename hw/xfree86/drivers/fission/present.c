@@ -326,9 +326,6 @@ ms_present_check_flip(RRCrtcPtr crtc,
     modesettingPtr ms = modesettingPTR(scrn);
     Bool async_flip = !sync_flip;
 
-    if (reason)
-        *reason = PRESENT_FLIP_REASON_UNKNOWN;
-
     if (ms->drmmode.sprites_visible > 0)
         goto no_flip;
 
@@ -383,14 +380,12 @@ ms_present_flip2(RRCrtcPtr crtc,
     ScreenPtr screen = crtc->pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
-    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
     xf86CrtcPtr xf86_crtc = crtc->devPrivate;
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
     Bool sync_flip = (type == PRESENT_TYPE_SYNCHRONOUS);
     Bool async_tear = (type == PRESENT_TYPE_ASYNC_TEARING);
     struct ms_present_vblank_event *event;
     Bool ret;
-    int i;
 
     if (!ms_present_check_flip(crtc, ms->flip_window, pixmap, sync_flip, NULL))
         return FALSE;

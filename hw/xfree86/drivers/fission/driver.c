@@ -603,7 +603,8 @@ dispatch_damages(ScrnInfoPtr scrn, xf86CrtcPtr crtc, RegionPtr dirty,
                  PixmapPtr pixmap, DamagePtr damage, int fb_id, int x, int y)
 {
     modesettingPtr ms = modesettingPTR(scrn);
-    unsigned num_cliprects = REGION_NUM_RECTS(dirty);
+    unsigned num_cliprects = 
+        dirty ? REGION_NUM_RECTS(dirty) : 0;
     int ret = 0;
 
     if (!ms->dirty_enabled)
@@ -653,13 +654,28 @@ dispatch_damages(ScrnInfoPtr scrn, xf86CrtcPtr crtc, RegionPtr dirty,
     return ret;
 }
 
-static int
+static inline int
 dispatch_dirty_region(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
                       PixmapPtr pixmap, DamagePtr damage,
                       int fb_id, int x, int y)
 {
     return dispatch_damages(scrn, crtc, DamageRegion(damage),
                             pixmap, damage, fb_id, x, y);
+}
+
+static inline void
+get_damage_to_dispatch(DamagePtr *damage, RegionPtr *region,
+                       drmmode_crtc_private_ptr drmmode_crtc,
+                       modesettingPtr ms, xf86CrtcPtr crtc)
+{
+    if (!ms->drmmode.tearfree)
+        return;
+
+    if (crtc->rotatedPixmap)
+        return;
+
+    *damage = drmmode_crtc->tearfree.damage;
+    *region = DamageRegion(drmmode_crtc->tearfree.damage);
 }
 
 static void
@@ -670,34 +686,38 @@ dispatch_dirty(ScreenPtr pScreen)
     modesettingPtr ms = modesettingPTR(scrn);
     PixmapPtr pixmap = pScreen->GetScreenPixmap(pScreen);
     uint32_t fb_id;
-    int ret, c, x, y ;
+    int ret, c, x, y;
 
     for (c = 0; c < xf86_config->num_crtc; c++) {
         xf86CrtcPtr crtc = xf86_config->crtc[c];
-        PixmapPtr pmap;
-
         drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    
+        PixmapPtr pmap;
+        DamagePtr damage = NULL;
+        RegionPtr region = NULL;
 
         if (!drmmode_crtc)
             continue;
 
-        drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y);
+        if (ms->drmmode.tearfree &&
+            drmmode_crtc->tearfree.fb_id[0] && !crtc->rotatedPixmap) {
+            fb_id = drmmode_crtc->tearfree.fb_id[drmmode_crtc->tearfree.back_idx];
+            x = y = 0;
+        } else {
+            drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y);
+        }
 
         if (crtc->rotatedPixmap)
             pmap = crtc->rotatedPixmap;
         else
             pmap = pixmap;
 
-        ret = dispatch_dirty_region(scrn, crtc, pmap, ms->damage, fb_id, x, y);
-        if (ret == -EINVAL || ret == -ENOSYS) {
-            DamageUnregister(ms->damage);
-            DamageDestroy(ms->damage);
-            ms->damage = NULL;
-            return;
-        }
-    }
+        get_damage_to_dispatch(&damage, &region, drmmode_crtc, ms, crtc);
 
-    DamageEmpty(ms->damage);
+        ret = dispatch_damages(scrn, crtc, region, pmap, damage, fb_id, x, y);
+        if (ret == -EINVAL || ret == -ENOSYS)
+            return;
+    }
 }
 
 static void
@@ -880,6 +900,8 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_tearfree_rec tearfree = drmmode_crtc->tearfree;
     pixman_f_transform_t transform;
+    pixman_f_transform_t *transform_ptr = NULL;
+    PixmapPtr src;
     RegionRec blit_region;
     BoxRec crtc_box;
     int back = tearfree.back_idx;
@@ -923,12 +945,25 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
         return;
     }
 
-    pixman_f_transform_init_translate(&transform, crtc->x, crtc->y);
+    /*
+     * When the CRTC has a software-rotated shadow pixmap, blit from that
+     * directly - it already contains correctly rotated content at (0, 0).
+     * Otherwise blit from the screen pixmap, applying a translation to
+     * map buffer-local coordinates back to the CRTC's position in screen
+     * space.
+     */
+    if (crtc->rotatedPixmap) {
+        src = crtc->rotatedPixmap;
+    } else {
+        src = screen->GetScreenPixmap(screen);
+        pixman_f_transform_init_translate(&transform, crtc->x, crtc->y);
+        transform_ptr = &transform;
+    }
 
     screen->SourceValidate = miSourceValidate;
-    ret = ms_copy_area(screen->GetScreenPixmap(screen),
+    ret = ms_copy_area(src,
                        tearfree.pixmap[back],
-                       &transform, &blit_region);
+                       transform_ptr, &blit_region);
     screen->SourceValidate = SourceValidate;
 
     if (!ret) {
@@ -1496,6 +1531,9 @@ PreInit(ScrnInfoPtr pScrn, int flags)
 
     try_enable_glamor(pScrn);
 
+    ms->drmmode.pageflip =
+        xf86ReturnOptValBool(ms->drmmode.Options, OPTION_PAGEFLIP, TRUE);
+
     if (!ms->drmmode.glamor) {
         Bool prefer_shadow = TRUE;
 
@@ -1527,15 +1565,18 @@ PreInit(ScrnInfoPtr pScrn, int flags)
             xf86DrvMsg(pScrn->scrnIndex, from, "VariableRefresh: %sabled\n",
                        ms->vrr_support ? "en" : "dis");
 
-            from = xf86GetOptValBool(ms->drmmode.Options, OPTION_TEARFREE,
-                                     &ms->drmmode.tearfree) ? X_CONFIG : X_DEFAULT;
-            xf86DrvMsg(pScrn->scrnIndex, from, "TearFree: %sabled\n",
-                       ms->drmmode.tearfree ? "en" : "dis");
+            ret = xf86ReturnOptValBool(ms->drmmode.Options, OPTION_TEARFREE, TRUE);
+            if (ret && !ms->drmmode.pageflip) {
+                xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+                           "TearFree requires option 'PageFlip'\n");
+            } else {
+                ms->drmmode.tearfree = ret;
+                xf86DrvMsg(pScrn->scrnIndex, 
+                           ret ? X_CONFIG : X_DEFAULT,
+                           "TearFree: %sabled\n", ret ? "en" : "dis");
+            }
         }
     }
-
-    ms->drmmode.pageflip =
-        xf86ReturnOptValBool(ms->drmmode.Options, OPTION_PAGEFLIP, TRUE);
 
     pScrn->capabilities = 0;
     ret = drmGetCap(ms->fd, DRM_CAP_PRIME, &value);
@@ -1875,8 +1916,8 @@ CreateScreenResources(ScreenPtr pScreen)
     modesettingPtr ms = modesettingPTR(pScrn);
     PixmapPtr rootPixmap;
     Bool ret;
-    void *pixels = NULL;
     int err;
+    void *pixels = NULL;
 
     pScreen->CreateScreenResources = ms->createScreenResources;
     ret = pScreen->CreateScreenResources(pScreen);
@@ -1920,21 +1961,9 @@ CreateScreenResources(ScreenPtr pScreen)
     }
 
     err = drmModeDirtyFB(ms->fd, ms->drmmode.fb_id, NULL, 0);
-
     if ((err != -EINVAL && err != -ENOSYS)) {
-        ms->damage = DamageCreate(NULL, NULL, DamageReportNone, TRUE,
-                                  pScreen, rootPixmap);
-
-        if (ms->damage) {
-            DamageRegister(&rootPixmap->drawable, ms->damage);
-            ms->dirty_enabled = TRUE;
-            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Damage tracking initialized\n");
-        }
-        else {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                       "Failed to create screen damage record\n");
-            return FALSE;
-        }
+        ms->dirty_enabled = ms->drmmode.tearfree;
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Damage tracking for TearFree available\n");
     }
 
     if (dixPrivateKeyRegistered(rrPrivKey)) {
@@ -2442,12 +2471,6 @@ CloseScreen(ScreenPtr pScreen)
 #endif
 
     ms_vblank_close_screen(pScreen);
-
-    if (ms->damage) {
-        DamageUnregister(ms->damage);
-        DamageDestroy(ms->damage);
-        ms->damage = NULL;
-    }
 
     if (ms->drmmode.shadow_enable) {
         ms->shadow.Remove(pScreen, pScreen->GetScreenPixmap(pScreen));
