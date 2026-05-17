@@ -14,7 +14,7 @@ shared_module(
     install: true,
     install_dir: module_dir / 'input',
 
-    link_with: e,
+    link_with: xorg_server,
 )
 
 install_man(configure_file(

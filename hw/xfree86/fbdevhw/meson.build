@@ -11,7 +11,7 @@ shared_module('fbdevhw',
     c_args: xorg_c_args,
     install: true,
     install_dir: module_dir,
-    link_with: e,
+    link_with: xorg_server,
 )
 
 install_data('fbdevhw.h', install_dir: xorgsdkdir)

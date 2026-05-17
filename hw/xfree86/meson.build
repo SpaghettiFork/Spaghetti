@@ -101,7 +101,7 @@ else
     xorg_install_dir = get_option('bindir')
 endif
 
-e = executable(
+xorg_server = executable(
     'Xorg',
     srcs_xorg,
     include_directories: [inc, xorg_inc],
