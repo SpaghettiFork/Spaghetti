@@ -159,15 +159,12 @@ present_scmd_query_capabilities(present_screen_priv_ptr screen_priv)
 static int
 present_get_ust_msc(ScreenPtr screen, RRCrtcPtr crtc, uint64_t *ust, uint64_t *msc)
 {
-    present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
-    present_screen_priv_ptr     crtc_screen_priv = screen_priv;
-    if (crtc)
-        crtc_screen_priv = present_screen_priv(crtc->pScreen);
-
-    if (crtc == NULL)
-        return present_fake_get_ust_msc(screen, ust, msc);
-    else
+    if (crtc) {
+        present_screen_priv_ptr crtc_screen_priv = present_screen_priv(crtc->pScreen);
         return (*crtc_screen_priv->info->get_ust_msc)(crtc, ust, msc);
+    } else {
+        return present_fake_get_ust_msc(screen, ust, msc);
+    }
 }
 
 static void
