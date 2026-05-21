@@ -130,7 +130,7 @@ present_execute_copy(present_vblank_ptr vblank, PixmapPtr pixmap, WindowPtr wind
 #endif /* DRI3 */
     {
         screen_priv->flush(window);
-        present_pixmap_idle(pixmap, window, vblank->serial, vblank->idle_fence);
+        present_pixmap_idle(vblank);
     }
 }
 

@@ -237,10 +237,7 @@ present_flip_idle(ScreenPtr screen)
     if (!vblank)
         return;
 
-    if (vblank->pixmap)
-        present_pixmap_idle(vblank->pixmap, vblank->window,
-                            vblank->serial, vblank->idle_fence);
-
+    present_pixmap_idle(vblank);
     present_vblank_destroy(vblank);
     screen_priv->flip_active = NULL;
 }
