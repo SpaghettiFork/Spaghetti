@@ -23,7 +23,7 @@
  */
 
 /**
- * Tests for x_sha1_* functions provided in os/xsha1.c.
+ * Tests for sha1_* functions provided in os/xsha1.c.
  */
 
 /* Test relies on assert() */
@@ -37,35 +37,24 @@
 #include "tests-common.h"
 
 static void
-raw_to_hex(const unsigned char *raw, size_t raw_size,
-           unsigned char *hex, size_t hex_size)
-{
-    static const char *hex_digits = "0123456789abcdef";
-    size_t i, o;
-
-    assert(hex_size >= (raw_size * 2) + 1);
-
-    for (i = o = 0; i < raw_size; i++) {
-        hex[o++] = hex_digits[raw[i] >> 4];
-        hex[o++] = hex_digits[raw[i] & 0x0f];
-    }
-    hex[o] = '\0';
-}
-
-static void
 sha1_test_repeated_blocks(void *data, size_t length, unsigned int repeat,
                           const char *expected_hash)
 {
-    void *ctx;
+    sha1_context* ctx;
     unsigned char raw_result[20];
-    unsigned char hex_result[41];
+    char hex_result[41];
 
-    assert((ctx = x_sha1_init()) != NULL);
+    ctx = malloc(sizeof(sha1_context));
+    assert(ctx != NULL);
+
+    sha1_init(ctx);
     for (unsigned int i = 0; i < repeat; i++) {
-        assert(x_sha1_update(ctx, data, length) == 1);
+        sha1_update(ctx, data, length);
     }
-    assert(x_sha1_final(ctx, raw_result) == 1);
-    raw_to_hex(raw_result, sizeof(raw_result), hex_result, sizeof(hex_result));
+    sha1_finalize(ctx, raw_result);
+    sha1_format(hex_result, sizeof(hex_result), raw_result);
+
+    free(ctx);
     assert(strcmp((char *)hex_result, expected_hash) == 0);
 }
 

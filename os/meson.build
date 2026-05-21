@@ -87,7 +87,6 @@ libxserver_os = static_library('libxserver_os',
         dtrace_dep,
         common_dep,
         dl_dep,
-        sha1_dep,
         os_dep,
         dependency('xau')
     ],
