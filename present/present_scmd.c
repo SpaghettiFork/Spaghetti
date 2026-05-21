@@ -192,16 +192,12 @@ present_queue_vblank(ScreenPtr screen,
                      uint64_t event_id,
                      uint64_t msc)
 {
-    Bool                        ret;
-
-    if (crtc == NULL)
-        ret = present_fake_queue_vblank(screen, event_id, msc);
-    else
-    {
-        present_screen_priv_ptr     screen_priv = present_screen_priv(crtc->pScreen);
-        ret = (*screen_priv->info->queue_vblank) (crtc, event_id, msc);
+    if (crtc) {
+        present_screen_priv_ptr screen_priv = present_screen_priv(crtc->pScreen);
+        return (*screen_priv->info->queue_vblank)(crtc, event_id, msc);
+    } else {
+        return present_fake_queue_vblank(screen, event_id, msc);
     }
-    return ret;
 }
 
 /*
