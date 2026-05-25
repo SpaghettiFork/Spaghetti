@@ -82,9 +82,6 @@ struct glamor_pixmap_private;
 
 typedef struct glamor_composite_shader {
     GLuint prog;
-    GLint dest_to_dest_uniform_location;
-    GLint dest_to_source_uniform_location;
-    GLint dest_to_mask_uniform_location;
     GLint source_uniform_location;
     GLint mask_uniform_location;
     GLint source_wh;
