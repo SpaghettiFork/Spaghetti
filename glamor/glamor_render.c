@@ -447,27 +447,27 @@ glamor_create_composite_shader(ScreenPtr screen, struct shader_key *key,
     glUseProgram(prog);
 
     if (key->source == SHADER_SOURCE_SOLID) {
-        shader->source_uniform_location = glGetUniformLocation(prog, "source");
+        shader->source.uniform_location = glGetUniformLocation(prog, "source");
     }
     else {
         source_sampler_uniform_location =
             glGetUniformLocation(prog, "source_sampler");
         glUniform1i(source_sampler_uniform_location, 0);
-        shader->source_wh = glGetUniformLocation(prog, "source_wh");
-        shader->source_repeat_mode =
+        shader->source.wh = glGetUniformLocation(prog, "source_wh");
+        shader->source.repeat_mode =
             glGetUniformLocation(prog, "source_repeat_mode");
     }
 
     if (key->mask != SHADER_MASK_NONE) {
         if (key->mask == SHADER_MASK_SOLID) {
-            shader->mask_uniform_location = glGetUniformLocation(prog, "mask");
+            shader->mask.uniform_location = glGetUniformLocation(prog, "mask");
         }
         else {
             mask_sampler_uniform_location =
                 glGetUniformLocation(prog, "mask_sampler");
             glUniform1i(mask_sampler_uniform_location, 1);
-            shader->mask_wh = glGetUniformLocation(prog, "mask_wh");
-            shader->mask_repeat_mode =
+            shader->mask.wh = glGetUniformLocation(prog, "mask_wh");
+            shader->mask.repeat_mode =
                 glGetUniformLocation(prog, "mask_repeat_mode");
         }
     }
@@ -1190,28 +1190,28 @@ glamor_composite_set_shader_blend(glamor_screen_private *glamor_priv,
 
     if (key->source == SHADER_SOURCE_SOLID) {
         glamor_set_composite_solid(shader->source.solid_color,
-                                   shader->source_uniform_location);
+                                   shader->source.uniform_location);
     }
     else {
         glamor_set_composite_texture(glamor_priv, 0,
                                      shader->source.pict.picture,
                                      shader->source.pict.pixmap,
-                                     shader->source_wh,
-                                     shader->source_repeat_mode,
+                                     shader->source.wh,
+                                     shader->source.repeat_mode,
                                      dest_priv);
     }
 
     if (key->mask != SHADER_MASK_NONE) {
         if (key->mask == SHADER_MASK_SOLID) {
             glamor_set_composite_solid(shader->mask.solid_color,
-                                       shader->mask_uniform_location);
+                                       shader->mask.uniform_location);
         }
         else {
             glamor_set_composite_texture(glamor_priv, 1,
                                          shader->mask.pict.picture,
                                          shader->mask.pict.pixmap,
-                                         shader->mask_wh,
-                                         shader->mask_repeat_mode,
+                                         shader->mask.wh,
+                                         shader->mask.repeat_mode,
                                          dest_priv);
         }
     }

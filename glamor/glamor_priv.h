@@ -80,29 +80,24 @@
 
 struct glamor_pixmap_private;
 
+typedef struct {
+    float solid_color[4];
+
+    struct {
+        PixmapPtr pixmap;
+        PicturePtr picture;
+    } pict;
+
+    GLint wh;
+    GLint repeat_mode;
+    GLint uniform_location;
+} glamor_composite_shader_priv;
+
 typedef struct glamor_composite_shader {
     GLuint prog;
-    GLint source_uniform_location;
-    GLint mask_uniform_location;
-    GLint source_wh;
-    GLint mask_wh;
-    GLint source_repeat_mode;
-    GLint mask_repeat_mode;
-    union {
-        float solid_color[4];
-        struct {
-            PixmapPtr pixmap;
-            PicturePtr picture;
-        } pict;
-    } source;
-
-    union {
-        float solid_color[4];
-        struct {
-            PixmapPtr pixmap;
-            PicturePtr picture;
-        } pict;
-    } mask;
+    
+    glamor_composite_shader_priv source;
+    glamor_composite_shader_priv mask;
 } glamor_composite_shader;
 
 enum ca_state {
