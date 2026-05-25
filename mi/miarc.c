@@ -3005,25 +3005,10 @@ tailSpan(int y,
  * very bad.
  */
 
-static struct finalSpan **finalSpans = NULL;
-static int finalMiny = 0, finalMaxy = -1;
-static int finalSize = 0;
-
-static int nspans = 0;          /* total spans, not just y coords */
-
 struct finalSpan {
     struct finalSpan *next;
     int min, max;               /* x values */
 };
-
-static struct finalSpan *freeFinalSpans, *tmpFinalSpan;
-
-#define allocFinalSpan()   (freeFinalSpans ?\
-				((tmpFinalSpan = freeFinalSpans), \
-				 (freeFinalSpans = freeFinalSpans->next), \
-				 (tmpFinalSpan->next = 0), \
-				 tmpFinalSpan) : \
-			     realAllocSpan ())
 
 #define SPAN_CHUNK_SIZE    128
 
@@ -3032,7 +3017,19 @@ struct finalSpanChunk {
     struct finalSpanChunk *next;
 };
 
-static struct finalSpanChunk *chunks;
+static struct fsd {
+    struct finalSpan **finalSpans;
+    int finalMiny, finalMaxy;
+    int finalSize;
+
+    int nspans;          /* total spans, not just y coords */
+
+    struct finalSpan *freeFinalSpans, *tmpFinalSpan;
+
+    struct finalSpanChunk *chunks;
+} fsd = {
+    NULL, 0, -1, 0, 0, NULL, NULL, NULL
+};
 
 static struct finalSpan *
 realAllocSpan(void)
@@ -3044,9 +3041,9 @@ realAllocSpan(void)
     newChunk = malloc(sizeof(struct finalSpanChunk));
     if (!newChunk)
         return (struct finalSpan *) NULL;
-    newChunk->next = chunks;
-    chunks = newChunk;
-    freeFinalSpans = span = newChunk->data + 1;
+    newChunk->next = fsd.chunks;
+    fsd.chunks = newChunk;
+    fsd.freeFinalSpans = span = newChunk->data + 1;
     for (i = 1; i < SPAN_CHUNK_SIZE - 1; i++) {
         span->next = span + 1;
         span++;
@@ -3057,19 +3054,32 @@ realAllocSpan(void)
     return span;
 }
 
+static struct finalSpan *
+allocFinalSpan(void)
+{
+    if (fsd.freeFinalSpans) {
+        fsd.tmpFinalSpan = fsd.freeFinalSpans;
+        fsd.freeFinalSpans = fsd.freeFinalSpans->next;
+        fsd.tmpFinalSpan->next = 0;
+        return fsd.tmpFinalSpan;
+    } else {
+        return realAllocSpan();
+    }
+}
+
 static void
 disposeFinalSpans(void)
 {
     struct finalSpanChunk *chunk, *next;
 
-    for (chunk = chunks; chunk; chunk = next) {
+    for (chunk = fsd.chunks; chunk; chunk = next) {
         next = chunk->next;
         free(chunk);
     }
-    chunks = 0;
-    freeFinalSpans = 0;
-    free(finalSpans);
-    finalSpans = 0;
+    fsd.chunks = 0;
+    fsd.freeFinalSpans = 0;
+    free(fsd.finalSpans);
+    fsd.finalSpans = 0;
 }
 
 static void
@@ -3084,14 +3094,14 @@ fillSpans(DrawablePtr pDrawable, GCPtr pGC)
     DDXPointPtr xSpans;
     int *xWidths;
 
-    if (nspans == 0)
+    if (fsd.nspans == 0)
         return;
-    xSpan = xSpans = xallocarray(nspans, sizeof(DDXPointRec));
-    xWidth = xWidths = xallocarray(nspans, sizeof(int));
+    xSpan = xSpans = xallocarray(fsd.nspans, sizeof(DDXPointRec));
+    xWidth = xWidths = xallocarray(fsd.nspans, sizeof(int));
     if (xSpans && xWidths) {
         i = 0;
-        f = finalSpans;
-        for (spany = finalMiny; spany <= finalMaxy; spany++, f++) {
+        f = fsd.finalSpans;
+        for (spany = fsd.finalMiny; spany <= fsd.finalMaxy; spany++, f++) {
             for (span = *f; span; span = span->next) {
                 if (span->max <= span->min)
                     continue;
@@ -3107,17 +3117,13 @@ fillSpans(DrawablePtr pDrawable, GCPtr pGC)
     disposeFinalSpans();
     free(xSpans);
     free(xWidths);
-    finalMiny = 0;
-    finalMaxy = -1;
-    finalSize = 0;
-    nspans = 0;
+    fsd.finalMiny = 0;
+    fsd.finalMaxy = -1;
+    fsd.finalSize = 0;
+    fsd.nspans = 0;
 }
 
 #define SPAN_REALLOC	100
-
-#define findSpan(y) ((finalMiny <= (y) && (y) <= finalMaxy) ? \
-			  &finalSpans[(y) - finalMiny] : \
-			  realFindSpan (y))
 
 static struct finalSpan **
 realFindSpan(int y)
@@ -3127,47 +3133,56 @@ realFindSpan(int y)
     int change;
     int i;
 
-    if (y < finalMiny || y > finalMaxy) {
-        if (!finalSize) {
-            finalMiny = y;
-            finalMaxy = y - 1;
+    if (y < fsd.finalMiny || y > fsd.finalMaxy) {
+        if (!fsd.finalSize) {
+            fsd.finalMiny = y;
+            fsd.finalMaxy = y - 1;
         }
-        if (y < finalMiny)
-            change = finalMiny - y;
+        if (y < fsd.finalMiny)
+            change = fsd.finalMiny - y;
         else
-            change = y - finalMaxy;
+            change = y - fsd.finalMaxy;
         if (change >= SPAN_REALLOC)
             change += SPAN_REALLOC;
         else
             change = SPAN_REALLOC;
-        newSize = finalSize + change;
+        newSize = fsd.finalSize + change;
         newSpans = xallocarray(newSize, sizeof(struct finalSpan *));
         if (!newSpans)
             return NULL;
-        newMiny = finalMiny;
-        newMaxy = finalMaxy;
-        if (y < finalMiny)
-            newMiny = finalMiny - change;
+        newMiny = fsd.finalMiny;
+        newMaxy = fsd.finalMaxy;
+        if (y < fsd.finalMiny)
+            newMiny = fsd.finalMiny - change;
         else
-            newMaxy = finalMaxy + change;
-        if (finalSpans) {
+            newMaxy = fsd.finalMaxy + change;
+        if (fsd.finalSpans) {
             memcpy(((char *) newSpans) +
-                    (finalMiny - newMiny) * sizeof(struct finalSpan *),
-                   finalSpans,
-                   finalSize * sizeof(struct finalSpan *));
-            free(finalSpans);
+                    (fsd.finalMiny - newMiny) * sizeof(struct finalSpan *),
+                    (char *) fsd.finalSpans,
+                    fsd.finalSize * sizeof(struct finalSpan *));
+            free(fsd.finalSpans);
         }
-        if ((i = finalMiny - newMiny) > 0)
+        if ((i = fsd.finalMiny - newMiny) > 0)
             memset((char *) newSpans, 0, i * sizeof(struct finalSpan *));
-        if ((i = newMaxy - finalMaxy) > 0)
+        if ((i = newMaxy - fsd.finalMaxy) > 0)
             memset((char *) (newSpans + newSize - i), 0,
                    i * sizeof(struct finalSpan *));
-        finalSpans = newSpans;
-        finalMaxy = newMaxy;
-        finalMiny = newMiny;
-        finalSize = newSize;
+        fsd.finalSpans = newSpans;
+        fsd.finalMaxy  = newMaxy;
+        fsd.finalMiny  = newMiny;
+        fsd.finalSize  = newSize;
     }
-    return &finalSpans[y - finalMiny];
+    return &fsd.finalSpans[y - fsd.finalMiny];
+}
+
+static struct finalSpan **
+findSpan(int y)
+{
+    if (fsd.finalMiny <= y && y <= fsd.finalMaxy)
+        return &fsd.finalSpans[y - fsd.finalMiny];
+    else
+        return realFindSpan(y);
 }
 
 static void
@@ -3197,7 +3212,7 @@ newFinalSpan(int y, int xmin, int xmax)
                         prev->next = x->next;
                     else
                         *f = x->next;
-                    --nspans;
+                    --fsd.nspans;
                 }
                 else {
                     x->min = min(x->min, xmin);
@@ -3220,7 +3235,7 @@ newFinalSpan(int y, int xmin, int xmax)
             x->max = xmax;
             x->next = *f;
             *f = x;
-            ++nspans;
+            ++fsd.nspans;
         }
     }
 }
