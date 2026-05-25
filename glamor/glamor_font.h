@@ -25,9 +25,10 @@
 
 typedef struct {
     Bool        realized;
-    CharInfoPtr default_char;
     CARD8       default_row;
     CARD8       default_col;
+
+    CharInfoPtr default_char;
 
     GLuint      texture_id;
     GLuint      row_width;
