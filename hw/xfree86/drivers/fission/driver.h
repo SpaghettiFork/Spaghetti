@@ -133,16 +133,6 @@ typedef struct _modesettingRec {
     Bool is_connector_vrr_capable;
     uint32_t connector_prop_id;
 
-    /* shadow API */
-    struct {
-        Bool (*Setup)(ScreenPtr);
-        Bool (*Add)(ScreenPtr, PixmapPtr, ShadowUpdateProc, ShadowWindowProc,
-                    int, void *);
-        void (*Remove)(ScreenPtr, PixmapPtr);
-        void (*Update32to24)(ScreenPtr, shadowBufPtr);
-        void (*UpdatePacked)(ScreenPtr, shadowBufPtr);
-    } shadow;
-
 #ifdef GLAMOR_HAS_GBM
     /* glamor API */
     XF86VideoAdaptorPtr glamor_adaptor;

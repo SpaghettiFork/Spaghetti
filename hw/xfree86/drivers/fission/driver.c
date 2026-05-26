@@ -1299,11 +1299,6 @@ try_enable_glamor(ScrnInfoPtr pScrn)
     ms->drmmode.glamor = FALSE;
 
 #ifdef GLAMOR_HAS_GBM
-    if (ms->drmmode.force_24_32) {
-        xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Cannot use glamor with 24bpp packed fb\n");
-        return;
-    }
-
     if (!do_glamor) {
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "glamor disabled\n");
         return;
@@ -1327,40 +1322,6 @@ try_enable_glamor(ScrnInfoPtr pScrn)
                    "No glamor support in the X Server\n");
     }
 #endif
-}
-
-static Bool
-msShouldDoubleShadow(ScrnInfoPtr pScrn, modesettingPtr ms)
-{
-    Bool ret = FALSE, asked;
-    int from;
-    drmVersionPtr v;
-
-    if (!ms->drmmode.shadow_enable)
-        return FALSE;
-
-    if ((v = drmGetVersion(ms->fd))) {
-        if (!strcmp(v->name, "mgag200") ||
-            !strcmp(v->name, "ast")) /* XXX || rn50 */
-            ret = TRUE;
-
-        drmFreeVersion(v);
-    }
-    else
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "Failed to query DRM version.\n");
-
-    asked = xf86GetOptValBool(ms->drmmode.Options, OPTION_DOUBLE_SHADOW, &ret);
-
-    if (asked)
-        from = X_CONFIG;
-    else
-        from = X_INFO;
-
-    xf86DrvMsg(pScrn->scrnIndex, from,
-               "Double-buffered shadow updates: %s\n", ret ? "on" : "off");
-
-    return ret;
 }
 
 static Bool
@@ -1480,15 +1441,7 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         return FALSE;
 
     drmmode_get_default_bpp(pScrn, &ms->drmmode, &defaultdepth, &defaultbpp);
-    if (defaultdepth == 24 && defaultbpp == 24) {
-        ms->drmmode.force_24_32 = TRUE;
-        ms->drmmode.kbpp = 24;
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "Using 24bpp hw front buffer with 32bpp shadow\n");
-        defaultbpp = 32;
-    } else {
-        ms->drmmode.kbpp = 0;
-    }
+    ms->drmmode.kbpp = 0;
     bppflags = PreferConvert24to32 | SupportConvert24to32 | Support32bppFb;
 
     if (!xf86SetDepthBpp
@@ -1538,29 +1491,8 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         xf86ReturnOptValBool(ms->drmmode.Options, OPTION_PAGEFLIP, TRUE);
 
     if (!ms->drmmode.glamor) {
-        Bool prefer_shadow = TRUE;
-
-        if (ms->drmmode.force_24_32) {
-            prefer_shadow = TRUE;
-            ms->drmmode.shadow_enable = TRUE;
-        } else {
-            ret = drmGetCap(ms->fd, DRM_CAP_DUMB_PREFER_SHADOW, &value);
-            if (!ret) {
-                prefer_shadow = !!value;
-            }
-
-            ms->drmmode.shadow_enable =
-                xf86ReturnOptValBool(ms->drmmode.Options, OPTION_SHADOW_FB,
-                                     prefer_shadow);
-        }
-
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-                   "ShadowFB: preferred %s, enabled %s\n",
-                   prefer_shadow ? "YES" : "NO",
-                   ms->drmmode.force_24_32 ? "FORCE" :
-                   ms->drmmode.shadow_enable ? "YES" : "NO");
-
-        ms->drmmode.shadow_enable2 = msShouldDoubleShadow(pScrn, ms);
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "GLAMOR required\n");
+        return FALSE;
     } else {
         if (!pScrn->is_gpu) {
             MessageType from = xf86GetOptValBool(ms->drmmode.Options, OPTION_VARIABLE_REFRESH,
@@ -1655,124 +1587,9 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         return FALSE;
     }
 
-    if (ms->drmmode.shadow_enable) {
-        void *mod = xf86LoadSubModule(pScrn, "shadow");
-
-        if (!mod)
-            return FALSE;
-
-        ms->shadow.Setup        = LoaderSymbolFromModule(mod, "shadowSetup");
-        ms->shadow.Add          = LoaderSymbolFromModule(mod, "shadowAdd");
-        ms->shadow.Remove       = LoaderSymbolFromModule(mod, "shadowRemove");
-        ms->shadow.Update32to24 = LoaderSymbolFromModule(mod, "shadowUpdate32to24");
-        ms->shadow.UpdatePacked = LoaderSymbolFromModule(mod, "shadowUpdatePacked");
-    }
-
     return TRUE;
  fail:
     return FALSE;
-}
-
-static void *
-msShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset, int mode,
-               CARD32 *size, void *closure)
-{
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(pScrn);
-    int stride;
-
-    stride = (pScrn->displayWidth * ms->drmmode.kbpp) / 8;
-    *size = stride;
-
-    return ((uint8_t *) ms->drmmode.front_bo.dumb->ptr + row * stride + offset);
-}
-
-/* somewhat arbitrary tile size, in pixels */
-#define TILE 16
-
-static int
-msUpdateIntersect(modesettingPtr ms, shadowBufPtr pBuf, BoxPtr box,
-                  xRectangle *prect)
-{
-    int i, dirty = 0, stride = pBuf->pPixmap->devKind, cpp = ms->drmmode.cpp;
-    int width = (box->x2 - box->x1) * cpp;
-    unsigned char *old, *new;
-
-    old = ms->drmmode.shadow_fb2;
-    old += (box->y1 * stride) + (box->x1 * cpp);
-    new = ms->drmmode.shadow_fb;
-    new += (box->y1 * stride) + (box->x1 * cpp);
-
-    for (i = box->y2 - box->y1 - 1; i >= 0; i--) {
-        unsigned char *o = old + i * stride,
-                      *n = new + i * stride;
-        if (memcmp(o, n, width) != 0) {
-            dirty = 1;
-            memcpy(o, n, width);
-        }
-    }
-
-    if (dirty) {
-        prect->x = box->x1;
-        prect->y = box->y1;
-        prect->width = box->x2 - box->x1;
-        prect->height = box->y2 - box->y1;
-    }
-
-    return dirty;
-}
-
-static void
-msUpdatePacked(ScreenPtr pScreen, shadowBufPtr pBuf)
-{
-    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
-    modesettingPtr ms = modesettingPTR(pScrn);
-    Bool use_3224 = ms->drmmode.force_24_32 && pScrn->bitsPerPixel == 32;
-
-    if (ms->drmmode.shadow_enable2 && ms->drmmode.shadow_fb2) do {
-        RegionPtr damage = DamageRegion(pBuf->pDamage), tiles;
-        BoxPtr extents = RegionExtents(damage);
-        xRectangle *prect;
-        int nrects;
-        int i, j, tx1, tx2, ty1, ty2;
-
-        tx1 = extents->x1 / TILE;
-        tx2 = (extents->x2 + TILE - 1) / TILE;
-        ty1 = extents->y1 / TILE;
-        ty2 = (extents->y2 + TILE - 1) / TILE;
-
-        nrects = (tx2 - tx1) * (ty2 - ty1);
-        if (!(prect = calloc(nrects, sizeof(xRectangle))))
-            break;
-
-        nrects = 0;
-        for (j = ty2 - 1; j >= ty1; j--) {
-            for (i = tx2 - 1; i >= tx1; i--) {
-                BoxRec box;
-
-                box.x1 = max(i * TILE, extents->x1);
-                box.y1 = max(j * TILE, extents->y1);
-                box.x2 = min((i+1) * TILE, extents->x2);
-                box.y2 = min((j+1) * TILE, extents->y2);
-
-                if (RegionContainsRect(damage, &box) != rgnOUT) {
-                    if (msUpdateIntersect(ms, pBuf, &box, prect + nrects)) {
-                        nrects++;
-                    }
-                }
-            }
-        }
-
-        tiles = RegionFromRects(nrects, prect, CT_NONE);
-        RegionIntersect(damage, damage, tiles);
-        RegionDestroy(tiles);
-        free(prect);
-    } while (0);
-
-    if (use_3224)
-        ms->shadow.Update32to24(pScreen, pBuf);
-    else
-        ms->shadow.UpdatePacked(pScreen, pBuf);
 }
 
 static Bool
@@ -1945,23 +1762,8 @@ CreateScreenResources(ScreenPtr pScreen)
 
     rootPixmap = pScreen->GetScreenPixmap(pScreen);
 
-    if (ms->drmmode.shadow_enable)
-        pixels = ms->drmmode.shadow_fb;
-
-    if (ms->drmmode.shadow_enable2) {
-        ms->drmmode.shadow_fb2 = calloc(1, pScrn->displayWidth * pScrn->virtualY * ((pScrn->bitsPerPixel + 7) >> 3));
-        if (!ms->drmmode.shadow_fb2)
-            ms->drmmode.shadow_enable2 = FALSE;
-    }
-
     if (!pScreen->ModifyPixmapHeader(rootPixmap, -1, -1, -1, -1, -1, pixels))
         FatalError("Couldn't adjust screen pixmap\n");
-
-    if (ms->drmmode.shadow_enable) {
-        if (!ms->shadow.Add(pScreen, rootPixmap, msUpdatePacked, msShadowWindow,
-                            0, 0))
-            return FALSE;
-    }
 
     err = drmModeDirtyFB(ms->fd, ms->drmmode.fb_id, NULL, 0);
     if ((err != -EINVAL && err != -ENOSYS)) {
@@ -2171,15 +1973,6 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if (!drmmode_create_initial_bos(pScrn, &ms->drmmode))
         return FALSE;
 
-    if (ms->drmmode.shadow_enable) {
-        ms->drmmode.shadow_fb =
-            calloc(1,
-                   pScrn->displayWidth * pScrn->virtualY *
-                   ((pScrn->bitsPerPixel + 7) >> 3));
-        if (!ms->drmmode.shadow_fb)
-            ms->drmmode.shadow_enable = FALSE;
-    }
-
     miClearVisualTypes();
 
     if (!miSetVisualTypes(pScrn->depth,
@@ -2225,11 +2018,6 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if (drmmode_init(pScrn, &ms->drmmode) == FALSE) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                    "Failed to initialize glamor at ScreenInit() time.\n");
-        return FALSE;
-    }
-
-    if (ms->drmmode.shadow_enable && !ms->shadow.Setup(pScreen)) {
-        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "shadow fb init failed\n");
         return FALSE;
     }
 
@@ -2474,14 +2262,6 @@ CloseScreen(ScreenPtr pScreen)
 #endif
 
     ms_vblank_close_screen(pScreen);
-
-    if (ms->drmmode.shadow_enable) {
-        ms->shadow.Remove(pScreen, pScreen->GetScreenPixmap(pScreen));
-        free(ms->drmmode.shadow_fb);
-        ms->drmmode.shadow_fb = NULL;
-        free(ms->drmmode.shadow_fb2);
-        ms->drmmode.shadow_fb2 = NULL;
-    }
 
     xf86_cursors_fini(pScreen);
 
