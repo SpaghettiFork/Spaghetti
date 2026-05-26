@@ -3771,22 +3771,6 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
             goto fail;
     }
 
-    if (drmmode->shadow_enable) {
-        uint32_t size = scrn->displayWidth * scrn->virtualY * cpp;
-        new_pixels = calloc(1, size);
-        if (new_pixels == NULL)
-            goto fail;
-        free(drmmode->shadow_fb);
-        drmmode->shadow_fb = new_pixels;
-    }
-
-    if (drmmode->shadow_enable2) {
-        uint32_t size = scrn->displayWidth * scrn->virtualY * cpp;
-        void *fb2 = calloc(1, size);
-        free(drmmode->shadow_fb2);
-        drmmode->shadow_fb2 = fb2;
-    }
-
     screen->ModifyPixmapHeader(ppix, width, height, -1, -1,
                                scrn->displayWidth * cpp, new_pixels);
 
