@@ -36,11 +36,16 @@
 #include <damage.h>
 #include <X11/extensions/dpmsconst.h>
 #include <shadow.h>
+
 #ifdef GLAMOR_HAS_GBM
-#define GLAMOR_FOR_XORG 1
-#include "glamor.h"
-#include <gbm.h>
+# define GLAMOR_FOR_XORG 1
+# include "glamor.h"
 #endif
+
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+# include <gbm.h>
+#endif
+
 
 #include "drmmode_display.h"
 
@@ -217,7 +222,37 @@ void ms_vblank_close_screen(ScreenPtr screen);
 
 Bool ms_present_screen_init(ScreenPtr screen);
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef FISSION_SOFT2D
+Bool ms_dri3_screen_init(ScreenPtr screen);
+
+Bool ms_dri3_pixmap_from_gbm_bo(PixmapPtr pixmap, struct gbm_bo *bo);
+
+int ms_dri3_shareable_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
+                                     CARD16 *stride, CARD32 *size);
+
+PixmapPtr
+ms_dri3_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
+                        CARD16 width, CARD16 height, const CARD32 *strides,
+                        const CARD32 *offsets, CARD8 depth, CARD8 bpp, uint64_t modifier);
+
+Bool ms_dri3_sync_init(ScreenPtr screen);
+
+void ms_dri3_sync_close(ScreenPtr screen);
+
+struct gbm_bo *ms_dri3_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap);
+
+Bool ms_dri3_destroy_pixmap(PixmapPtr pixmap);
+
+Bool ms_dri3_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
+                                 CARD16 width, CARD16 height,
+                                 CARD16 stride, CARD8 depth, CARD8 bpp);
+
+int ms_dri3_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size);
+
+void ms_dri3_buffers_exchange(PixmapPtr front, PixmapPtr back);
+#endif
+
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
 
 typedef void (*ms_pageflip_handler_proc)(modesettingPtr ms,
                                          uint64_t frame,

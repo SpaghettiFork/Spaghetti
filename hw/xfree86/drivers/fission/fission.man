@@ -64,7 +64,7 @@ Selects software cursor.  The default is
 The framebuffer device to use. Default: /dev/dri/card0.
 .TP
 .BI "Option \*qAccelMethod\*q \*q" string \*q
-One of \*qglamor\*q or \*qnone\*q.  Default: glamor.
+One of \*qglamor\*q or \*qsoft2d\*q.  Default: glamor.
 .TP
 .BI "Option \*qVariableRefresh\*q \*q" boolean \*q
 Enables support for enabling variable refresh on the Screen's CRTCs

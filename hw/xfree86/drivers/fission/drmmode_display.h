@@ -36,6 +36,17 @@
 
 #include "dumb_bo.h"
 
+#ifdef FISSION_SOFT2D
+typedef Bool (*GetDrawableModifiersFuncPtr) (DrawablePtr draw, uint32_t format, uint32_t *num_modifiers, uint64_t **modifiers);
+# ifdef XSYNC
+#  include "misync.h"
+#  ifdef HAVE_XSHMFENCE
+#   include "misyncshm.h"
+#  endif
+# endif
+#endif
+
+
 struct gbm_device;
 
 enum drmmode_plane_property {
@@ -144,6 +155,14 @@ typedef struct {
 
     Bool use_ctm;
     Bool pending_modeset;
+
+#ifdef FISSION_SOFT2D
+    DestroyPixmapProcPtr destroy_pixmap;
+    GetDrawableModifiersFuncPtr get_drawable_modifiers;
+#ifdef XSYNC
+    SyncScreenFuncsRec sync_funcs;
+#endif
+#endif
 } drmmode_rec, *drmmode_ptr;
 
 typedef struct {
@@ -283,6 +302,9 @@ typedef struct {
 
 typedef struct _msPixmapPriv {
     uint32_t fb_id;
+#if defined(FISSION_SOFT2D)
+    Bool use_modifiers;
+#endif
     struct dumb_bo *backing_bo; /* if this pixmap is backed by a dumb bo */
 
     DamagePtr secondary_damage;
@@ -293,9 +315,15 @@ typedef struct _msPixmapPriv {
 
     /** Source fields for flipping shared pixmaps */
     Bool defer_dirty_update; /* if we want to manually update */
+    Bool notify_on_damage; /* if sink has requested damage notification */
     PixmapDirtyUpdatePtr dirty; /* cached dirty ent to avoid searching list */
     DrawablePtr secondary_src; /* if we exported shared pixmap, dirty tracking src */
-    Bool notify_on_damage; /* if sink has requested damage notification */
+
+#if defined(FISSION_SOFT2D)
+    struct gbm_bo *bo;
+    void *bo_map;
+    size_t bo_map_size;
+#endif
 } msPixmapPrivRec, *msPixmapPrivPtr;
 
 #define msGetPixmapPriv(drmmode, p) ((msPixmapPrivPtr)dixGetPrivateAddr(&(p)->devPrivates, &(drmmode)->pixmapPrivateKeyRec))

@@ -34,6 +34,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "os/xserver_poll.h"
+
 #include <xf86.h>
 #include <xf86Crtc.h>
 #include <xf86drm.h>
@@ -42,6 +44,10 @@
 
 #include "driver.h"
 #include "drmmode_display.h"
+
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#include "drm_fourcc.h"
+#endif
 
 #if 0
 #define DebugPresent(x) ErrorF x
@@ -184,6 +190,48 @@ ms_present_flush(WindowPtr window)
 #endif
 }
 
+/*
+ * Prepare the presented pixmap for the CPU copy in present_copy_region:
+ * ensure its GPU work is finished so the copy does not race with the
+ * client's rendering.
+ */
+static void
+ms_present_prepare_copy(PixmapPtr pixmap)
+{
+    ScreenPtr screen = pixmap->drawable.pScreen;
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    modesettingPtr ms = modesettingPTR(scrn);
+
+#ifdef GLAMOR_HAS_GBM
+    if (ms->drmmode.glamor)
+        return;
+#endif
+
+#ifdef FISSION_SOFT2D
+    msPixmapPrivPtr ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
+    struct gbm_bo *bo;
+    int fd;
+
+    /* this is a no-op for window-event and screen-pixmap callers. */
+    if (!ppriv || !ppriv->bo)
+        return;
+
+    bo = ppriv->bo;
+    fd = gbm_bo_get_fd(bo);
+    if (fd < 0)
+        return;
+
+    /* poll() on the dma-buf fd blocks until its implicit fence is signalled */
+    struct pollfd pfd = { .fd = fd, .events = POLLIN };
+    int ret;
+
+    do {
+        ret = xserver_poll(&pfd, 1, 1000);
+    } while (ret < 0 && errno == EINTR);
+    close(fd);
+#endif
+}
+
 #ifdef GLAMOR_HAS_GBM
 
 /**
@@ -241,7 +289,7 @@ ms_present_check_unflip(RRCrtcPtr crtc,
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
     int num_crtcs_on = 0;
     int i;
-    struct gbm_bo *gbm;
+    struct gbm_bo *gbm = NULL;
 
     if (!ms->drmmode.pageflip)
         return FALSE;
@@ -274,7 +322,13 @@ ms_present_check_unflip(RRCrtcPtr crtc,
 
 #ifdef GBM_BO_WITH_MODIFIERS
     /* Check if buffer format/modifier is supported by all active CRTCs */
-    gbm = ms->glamor.gbm_bo_from_pixmap(screen, pixmap);
+    if (ms->drmmode.glamor)
+        gbm = ms->glamor.gbm_bo_from_pixmap(screen, pixmap);
+#ifdef FISSION_SOFT2D
+    else
+        gbm = ms_dri3_gbm_bo_from_pixmap(screen, pixmap);
+#endif
+
     if (gbm) {
         uint32_t format;
         uint64_t modifier;
@@ -282,7 +336,8 @@ ms_present_check_unflip(RRCrtcPtr crtc,
         format = gbm_bo_get_format(gbm);
         modifier = gbm_bo_get_modifier(gbm);
 
-        gbm_bo_destroy(gbm);
+        if (ms->drmmode.glamor)
+            gbm_bo_destroy(gbm);
 
         if (!drmmode_is_format_supported(scrn, format, modifier, !sync_flip)) {
             if (reason)
@@ -475,7 +530,7 @@ static present_screen_info_rec ms_present_screen_info = {
     .flush = ms_present_flush,
 
     .capabilities = PresentCapabilityNone,
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
     .check_commit = ms_present_check_commit,
     .commit = ms_present_commit,
     .uncommit = ms_present_uncommit
@@ -486,19 +541,36 @@ static present_screen_info_rec ms_present_screen_info = {
 #define DRM_CAP_ATOMIC_ASYNC_PAGE_FLIP 0x15
 #endif
 
+static inline Bool
+ms_present_async_supported(modesettingPtr ms)
+{
+    uint64_t value;
+    int ret;
+
+    ret = drmGetCap(ms->fd, DRM_CAP_ATOMIC_ASYNC_PAGE_FLIP, &value);
+    return ret == 0 && value == 1;
+}
+
 Bool
 ms_present_screen_init(ScreenPtr screen)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
-    uint64_t value;
-    int ret;
-
-    ret = drmGetCap(ms->fd, DRM_CAP_ATOMIC_ASYNC_PAGE_FLIP, &value);
-    if (ret == 0 && value == 1) {
+    Bool async_supported = ms_present_async_supported(ms);
+    
+    if (async_supported && ms->drmmode.glamor) {
         ms_present_screen_info.capabilities = 
             (PresentCapabilityAsync | PresentCapabilityAsyncMayTear);
+
         ms->drmmode.can_async_flip = TRUE;
+    } else {
+        async_supported &= drmmode_is_format_supported(scrn, DRM_FORMAT_XRGB8888,
+                                                       DRM_FORMAT_MOD_LINEAR, TRUE);
+
+        if (async_supported) {
+            ms_present_screen_info.capabilities |= PresentCapabilityAsync;
+            ms->drmmode.can_async_flip = TRUE;
+        }
     }
 
     return present_screen_init(screen, &ms_present_screen_info);
