@@ -77,7 +77,7 @@ ms_drain_drm_events(ScreenPtr screen)
         ms_flush_drm_events_timeout(screen, -1);
 }
 
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
 
 /*
  * Event data for an in progress flip.
@@ -346,9 +346,16 @@ ms_do_pageflip(ScreenPtr screen,
     int i;
     struct ms_flipdata *flipdata;
 
-    ms->glamor.block_handler(screen);
+    if (ms->drmmode.glamor) {
+        ms->glamor.block_handler(screen);
+        new_front_bo.gbm = ms->glamor.gbm_bo_from_pixmap(screen, new_front);
+    }
+#ifdef FISSION_SOFT2D
+    else {
+        new_front_bo.gbm = ms_dri3_gbm_bo_from_pixmap(screen, new_front);
+    }
+#endif
 
-    new_front_bo.gbm = ms->glamor.gbm_bo_from_pixmap(screen, new_front);
     new_front_bo.dumb = NULL;
 
     if (!new_front_bo.gbm) {

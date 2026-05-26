@@ -193,7 +193,7 @@ drmmode_is_format_supported(ScrnInfoPtr scrn, uint32_t format,
     return TRUE;
 }
 
-#ifdef GBM_BO_WITH_MODIFIERS
+#if defined(GBM_BO_WITH_MODIFIERS) || defined(FISSION_SOFT2D)
 static uint32_t
 get_modifiers_set(ScrnInfoPtr scrn, uint32_t format, uint64_t **modifiers,
                   Bool enabled_crtc_only, Bool exclude_multiplane, Bool async_flip)
@@ -1000,8 +1000,8 @@ drmmode_bo_destroy(drmmode_ptr drmmode, drmmode_bo *bo)
 {
     int ret;
 
-#ifdef GLAMOR_HAS_GBM
-    if (bo->gbm) {
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+    if (bo->gbm && drmmode->glamor) {
         gbm_bo_destroy(bo->gbm);
         bo->gbm = NULL;
     }
@@ -1019,7 +1019,7 @@ drmmode_bo_destroy(drmmode_ptr drmmode, drmmode_bo *bo)
 uint32_t
 drmmode_bo_get_pitch(drmmode_bo *bo)
 {
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
     if (bo->gbm)
         return gbm_bo_get_stride(bo->gbm);
 #endif
@@ -1030,7 +1030,7 @@ drmmode_bo_get_pitch(drmmode_bo *bo)
 static Bool
 drmmode_bo_has_bo(drmmode_bo *bo)
 {
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
     if (bo->gbm)
         return TRUE;
 #endif
@@ -1041,7 +1041,7 @@ drmmode_bo_has_bo(drmmode_bo *bo)
 uint32_t
 drmmode_bo_get_handle(drmmode_bo *bo)
 {
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
     if (bo->gbm)
         return gbm_bo_get_handle(bo->gbm).u32;
 #endif
@@ -1054,7 +1054,7 @@ drmmode_bo_map(drmmode_ptr drmmode, drmmode_bo *bo)
 {
     int ret;
 
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
     if (bo->gbm)
         return NULL;
 #endif
@@ -1088,7 +1088,7 @@ drmmode_bo_import(drmmode_ptr drmmode, drmmode_bo *bo,
 {
     uint32_t format;
 
-#ifdef GBM_BO_WITH_MODIFIERS
+#if defined(GBM_BO_WITH_MODIFIERS) || defined(FISSION_SOFT2D)
     if (bo->gbm && gbm_bo_get_modifier(bo->gbm) != DRM_FORMAT_MOD_INVALID) {
         int num_fds;
 
@@ -1155,13 +1155,14 @@ drmmode_bo_import(drmmode_ptr drmmode, drmmode_bo *bo,
 
 static Bool
 drmmode_create_bo(drmmode_ptr drmmode, drmmode_bo *bo,
-                  unsigned width, unsigned height, unsigned bpp)
+                  unsigned width, unsigned height,
+                  unsigned bpp, Bool force_dumb)
 {
     bo->width = width;
     bo->height = height;
 
-#ifdef GLAMOR_HAS_GBM
-    if (drmmode->glamor) {
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+    if (drmmode->gbm && !force_dumb) {
         uint32_t format;
         uint32_t num_modifiers;
         uint64_t *modifiers = NULL;
@@ -1534,7 +1535,7 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 }
 
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
 static Bool
 depth_bpp_from_format(uint32_t pixel_format, int* depth, int* bpp)
 {
@@ -1631,9 +1632,17 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode, ScrnInfoPtr pScrn, int fbcon_id)
         goto out_close_fds;
     }
 
-    pixmap = ms->glamor.glamor_pixmap_from_fds(pScreen, num_fds, fds,
-                                               width, height, strides, offsets,
-                                               depth, bpp, modifier);
+    if (ms->drmmode.glamor)
+        pixmap = ms->glamor.glamor_pixmap_from_fds(pScreen, num_fds, fds,
+                                                   width, height, strides, offsets,
+                                                   depth, bpp, modifier);
+#if defined(FISSION_SOFT2D)
+    else
+        pixmap = ms_dri3_pixmap_from_fds(pScreen, num_fds, fds,
+                                         width, height, strides, offsets,
+                                         depth, bpp, modifier);
+#endif
+
     if (!pixmap)
         goto out_close_fds;
 
@@ -1653,7 +1662,7 @@ out_free_fb:
 void
 drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 {
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     ScreenPtr pScreen = xf86ScrnToScreen(pScrn);
     PixmapPtr src, dst;
@@ -2199,7 +2208,7 @@ drmmode_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
     int ret;
 
     if (!drmmode_create_bo(drmmode, &drmmode_crtc->rotate_bo,
-                           width, height, drmmode->kbpp)) {
+                           width, height, drmmode->kbpp, FALSE)) {
         xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
                "Couldn't allocate shadow memory for rotated CRTC\n");
         return NULL;
@@ -2214,7 +2223,7 @@ drmmode_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
         return NULL;
     }
 
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
     if (drmmode->gbm)
         return drmmode_crtc->rotate_bo.gbm;
 #endif
@@ -3698,18 +3707,25 @@ drmmode_clones_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, drmModeResPtr mode_re
 static Bool
 drmmode_set_pixmap_bo(drmmode_ptr drmmode, PixmapPtr pixmap, drmmode_bo *bo)
 {
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
     ScrnInfoPtr scrn = drmmode->scrn;
     modesettingPtr ms = modesettingPTR(scrn);
 
-    if (!drmmode->glamor)
-        return TRUE;
-
-    if (!ms->glamor.egl_create_textured_pixmap_from_gbm_bo(pixmap, bo->gbm,
-                                                           bo->used_modifiers)) {
-        xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Failed to create pixmap\n");
-        return FALSE;
+    if (drmmode->glamor) {
+        if (!ms->glamor.egl_create_textured_pixmap_from_gbm_bo(pixmap, bo->gbm,
+                                                               bo->used_modifiers)) {
+            xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Failed to create pixmap\n");
+            return FALSE;
+        }
     }
+#ifdef FISSION_SOFT2D
+    else if (bo->gbm) {
+        if (!ms_dri3_pixmap_from_gbm_bo(pixmap, bo->gbm)) {
+            xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Failed to create pixmap\n");
+            return FALSE;
+        }
+    }
+#endif
 #endif
 
     return TRUE;
@@ -3756,7 +3772,8 @@ drmmode_xf86crtc_resize(ScrnInfoPtr scrn, int width, int height)
     XORG_EXCHANGE(old_fb_id, drmmode->fb_id);
 
     if (!drmmode_create_bo(drmmode, &drmmode->front_bo,
-                           width, height, drmmode->kbpp))
+                           width, height, drmmode->kbpp,
+                           !drmmode->glamor))
         goto fail;
 
     pitch = drmmode_bo_get_pitch(&drmmode->front_bo);
@@ -4503,7 +4520,8 @@ drmmode_create_initial_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
     width = pScrn->virtualX;
     height = pScrn->virtualY;
 
-    if (!drmmode_create_bo(drmmode, &drmmode->front_bo, width, height, bpp))
+    if (!drmmode_create_bo(drmmode, &drmmode->front_bo,
+                           width, height, bpp, !drmmode->glamor))
         return FALSE;
 
     if (drmmode_bo_import(drmmode, &drmmode->front_bo, &drmmode->fb_id) < 0)
@@ -4548,7 +4566,7 @@ drmmode_tearfree_alloc_crtc(xf86CrtcPtr crtc)
 
     for (i = 0; i < 2; i++) {
         if (!drmmode_create_bo(drmmode, &drmmode_crtc->tearfree.bo[i],
-                               width, height, drmmode->kbpp))
+                               width, height, drmmode->kbpp, FALSE))
             goto fail;
 
         if (drmmode_bo_import(drmmode, &drmmode_crtc->tearfree.bo[i],

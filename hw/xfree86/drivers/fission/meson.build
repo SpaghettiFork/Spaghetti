@@ -1,4 +1,6 @@
 fission_srcs = [
+    'dri3_sync.c',
+    'dri3.c',
     'dri2.c',
     'driver.c',
     'drmmode_display.c',
