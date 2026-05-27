@@ -2833,8 +2833,7 @@ SyncCounter*
 SyncInitDeviceIdleTime(DeviceIntPtr dev)
 {
     char timer_name[64];
-    sprintf(timer_name, "DEVICEIDLETIME %d", dev->id);
-
+    snprintf(timer_name, sizeof(timer_name), "DEVICEIDLETIME %d", dev->id);
     return init_system_idle_counter(timer_name, dev->id);
 }
 
