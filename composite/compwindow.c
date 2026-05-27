@@ -707,21 +707,21 @@ compWindowUpdateAutomatic(WindowPtr pWin)
     RegionTranslate(pRegion, -pParent->drawable.x, -pParent->drawable.y);
 
     /*
-     * Clip the picture
+     * Clip the picture and paint
      */
-    SetPictureClipRegion(pDstPicture, 0, 0, pRegion);
+    if (_X_LIKELY(pSrcPicture && pDstPicture)) {
+        SetPictureClipRegion(pDstPicture, 0, 0, pRegion);
+        CompositePicture(PictOpSrc, pSrcPicture, 0, pDstPicture,
+                         0, 0,      /* src_x, src_y */
+                         0, 0,      /* msk_x, msk_y */
+                         pSrcPixmap->screen_x - pParent->drawable.x,
+                         pSrcPixmap->screen_y - pParent->drawable.y,
+                         pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
+    }
 
-    /*
-     * And paint
-     */
-    CompositePicture(PictOpSrc, pSrcPicture, 0, pDstPicture,
-                     0, 0,      /* src_x, src_y */
-                     0, 0,      /* msk_x, msk_y */
-                     pSrcPixmap->screen_x - pParent->drawable.x,
-                     pSrcPixmap->screen_y - pParent->drawable.y,
-                     pSrcPixmap->drawable.width, pSrcPixmap->drawable.height);
-    FreePicture(pSrcPicture, 0);
-    FreePicture(pDstPicture, 0);
+    if (_X_LIKELY(pSrcPicture)) FreePicture(pSrcPicture, 0);
+    if (_X_LIKELY(pDstPicture)) FreePicture(pDstPicture, 0);
+
     /*
      * Empty the damage region.  This has the nice effect of
      * rendering the translations above harmless
