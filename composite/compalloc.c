@@ -96,9 +96,9 @@ compDestroyDamage(DamagePtr pDamage, void *closure)
     WindowPtr pWin = (WindowPtr) closure;
     CompWindowPtr cw = GetCompWindow(pWin);
 
-    cw->damage = 0;
-    cw->damaged = 0;
-    cw->damageRegistered = 0;
+    cw->damage = NULL;
+    cw->damaged = FALSE;
+    cw->damageRegistered = FALSE;
 }
 
 static Bool
@@ -266,7 +266,7 @@ compFreeClientWindow(WindowPtr pWin, XID id)
     CompWindowPtr cw = GetCompWindow(pWin);
     CompClientWindowPtr ccw, *prev;
     Bool anyMarked = FALSE;
-    WindowPtr pLayerWin;
+    WindowPtr pLayerWin = NULL;
     PixmapPtr pPixmap = NULL;
 
     if (!cw)
