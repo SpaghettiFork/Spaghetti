@@ -2546,13 +2546,13 @@ static int64_t *pnext_time;
 
 static void GetTime(void)
 {
-    unsigned long millis = GetTimeInMillis();
-    unsigned long maxis = Now >> 32;
+    CARD32 millis = GetTimeInMillis();
+    CARD32 maxis  = (CARD32)(Now >> 32);
 
-    if (millis < (Now & 0xffffffff))
+    if (millis < (CARD32)(Now & 0xffffffff))
         maxis++;
 
-    Now = ((int64_t)maxis << 32) | millis;
+    Now = ((INT64)maxis << 32) | (INT64)millis;
 }
 
 /*
