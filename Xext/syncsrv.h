@@ -148,4 +148,28 @@ SyncDeleteTriggerFromSyncObject(SyncTrigger * pTrigger);
 int
 SyncAddTriggerToSyncObject(SyncTrigger * pTrigger);
 
+#if defined(__GNUC__) || defined(__clang__)
+#  define INT64_MUL_OVERFLOW(a, b, res) __builtin_mul_overflow((a), (b), (res))
+#else
+#include <stdint.h>
+static inline int
+checked_int64_multiply(int64_t a, int64_t b, int64_t *result)
+{
+    /* Overflow if signs match and magnitude exceeds INT64_MAX,
+     * or signs differ and magnitude exceeds INT64_MIN. */
+    if (a != 0 && b != 0) {
+        if ((a > 0) == (b > 0)) {
+            if (a > 0 && a > INT64_MAX / b) return 1;
+            if (a < 0 && a < INT64_MAX / b) return 1;
+        } else {
+            if (a > 0 && b < INT64_MIN / a) return 1;
+            if (a < 0 && a < INT64_MIN / b) return 1;
+        }
+    }
+    *result = a * b;
+    return 0;
+}
+#define INT64_MUL_OVERFLOW(a, b, res) checked_int64_multiply((a), (b), (res))
+#endif
+
 #endif                          /* _SYNCSRV_H_ */

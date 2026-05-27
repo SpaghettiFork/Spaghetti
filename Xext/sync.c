@@ -568,20 +568,32 @@ SyncAlarmTriggerFired(SyncTrigger * pTrigger)
             return;
 
         paCounter = (SyncCounter *) pTrigger->pSync;
+        oldvalue  = paTrigger->test_value;
 
         /* "The alarm is updated by repeatedly adding delta to the
          *  value of the trigger and re-initializing it until it
          *  becomes FALSE."
          */
-        oldvalue = paTrigger->test_value;
+        if (paTrigger->test_type == XSyncPositiveComparison ||
+            paTrigger->test_type == XSyncNegativeComparison) {
 
-        /* XXX really should do something smarter here */
+            int64_t diff = paCounter->value - paTrigger->test_value;
+            int64_t steps = diff / pAlarm->delta + 1;
+            int64_t advance;
 
-        do {
+            if (INT64_MUL_OVERFLOW(steps, pAlarm->delta, &advance))
+                overflow = TRUE;
+            else
+                overflow = checked_int64_add(&paTrigger->test_value,
+                                             paTrigger->test_value, advance);
+
+#ifdef DEBUG
+            BUG_WARN((*paTrigger->CheckTrigger)(paTrigger, paCounter->value));
+#endif
+        } else {
             overflow = checked_int64_add(&paTrigger->test_value,
                                          paTrigger->test_value, pAlarm->delta);
-        } while (!overflow &&
-                 (*paTrigger->CheckTrigger) (paTrigger, paCounter->value));
+        }
 
         new_test_value = paTrigger->test_value;
         paTrigger->test_value = oldvalue;
