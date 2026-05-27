@@ -1174,8 +1174,8 @@ FreeCounter(void *env, XID id)
 
         /* tell all the counter's triggers that counter has been destroyed */
         for (ptl = pCounter->sync.pTriglist; ptl; ptl = pnext) {
-            (*ptl->pTrigger->CounterDestroyed) (ptl->pTrigger);
             pnext = ptl->next;
+            (*ptl->pTrigger->CounterDestroyed) (ptl->pTrigger);
             free(ptl); /* destroy the trigger list as we go */
         }
         if (IsSystemCounter(pCounter) && pCounter->pSysCounterInfo) {
