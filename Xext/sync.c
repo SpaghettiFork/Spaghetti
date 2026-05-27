@@ -728,9 +728,7 @@ void
 SyncChangeCounter(SyncCounter * pCounter, int64_t newval)
 {
     SyncTriggerList *ptl, *pnext;
-    int64_t oldval;
-
-    oldval = SyncUpdateCounter(pCounter, newval);
+    int64_t oldval = SyncUpdateCounter(pCounter, newval);
 
     /* run through triggers to see if any become true */
     for (ptl = pCounter->sync.pTriglist; ptl; ptl = pnext) {
@@ -740,7 +738,9 @@ SyncChangeCounter(SyncCounter * pCounter, int64_t newval)
     }
 
     if (IsSystemCounter(pCounter)) {
-        SyncComputeBracketValues(pCounter);
+        SysCounterInfo *psci = pCounter->pSysCounterInfo;
+        if (newval >= psci->bracket_greater || newval <= psci->bracket_less)
+            SyncComputeBracketValues(pCounter);
     }
 }
 
