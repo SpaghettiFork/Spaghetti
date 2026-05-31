@@ -112,7 +112,9 @@ __stdcall unsigned long GetTickCount(void);
 
 #include "miinitext.h"
 
+#ifdef PRESENT
 #include "present.h"
+#endif
 
 Bool noTestExtensions;
 
@@ -553,7 +555,9 @@ UseMsg(void)
     ErrorF
         ("-deferglyphs [none|all|16] defer loading of [no|all|16-bit] glyphs\n");
     ErrorF("-f #                   bell base (0-100)\n");
+#ifdef PRESENT
     ErrorF("-fakescreenfps #       fake screen default fps (1-600)\n");
+#endif
     ErrorF("-fp string             default font path\n");
     ErrorF("-help                  prints message with these options\n");
     ErrorF("+iglx                  Allow creating indirect GLX contexts\n");
@@ -807,6 +811,7 @@ ProcessCommandLine(int argc, char *argv[])
             else
                 UseMsg();
         }
+#ifdef PRESENT
         else if (strcmp(argv[i], "-fakescreenfps") == 0) {
             if (++i < argc) {
                 FakeScreenFps = (uint32_t) atoi(argv[i]);
@@ -816,6 +821,7 @@ ProcessCommandLine(int argc, char *argv[])
             else
                 UseMsg();
         }
+#endif
         else if (strcmp(argv[i], "-fp") == 0) {
             if (++i < argc) {
                 defaultFontPath = argv[i];
