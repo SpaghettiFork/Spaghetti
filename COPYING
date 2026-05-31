@@ -8,6 +8,8 @@ possible, and insert their name to this list.  Please sort by surname
 for people, and by the full name for other entities (e.g.  Juliusz
 Chroboczek sorts before Intel Corporation sorts before Daniel Stone).
 
+SPDX-License-Identifier: MIT
+
 Copyright © 2011 Dave Airlie
 Copyright © 2000-2001 Juliusz Chroboczek
 Copyright © 1998 Egbert Eich
@@ -51,6 +53,8 @@ of the copyright holder(s) in the license statement, but also some BSD-like
 licenses.
 
 
+SPDX-License-Identifier: X11
+
 Copyright (C) 1994-2003 The XFree86 Project, Inc.  All Rights Reserved.
 Copyright (C) Colin Harrison 2005-2008
 
@@ -76,6 +80,8 @@ be used in advertising or otherwise to promote the sale, use or other dealings
 in this Software without prior written authorization from the XFree86 Project.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1997 by The XFree86 Project, Inc.
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -97,6 +103,8 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: MIT-open-group
 
 Copyright 1985-1998, 2001  The Open Group
 Copyright 2002 Red Hat Inc., Durham, North Carolina.
@@ -122,6 +130,8 @@ used in advertising or otherwise to promote the sale, use or other dealings
 in this Software without prior written authorization from The Open Group.
 
 
+SPDX-License-Identifier: X11
+
 Copyright (c) 1987, 1989-1990, 1992-1995  X Consortium
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -146,6 +156,8 @@ used in advertising or otherwise to promote the sale, use or other dealings
 in this Software without prior written authorization from the X Consortium.
 
 
+SPDX-License-Identifier: MIT
+
 Copyright 2008 Tungsten Graphics, Inc., Cedar Park, Texas.
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -169,6 +181,8 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright © 1999-2000 SuSE, Inc.
 Copyright © 2007 Red Hat, Inc.
 
@@ -189,6 +203,8 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
 OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: SMLNJ
 
 Copyright 1987-1991, 1993 by Digital Equipment Corporation, Maynard, Massachusetts.
 Copyright 1991 Massachusetts Institute of Technology, Cambridge, Massachusetts.
@@ -213,6 +229,8 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
 
+SPDX-License-Identifier: SMLNJ
+
 Copyright 1987 by Digital Equipment Corporation, Maynard, Massachusetts,
 Copyright 1994 Quarterdeck Office Systems.
 
@@ -235,6 +253,8 @@ OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
 OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE
 OR PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: DEC-3-Clause
 
 Copyright 1997 Digital Equipment Corporation.
 All rights reserved.
@@ -266,6 +286,8 @@ transferred hereby.
    if advised of the possibility of such damage.
 
 
+SPDX-License-Identifier: X11-no-permit-persons
+
 Copyright (c) 1991, 1996-1997 Digital Equipment Corporation, Maynard, Massachusetts.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -290,6 +312,8 @@ shall not be used in advertising or otherwise to promote the sale, use or other
 dealings in this Software without prior written authorization from Digital
 Equipment Corporation.
 
+
+SPDX-License-Identifier: SGI-B-2.0
 
 SGI FREE SOFTWARE LICENSE B (Version 2.0, Sept. 18, 2008)
 Copyright (C) 1991-2000 Silicon Graphics, Inc. All Rights Reserved.
@@ -320,6 +344,8 @@ other dealings in this Software without prior written authorization from
 Silicon Graphics, Inc.
 
 
+SPDX-License-Identifier: X11
+
 Copyright (c) 1994, 1995  Hewlett-Packard Company
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -347,6 +373,8 @@ sale, use or other dealings in this Software without prior written
 authorization from the Hewlett-Packard Company.
 
 
+SPDX-License-Identifier: SMLNJ
+
 Copyright 1989 by Hewlett-Packard Company, Palo Alto, California.
 All Rights Reserved
 
@@ -366,6 +394,8 @@ WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
 ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
+
+SPDX-License-Identifier: MIT
 
 Copyright 2001-2004 Red Hat Inc., Durham, North Carolina.
 Copyright (c) 2003 by the XFree86 Project, Inc.
@@ -393,6 +423,8 @@ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright © 2008 Red Hat, Inc.
 Partly based on code Copyright © 2000 SuSE, Inc.
@@ -434,6 +466,8 @@ OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: MIT
+
 Copyright © 2006  Red Hat, Inc.
 (C) Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
 All Rights Reserved.
@@ -457,6 +491,8 @@ CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT
 OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
 THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+SPDX-License-Identifier: X11
 
 Copyright (c) 1995  X Consortium
 Copyright 2004 Red Hat Inc., Durham, North Carolina.
@@ -488,6 +524,8 @@ use or other dealings in this Software without prior written
 authorization from the X Consortium.
 
 
+SPDX-License-Identifier: MIT
+
 Copyright 1998-2000 Precision Insight, Inc., Cedar Park, Texas.
 Copyright 2000 VA Linux Systems, Inc.
 Copyright (c) 2002, 2008, 2009 Apple Computer, Inc.
@@ -515,6 +553,8 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+SPDX-License-Identifier: MIT
+
 (C) Copyright IBM Corporation 2003
 All Rights Reserved.
 
@@ -537,6 +577,8 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+SPDX-License-Identifier: MIT
 
 (C) Copyright IBM Corporation 2004-2005
 All Rights Reserved.
@@ -561,6 +603,8 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
 OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+
+SPDX-License-Identifier: X11
 
 Copyright (c) 1997  Metro Link Incorporated
 
@@ -587,6 +631,8 @@ used in advertising or otherwise to promote the sale, use or other dealings
 in this Software without prior written authorization from Metro Link.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1995-1998 by Metro Link, Inc.
 Copyright (c) 1997 Matthieu Herrb
 
@@ -608,6 +654,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright 1998 by Metro Link Incorporated
 
@@ -631,6 +679,8 @@ WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
 ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
+
+SPDX-License-Identifier: X11
 
 Copyright (c) 2000 by Conectiva S.A. (http://www.conectiva.com)
 
@@ -657,6 +707,8 @@ not be used in advertising or otherwise to promote the sale, use or other
 dealings in this Software without prior written authorization from
 Conectiva Linux.
 
+
+SPDX-License-Identifier: BSD-3-Clause
 
 Copyright (c) 2001, Andy Ritger  aritger@nvidia.com
 All rights reserved.
@@ -689,6 +741,8 @@ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 
+SPDX-License-Identifier: HPND
+
 Copyright 1992 Vrije Universiteit, The Netherlands
 
 Permission to use, copy, modify, and distribute this software and its
@@ -709,6 +763,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright 1998 by Concurrent Computer Corporation
 
@@ -733,6 +789,8 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright © 2004 Nokia
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -753,6 +811,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: Adobe-Display-PostScript
 
 (c)Copyright 1988,1991 Adobe Systems Incorporated.
 All rights reserved.
@@ -786,6 +846,8 @@ Adobe, PostScript, and Display PostScript are trademarks of Adobe Systems
 Incorporated which may be registered in certain jurisdictions.
 
 
+SPDX-License-Identifier: NTP
+
 Copyright 1989 Network Computing Devices, Inc., Mountain View, California.
 
 Permission to use, copy, modify, and distribute this software and its
@@ -799,6 +861,8 @@ suitability of this software for any purpose.  It is provided "as is"
 without express or implied warranty.
 
 
+SPDX-License-Identifier: HPND-UC
+
 Copyright (c) 1987 by the Regents of the University of California
 
 Permission to use, copy, modify, and distribute this
@@ -809,6 +873,8 @@ makes no representations about the suitability of this
 software for any purpose.  It is provided "as is" without
 express or implied warranty.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright 1992, 1993 Data General Corporation;
 Copyright 1992, 1993 OMRON Corporation
@@ -831,6 +897,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright © 1998-2004, 2006 Keith Packard
 Copyright © 2000-2002 Keith Packard, member of The XFree86 Project, Inc.
@@ -856,6 +924,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright © 1999 Keith Packard
 Copyright © 2000 Compaq Computer Corporation
@@ -883,6 +953,8 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-Netrek
+
 Copyright 1993 by Davor Matic
 
 Permission to use, copy, modify, distribute, and sell this software
@@ -893,6 +965,8 @@ supporting documentation.  Davor Matic makes no representations about
 the suitability of this software for any purpose.  It is provided "as
 is" without express or implied warranty.
 
+
+SPDX-License-Identifier: X11
 
 Copyright (C) 2001-2004 Harold L Hunt II All Rights Reserved.
 Copyright (C) Colin Harrison 2005-2008
@@ -922,6 +996,8 @@ or other dealings in this Software without prior written authorization
 from Harold L Hunt II.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1990,91 by Thomas Roell, Dinkelscherben, Germany.
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -942,6 +1018,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright 1990,91 by Thomas Roell, Dinkelscherben, Germany
 Copyright 1993 by David Wexelblat <dwex@goblin.org>
@@ -966,6 +1044,8 @@ CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1990,91,92,93 by Thomas Roell, Germany.
 Copyright 1991,92,93    by SGCS (Snitily Graphics Consulting Services), USA.
 
@@ -989,6 +1069,8 @@ CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1998 by Alan Hourihane, Wigan, England.
 Copyright 2000-2002 by Alan Hourihane, Flint Mountain, North Wales.
 
@@ -1010,6 +1092,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: X11
 
 Copyright 1995  Kaleb S. KEITHLEY
 
@@ -1038,6 +1122,8 @@ or other dealings in this Software without prior written authorization
 from Kaleb S. KEITHLEY
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright (c) 1997 Matthieu Herrb
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -1058,6 +1144,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: X11
 
 Copyright 2004, Egbert Eich
 
@@ -1083,6 +1171,8 @@ be used in advertising or otherwise to promote the sale, use or other deal-
 ings in this Software without prior written authorization from Egbert Eich.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1993 by David Wexelblat <dwex@goblin.org>
 Copyright 2005 by Kean Johnston <jkj@sco.com>
 Copyright 1993 by David McCullough <davidm@stallion.oz.au>
@@ -1105,6 +1195,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright 1992 by Orest Zborowski <obz@Kodak.com>
 Copyright 1993 by David Wexelblat <dwex@goblin.org>
@@ -1129,6 +1221,8 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1992 by Orest Zborowski <obz@Kodak.com>
 Copyright 1993 by David Dawes <dawes@xfree86.org>
 
@@ -1152,6 +1246,8 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1995-1999 by Frederic Lepied, France. <fred@sugix.frmug.fr.net>
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -1172,6 +1268,8 @@ DATA  OR PROFITS, WHETHER  IN  AN ACTION OF  CONTRACT,  NEGLIGENCE OR OTHER
 TORTIOUS  ACTION, ARISING    OUT OF OR   IN  CONNECTION  WITH THE USE    OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright 1992 by Rich Murphey <Rich@Rice.edu>
 Copyright 1993 by David Wexelblat <dwex@goblin.org>
@@ -1196,6 +1294,8 @@ CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1992 by Rich Murphey <Rich@Rice.edu>
 Copyright 1993 by David Dawes <dawes@xfree86.org>
 
@@ -1219,6 +1319,8 @@ CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright © 2003-2004 Anders Carlsson
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -1239,6 +1341,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright (C) 2003 Anders Carlsson
 Copyright © 2003-2004 Eric Anholt
@@ -1263,6 +1367,8 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: ISC
+
 Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
 
 Permission to use, copy, modify, and distribute this software for any
@@ -1277,6 +1383,8 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
 OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright © 2003-2004 Philip Blundell
 
@@ -1299,6 +1407,7 @@ TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: X11
 
 Copyright (c) 1994-2003 by The XFree86 Project, Inc.
 Copyright 1997 by Metro Link, Inc.
@@ -1329,6 +1438,8 @@ and author(s) shall not be used in advertising or otherwise to promote
 the sale, use or other dealings in this Software without prior written
 authorization from the copyright holder(s) and author(s).
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright 1990,91 by Thomas Roell, Dinkelscherben, Germany
 Copyright 1993 by David Wexelblat <dwex@goblin.org>
@@ -1363,6 +1474,8 @@ OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright © 2000 Keith Packard, member of The XFree86 Project, Inc.
             2005 Lars Knoll & Zack Rusin, Trolltech
 
@@ -1385,6 +1498,8 @@ AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
 OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
+
+SPDX-License-Identifier: ICU
 
 Copyright 1987, 1998  The Open Group
 Copyright © 1998-1999, 2001 The XFree86 Project, Inc.
@@ -1419,6 +1534,8 @@ or other dealings in this Software without prior written authorization
 of the copyright holder.
 
 
+SPDX-License-Identifier: SMLNJ
+
 Copyright 1996 by Thomas E. Dickey <dickey@clark.net>
 
                         All Rights Reserved
@@ -1440,6 +1557,8 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: X11
 
 Copyright 1998-1999 Precision Insight, Inc., Cedar Park, Texas.
 Copyright (c) 2001 Andreas Monitzer.
@@ -1474,6 +1593,8 @@ holders shall not be used in advertising or otherwise to promote the sale,
 use or other dealings in this Software without prior written authorization.
 
 
+SPDX-License-Identifier: BSD-3-Clause
+
 Copyright (C) 1999,2000 by Eric Sunshine <sunshine@sunshineco.com>
 Copyright (C) 2001-2005 by Thomas Winischhofer, Vienna, Austria.
 
@@ -1502,6 +1623,8 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+SPDX-License-Identifier: X11
+
 Copyright (C) 2005 Bogdan D. bogdand@users.sourceforge.net
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -1525,6 +1648,8 @@ Except as contained in this notice, the name of the author shall not be used in
 advertising or otherwise to promote the sale, use or other dealings in this
 Software without prior written authorization from the author.
 
+
+SPDX-License-Identifier: X11
 
 Copyright © 2002 David Dawes
 
@@ -1552,6 +1677,8 @@ dealings in this Software without prior written authorization from
 the author(s).
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright (C) 1996-1999 SciTech Software, Inc.
 Copyright (C) David Mosberger-Tang
 Copyright (C) 1999 Egbert Eich
@@ -1576,6 +1703,8 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: MIT
+
 Copyright 2005-2006 Luc Verhaegen.
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -1596,6 +1725,8 @@ OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
+
+SPDX-License-Identifier: HPND
 
 Copyright 1995 by Robin Cutshaw <robin@XFree86.Org>
 Copyright 2000 by Egbert Eich
@@ -1621,6 +1752,8 @@ IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
 OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 1997-2004 by Marc Aurele La France (TSI @ UQV), tsi@xfree86.org
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -1641,6 +1774,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright 1990, 1991 by Thomas Roell, Dinkelscherben, Germany
 Copyright 1992 by David Dawes <dawes@XFree86.org>
@@ -1674,6 +1809,8 @@ IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
 OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-variant
+
 Copyright 2001-2005 by J. Kean Johnston <jkj@sco.com>
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -1695,6 +1832,8 @@ OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
 
+SPDX-License-Identifier: MIT
+
 Copyright (C) 2000 Jakub Jelinek (jakub@redhat.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -1714,6 +1853,8 @@ JAKUB JELINEK BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright 1997,1998 by UCHIYAMA Yasushi
 
@@ -1735,6 +1876,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright (C) 2000 Keith Packard
               2004 Eric Anholt
@@ -1760,6 +1903,8 @@ OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
 
+SPDX-License-Identifier: MIT
+
 (C) Copyright IBM Corporation 2002-2007
 All Rights Reserved.
 
@@ -1783,6 +1928,8 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+SPDX-License-Identifier: HPND-sell-MIT-disclaimer-xserver
+
 Author: Eamon Walsh <ewalsh@tycho.nsa.gov>
 
 Permission to use, copy, modify, distribute, and sell this software and its
@@ -1798,6 +1945,8 @@ AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
 AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+SPDX-License-Identifier: HPND-sell-variant
 
 Copyright © 2007 OpenedHand Ltd
 
@@ -1819,6 +1968,8 @@ DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 PERFORMANCE OF THIS SOFTWARE.
 
+
+SPDX-License-Identifier: BSD-3-Clause
 
 Copyright (c) 1987, 1990, 1993
      The Regents of the University of California.  All rights reserved.
