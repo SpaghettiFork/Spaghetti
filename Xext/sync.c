@@ -1497,13 +1497,15 @@ ProcSyncChangeCounter(ClientPtr client)
 
     newvalue = (int64_t)stuff->value_hi << 32 | stuff->value_lo;
     overflow = checked_int64_add(&newvalue, newvalue, pCounter->value);
+
     if (overflow) {
-        /* XXX 64 bit value can't fit in 32 bits; do the best we can */
-        client->errorValue = stuff->value_hi;
+        /* We can't fit the value in 32 bits; do the best we can. */
+        client->errorValue = (XID)(CARD32)stuff->value_hi;
         return BadValue;
+    } else {
+        SyncChangeCounter(pCounter, newvalue);
+        return Success;
     }
-    SyncChangeCounter(pCounter, newvalue);
-    return Success;
 }
 
 /*
