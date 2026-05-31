@@ -95,9 +95,9 @@ struct ms_flipdata {
     ms_pageflip_abort_proc abort_handler;
     /* number of CRTC events referencing this */
     int flip_count;
+    uint32_t old_fb_id;
     uint64_t fe_msc;
     uint64_t fe_usec;
-    uint32_t old_fb_id;
 };
 
 /*
@@ -107,10 +107,10 @@ struct ms_flipdata {
  */
 struct ms_crtc_pageflip {
     Bool on_reference_crtc;
+    uint32_t tearfree_seq;
     /* reference to the ms_flipdata */
     struct ms_flipdata *flipdata;
     struct xorg_list node;
-    uint32_t tearfree_seq;
 };
 
 /**
