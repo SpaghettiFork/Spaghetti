@@ -171,12 +171,7 @@ typedef struct _CompScreen {
     SourceValidateProcPtr SourceValidate;
 } CompScreenRec, *CompScreenPtr;
 
-extern DevPrivateKeyRec CompScreenPrivateKeyRec;
-
 #define CompScreenPrivateKey (&CompScreenPrivateKeyRec)
-
-extern DevPrivateKeyRec CompWindowPrivateKeyRec;
-
 #define CompWindowPrivateKey (&CompWindowPrivateKeyRec)
 
 extern DevPrivateKeyRec CompSubwindowsPrivateKeyRec;
@@ -197,17 +192,8 @@ extern RESTYPE CompositeClientOverlayType;
  * compalloc.c
  */
 
-Bool
- compRedirectWindow(ClientPtr pClient, WindowPtr pWin, int update);
-
 void
  compFreeClientWindow(WindowPtr pWin, XID id);
-
-int
- compUnredirectWindow(ClientPtr pClient, WindowPtr pWin, int update);
-
-int
- compRedirectSubwindows(ClientPtr pClient, WindowPtr pWin, int update);
 
 void
  compFreeClientSubwindows(WindowPtr pWin, XID id);
@@ -256,12 +242,6 @@ compFindOverlayClient(ScreenPtr pScreen, ClientPtr pClient);
 
 CompOverlayClientPtr
 compCreateOverlayClient(ScreenPtr pScreen, ClientPtr pClient);
-
-Bool
- compCreateOverlayWindow(ScreenPtr pScreen);
-
-void
- compDestroyOverlayWindow(ScreenPtr pScreen);
 
 /*
  * compwindow.c
