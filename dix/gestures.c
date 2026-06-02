@@ -1,5 +1,5 @@
 /*
- * Copyright © 2011 Collabra Ltd.
+ * Copyright © 2011 Collabora, Ltd.
  * Copyright © 2011 Red Hat, Inc.
  * Copyright © 2020 Povilas Kanapickas  <povilas@radix.lt>
  *
