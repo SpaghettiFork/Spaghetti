@@ -509,7 +509,7 @@ static Bool
 allocate_or_reuse_buffer(DrawablePtr pDraw, DRI2ScreenPtr ds,
                          DRI2DrawablePtr pPriv,
                          unsigned int attachment, unsigned int format,
-                         int dimensions_match, DRI2BufferPtr * buffer)
+                         Bool dimensions_match, DRI2BufferPtr * buffer)
 {
     int old_buf = find_attachment(pPriv, attachment);
 
@@ -568,7 +568,7 @@ do_get_buffers(DrawablePtr pDraw, int *width, int *height,
     Bool need_real_front = FALSE;
     Bool need_fake_front = FALSE;
     int front_format = 0;
-    int dimensions_match;
+    Bool dimensions_match;
     Bool buffers_changed = FALSE;
     int i;
 
