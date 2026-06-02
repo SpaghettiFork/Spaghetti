@@ -160,14 +160,19 @@ glamor_font_get(ScreenPtr screen, FontPtr font)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8UI, overall_width, overall_height,
                  0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, bits);
     glamor_priv->suppress_gl_out_of_memory_logging = false;
+
     if (glGetError() == GL_OUT_OF_MEMORY)
-        return NULL;
+        goto out_of_memory;
 
     free(bits);
-
     glamor_font->realized = TRUE;
-
     return glamor_font;
+
+out_of_memory:
+    glDeleteTextures(1, &glamor_font->texture_id);
+    glamor_font->texture_id = 0;
+    free(bits);
+    return NULL;
 }
 
 static Bool
