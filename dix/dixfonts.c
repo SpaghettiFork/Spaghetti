@@ -670,6 +670,10 @@ doListFontsAndAliases(ClientPtr client, LFclosurePtr c)
                  * is BadFontName, indicating the alias resolution
                  * is complete.
                  */
+                if (_X_UNLIKELY(resolvedlen > XLFDMAXFONTNAMELEN)) {
+                    err = BadFontName;
+                    goto ContBadFontName;
+                }
                 memcpy(tmp_pattern, resolved, resolvedlen);
                 if (c->haveSaved) {
                     char *tmpname;
@@ -930,6 +934,10 @@ doListFontsWithInfo(ClientPtr client, LFWIclosurePtr c)
                 c->savedName = XNFalloc(namelen + 1);
                 memcpy(c->savedName, name, namelen + 1);
                 aliascount = 20;
+            }
+            if (_X_UNLIKELY(namelen > XLFDMAXFONTNAMELEN)) {
+                err = BadFontName;
+                goto ContBadFontName;
             }
             memmove(c->current.pattern, name, namelen);
             c->current.patlen = namelen;
