@@ -55,6 +55,11 @@ if build_dri2 or build_dri3
     srcs_glxdri2 = files('glxdri2.c')
 endif
 
+srcs_glxdri3 = []
+if build_dri3
+    srcs_glxdri3 = files('glxdri3.c')
+endif
+
 srcs_vnd = [
     'vndcmds.c',
     'vndext.c',
