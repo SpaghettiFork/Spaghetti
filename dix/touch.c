@@ -1,5 +1,5 @@
 /*
- * Copyright © 2011 Collabra Ltd.
+ * Copyright © 2011 Collabora, Ltd.
  * Copyright © 2011 Red Hat, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
