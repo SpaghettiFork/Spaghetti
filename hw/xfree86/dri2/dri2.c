@@ -569,7 +569,7 @@ do_get_buffers(DrawablePtr pDraw, int *width, int *height,
     Bool need_fake_front = FALSE;
     int front_format = 0;
     int dimensions_match;
-    int buffers_changed = 0;
+    Bool buffers_changed = FALSE;
     int i;
 
     if (!pPriv ||
@@ -606,7 +606,7 @@ do_get_buffers(DrawablePtr pDraw, int *width, int *height,
 
         if (allocate_or_reuse_buffer(pDraw, ds, pPriv, attachment,
                                      format, dimensions_match, &buffers[i]))
-            buffers_changed = 1;
+            buffers_changed = TRUE;
 
         if (buffers[i] == NULL)
             goto err_out;
@@ -635,7 +635,7 @@ do_get_buffers(DrawablePtr pDraw, int *width, int *height,
         if (allocate_or_reuse_buffer(pDraw, ds, pPriv, DRI2BufferFrontLeft,
                                      front_format, dimensions_match,
                                      &buffers[i]))
-            buffers_changed = 1;
+            buffers_changed = TRUE;
 
         if (buffers[i] == NULL)
             goto err_out;
@@ -647,7 +647,7 @@ do_get_buffers(DrawablePtr pDraw, int *width, int *height,
         if (allocate_or_reuse_buffer(pDraw, ds, pPriv, DRI2BufferFakeFrontLeft,
                                      front_format, dimensions_match,
                                      &buffers[i]))
-            buffers_changed = 1;
+            buffers_changed = TRUE;
 
         if (buffers[i] == NULL)
             goto err_out;
