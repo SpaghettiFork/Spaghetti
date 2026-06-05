@@ -86,7 +86,6 @@ xorg_deps = [
     m_dep,
     dl_dep,
     pciaccess_dep,
-    sha1_dep,
     dependency('xau'),
     xdmcp_dep,
     xfont2_dep,

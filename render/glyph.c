@@ -165,21 +165,13 @@ int
 HashGlyph(xGlyphInfo * gi,
           CARD8 *bits, unsigned long size, unsigned char sha1[20])
 {
-    void *ctx = x_sha1_init();
-    int success;
+    sha1_context ctx;
 
-    if (!ctx)
-        return BadAlloc;
+    sha1_init(&ctx);
+    sha1_update(&ctx, gi, sizeof(xGlyphInfo));
+    sha1_update(&ctx, bits, size);
+    sha1_finalize(&ctx, sha1);
 
-    success = x_sha1_update(ctx, gi, sizeof(xGlyphInfo));
-    if (!success)
-        return BadAlloc;
-    success = x_sha1_update(ctx, bits, size);
-    if (!success)
-        return BadAlloc;
-    success = x_sha1_final(ctx, sha1);
-    if (!success)
-        return BadAlloc;
     return Success;
 }
 
