@@ -25,6 +25,10 @@
 #include "propertyst.h"
 #include "xf86Module.h"
 
+#define ShapeBounding		0
+#define ShapeClip			1
+#define ShapeInput			2
+
 DevPrivateKeyRec compositXScreenPrivateKeyRec;
 DevPrivateKeyRec compositXWindowPrivateKeyRec;
 
@@ -32,6 +36,87 @@ static Atom compositXOpacityAtom;
 static Atom compositXBypassAtom;
 
 static MODULESETUPPROTO(compositXSetup);
+
+static RegionPtr
+compositXRegionCopy(RegionPtr pRegion)
+{
+    RegionPtr pNew = RegionCreate(RegionExtents(pRegion),
+                                  RegionNumRects(pRegion));
+
+    if (!pNew)
+        return NULL;
+
+    if (!RegionCopy(pNew, pRegion)) {
+        RegionDestroy(pNew);
+        return NULL;
+    }
+
+    return pNew;
+}
+
+static void SetWindowShapeRegion(WindowPtr pWin, int kind,
+                                 int xOff, int yOff, RegionPtr pRegion)
+{
+    RegionPtr *pDestRegion;
+
+    switch (kind) {
+        case ShapeBounding:
+        case ShapeClip:
+        case ShapeInput:
+            break;
+        default:
+            return;
+    }
+
+    if (pRegion) {
+        pRegion = compositXRegionCopy(pRegion);
+        if (!pRegion)
+            return;
+
+        if (!pWin->optional)
+            MakeWindowOptional(pWin);
+
+        switch (kind) {
+            default:
+            case ShapeBounding:
+                pDestRegion = &pWin->optional->boundingShape;
+                break;
+            case ShapeClip:
+                pDestRegion = &pWin->optional->clipShape;
+                break;
+            case ShapeInput:
+                pDestRegion = &pWin->optional->inputShape;
+                break;
+        }
+
+        if (xOff || yOff)
+            RegionTranslate(pRegion, xOff, yOff);
+    } else {
+        if (pWin->optional) {
+            switch (kind) {
+                default:
+                case ShapeBounding:
+                    pDestRegion = &pWin->optional->boundingShape;
+                    break;
+                case ShapeClip:
+                    pDestRegion = &pWin->optional->clipShape;
+                    break;
+                case ShapeInput:
+                    pDestRegion = &pWin->optional->inputShape;
+                    break;
+            }
+        } else {
+            pDestRegion = &pRegion; /* a NULL region pointer */
+        }
+    }
+
+    if (*pDestRegion)
+        RegionDestroy(*pDestRegion);
+
+    *pDestRegion = pRegion;
+    (*pWin->drawable.pScreen->SetShape) (pWin, kind);
+    SendShapeNotify(pWin, kind);
+}
 
 static Bool
 compositXIsBypassed(WindowPtr pWindow)
@@ -74,6 +159,24 @@ compositXBlockHandler(void *data, void *pTimeout)
     RegionEmpty(&cxs->pendingDamage);
 }
 
+static void
+compositXSetWindowPixmap(WindowPtr pWin, PixmapPtr pPixmap)
+{
+    ScreenPtr pScreen = pWin->drawable.pScreen;
+    CompXScreenPtr cxs = GetCompXScreen(pScreen);
+    CompXWindowPtr cxw = GetCompXWindow(pWin);
+
+    if (cxw->pDamage)
+        DamageUnregister(cxw->pDamage);
+
+    CompXUnwrap(cxs, pScreen, SetWindowPixmap);
+    (*pScreen->SetWindowPixmap)(pWin, pPixmap);
+    CompXWrap(cxs, pScreen, SetWindowPixmap, compositXSetWindowPixmap);
+
+    if (cxw->pDamage && pWin->realized)
+        DamageRegister(&pWin->drawable, cxw->pDamage);
+}
+
 static Bool
 compositXCloseScreen(ScreenPtr pScreen)
 {
@@ -98,6 +201,7 @@ compositXCloseScreen(ScreenPtr pScreen)
     CompXUnwrap(cxs, pScreen, DestroyWindow);
     CompXUnwrap(cxs, pScreen, RealizeWindow);
     CompXUnwrap(cxs, pScreen, UnrealizeWindow);
+    CompXUnwrap(cxs, pScreen, SetWindowPixmap);
 
     return (*pScreen->CloseScreen)(pScreen);
 }
@@ -260,6 +364,11 @@ compositXScreenSetup(ScreenPtr pScreen)
     cxs->pOverlay = cs->pOverlayWin;
     compositXInitOverlay(pScreen);
 
+    /* Ignore all inputs on the overlay. */
+    RegionPtr pEmpty = RegionCreate(NULL, 0);
+    SetWindowShapeRegion(cxs->pOverlay, ShapeInput, 0, 0, pEmpty);
+    RegionDestroy(pEmpty);
+
     /* manual: the Composite extension will not auto-paint redirected windows */
     compRedirectSubwindows(serverClient, pScreen->root, CompositeRedirectManual);
 
@@ -272,6 +381,7 @@ compositXScreenSetup(ScreenPtr pScreen)
     CompXWrap(cxs, pScreen, DestroyWindow,   compositXDestroyWindow);
     CompXWrap(cxs, pScreen, RealizeWindow,   compositXRealizeWindow);
     CompXWrap(cxs, pScreen, UnrealizeWindow, compositXUnrealizeWindow);
+    CompXWrap(cxs, pScreen, SetWindowPixmap, compositXSetWindowPixmap);
 }
 
 static void
@@ -318,6 +428,10 @@ compositXSetup(void* module, void* opts, int *errmaj, int *errmin)
 
     return module;
 }
+
+#undef ShapeBounding
+#undef ShapeClip
+#undef ShapeInput
 
 static XF86ModuleVersionInfo compositXVersRec = {
     "compositX",
