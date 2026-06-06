@@ -38,6 +38,7 @@ typedef struct _CompXScreen {
     DestroyWindowProcPtr    DestroyWindow;
     RealizeWindowProcPtr    RealizeWindow;
     UnrealizeWindowProcPtr  UnrealizeWindow;
+    SetWindowPixmapProcPtr  SetWindowPixmap;
 
     Bool        wrapped;            /* guard against double-wrapping */
 
