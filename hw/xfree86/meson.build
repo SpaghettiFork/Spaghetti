@@ -131,6 +131,9 @@ subdir('shadowfb')
 if build_vgahw
     subdir('vgahw')
 endif
+if build_compositx
+    subdir('compositX')
+endif
 if build_fission
     subdir('drivers/fission')
 endif

@@ -358,6 +358,7 @@ if build_glamor
     epoxy_dep = dependency('epoxy', required: false)
 endif
 
+build_compositx = get_option('compositx') and compositeproto_dep.found()
 # Lots of sha1 options, because Linux is about choice :)
 
 # The idea behind the ordering here is that we should first prefer system
