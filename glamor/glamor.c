@@ -341,45 +341,20 @@ glamor_gldrawarrays_quads_using_indices(glamor_screen_private *glamor_priv,
             goto fallback;
         } else {
             uint16_t *data;
-            unsigned int old_count = glamor_priv->ib_size;
-            size_t old_size = old_count * 6 * sizeof(GLushort);
-            size_t new_size = count * 6 * sizeof(GLushort);
+            size_t size = count * 6 * sizeof(GLushort);
 
-            /* Orphan the old buffer at the new size, re-supply the
-             * already-valid entries unsynchronized, then append only
-             * the new entries with GL_MAP_INVALIDATE_RANGE_BIT.
-             */
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, new_size, NULL, GL_STATIC_DRAW);
-
-            if (old_count > 0) {
-                data = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER,
-                                        0, old_size,
-                                        GL_MAP_WRITE_BIT |
-                                        GL_MAP_UNSYNCHRONIZED_BIT);
-                for (i = 0; i < old_count; i++) {
-                    data[i * 6 + 0] = i * 4 + 0;
-                    data[i * 6 + 1] = i * 4 + 1;
-                    data[i * 6 + 2] = i * 4 + 2;
-                    data[i * 6 + 3] = i * 4 + 0;
-                    data[i * 6 + 4] = i * 4 + 2;
-                    data[i * 6 + 5] = i * 4 + 3;
-                }
-                glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
-            }
-
-            /* Write only the newly required entries. */
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, NULL, GL_STATIC_DRAW);
             data = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER,
-                                    old_size, new_size - old_size,
+                                    0, size,
                                     GL_MAP_WRITE_BIT |
-                                    GL_MAP_INVALIDATE_RANGE_BIT |
-                                    GL_MAP_UNSYNCHRONIZED_BIT);
-            for (i = old_count; i < count; i++) {
-                data[(i - old_count) * 6 + 0] = i * 4 + 0;
-                data[(i - old_count) * 6 + 1] = i * 4 + 1;
-                data[(i - old_count) * 6 + 2] = i * 4 + 2;
-                data[(i - old_count) * 6 + 3] = i * 4 + 0;
-                data[(i - old_count) * 6 + 4] = i * 4 + 2;
-                data[(i - old_count) * 6 + 5] = i * 4 + 3;
+                                    GL_MAP_INVALIDATE_BUFFER_BIT);
+            for (i = 0; i < count; i++) {
+                data[i * 6 + 0] = i * 4 + 0;
+                data[i * 6 + 1] = i * 4 + 1;
+                data[i * 6 + 2] = i * 4 + 2;
+                data[i * 6 + 3] = i * 4 + 0;
+                data[i * 6 + 4] = i * 4 + 2;
+                data[i * 6 + 5] = i * 4 + 3;
             }
             glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 
