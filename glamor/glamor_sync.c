@@ -35,7 +35,7 @@
 static DevPrivateKeyRec glamor_sync_fence_key;
 
 struct glamor_sync_fence {
-        SyncFenceSetTriggeredFunc set_triggered;
+    SyncFenceSetTriggeredFunc set_triggered;
 };
 
 static inline struct glamor_sync_fence *
@@ -48,7 +48,7 @@ static void
 glamor_sync_fence_set_triggered (SyncFence *fence)
 {
 	ScreenPtr screen = fence->pScreen;
-	glamor_screen_private *glamor = glamor_get_screen_private(screen);
+	glamor_screen_private    *glamor = glamor_get_screen_private(screen);
 	struct glamor_sync_fence *glamor_fence = glamor_get_sync_fence(fence);
 
 	/* Flush pending rendering operations */
@@ -65,8 +65,8 @@ glamor_sync_create_fence(ScreenPtr screen,
                         SyncFence *fence,
                         Bool initially_triggered)
 {
-	glamor_screen_private *glamor = glamor_get_screen_private(screen);
-	SyncScreenFuncsPtr screen_funcs = miSyncGetScreenFuncs(screen);
+	glamor_screen_private    *glamor = glamor_get_screen_private(screen);
+	SyncScreenFuncsPtr       screen_funcs = miSyncGetScreenFuncs(screen);
 	struct glamor_sync_fence *glamor_fence = glamor_get_sync_fence(fence);
 
 	screen_funcs->CreateFence = glamor->saved_procs.sync_screen_funcs.CreateFence;
@@ -83,15 +83,13 @@ Bool
 glamor_sync_init(ScreenPtr screen)
 {
 #if XSYNC
-	glamor_screen_private   *glamor = glamor_get_screen_private(screen);
-	SyncScreenFuncsPtr      screen_funcs;
+	glamor_screen_private *glamor = glamor_get_screen_private(screen);
+	SyncScreenFuncsPtr    screen_funcs;
 
-	if (!dixPrivateKeyRegistered(&glamor_sync_fence_key)) {
-		if (!dixRegisterPrivateKey(&glamor_sync_fence_key,
-					   PRIVATE_SYNC_FENCE,
-					   sizeof (struct glamor_sync_fence)))
-			return FALSE;
-	}
+	if (!dixRegisterPrivateKey(&glamor_sync_fence_key,
+					   		   PRIVATE_SYNC_FENCE,
+							   sizeof (struct glamor_sync_fence)))
+		return FALSE;
 
 #ifdef HAVE_XSHMFENCE
 	if (!miSyncShmScreenInit(screen))
@@ -112,10 +110,10 @@ void
 glamor_sync_close(ScreenPtr screen)
 {
 #if XSYNC
-        glamor_screen_private   *glamor = glamor_get_screen_private(screen);
-        SyncScreenFuncsPtr      screen_funcs = miSyncGetScreenFuncs(screen);
+    glamor_screen_private *glamor = glamor_get_screen_private(screen);
+    SyncScreenFuncsPtr    screen_funcs = miSyncGetScreenFuncs(screen);
 
-        if (screen_funcs)
-                screen_funcs->CreateFence = glamor->saved_procs.sync_screen_funcs.CreateFence;
+    if (screen_funcs)
+        screen_funcs->CreateFence = glamor->saved_procs.sync_screen_funcs.CreateFence;
 #endif
 }
