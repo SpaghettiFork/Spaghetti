@@ -746,6 +746,10 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         epoxy_has_gl_extension("GL_MESA_tile_raster_order");
     glamor_priv->has_nv_texture_barrier =
         epoxy_has_gl_extension("GL_NV_texture_barrier");
+    glamor_priv->has_framebuffer_blit =
+        epoxy_gl_version() >= 30 ||
+        epoxy_has_gl_extension("GL_EXT_framebuffer_blit") ||
+        epoxy_has_gl_extension("GL_NV_framebuffer_blit");
     glamor_priv->has_unpack_subimage =
         !glamor_priv->is_gles ||
         epoxy_gl_version() >= 30 ||
