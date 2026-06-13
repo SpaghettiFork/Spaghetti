@@ -236,6 +236,7 @@ typedef struct glamor_screen_private {
     Bool has_khr_debug;
     Bool has_mesa_tile_raster_order;
     Bool has_nv_texture_barrier;
+    Bool has_framebuffer_blit;
     Bool has_pack_subimage;
     Bool has_unpack_subimage;
     Bool has_dual_blend;

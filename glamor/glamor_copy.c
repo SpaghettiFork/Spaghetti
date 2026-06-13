@@ -337,6 +337,10 @@ bail:
 #define GL_TILE_RASTER_ORDER_INCREASING_Y_MESA   0x8BBA
 #endif
 
+static Bool glamor_copy_blit(DrawablePtr src, DrawablePtr dst, GCPtr gc,
+                             BoxPtr box, int nbox, int dx, int dy,
+                             Pixel bitplane);
+
 /*
  * Copy from GPU to GPU by using the source
  * as a texture and painting that into the destination
@@ -374,6 +378,9 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     BoxRec bounds = glamor_no_rendering_bounds();
 
     glamor_make_current(glamor_priv);
+
+    if (glamor_copy_blit(src, dst, gc, box, nbox, dx, dy, bitplane))
+        return TRUE;
 
     if (gc && !glamor_set_planemask(gc->depth, gc->planemask))
         goto bail_ctx;
@@ -657,6 +664,57 @@ glamor_copy_needs_temp(DrawablePtr src,
     glTextureBarrierNV();
 
     return FALSE;
+}
+
+static Bool
+glamor_copy_blit(DrawablePtr src, DrawablePtr dst, GCPtr gc,
+                 BoxPtr box, int nbox, int dx, int dy, Pixel bitplane)
+{
+    glamor_screen_private *glamor_priv = glamor_get_screen_private(dst->pScreen);
+    PixmapPtr src_pixmap = glamor_get_drawable_pixmap(src);
+    PixmapPtr dst_pixmap = glamor_get_drawable_pixmap(dst);
+    glamor_pixmap_private *src_priv = glamor_get_pixmap_private(src_pixmap);
+    glamor_pixmap_private *dst_priv = glamor_get_pixmap_private(dst_pixmap);
+    int src_off_x, src_off_y, dst_off_x, dst_off_y;
+
+    if (!glamor_priv->has_framebuffer_blit)
+        return FALSE;
+
+    if (bitplane)
+        return FALSE;
+
+    if (gc && (gc->alu != GXcopy || glamor_pm_is_solid(gc->depth, gc->planemask)))
+        return FALSE;
+
+    if (!GLAMOR_PIXMAP_PRIV_HAS_FBO(src_priv) ||
+        !GLAMOR_PIXMAP_PRIV_HAS_FBO(dst_priv))
+        return FALSE;
+
+    if (glamor_pixmap_priv_is_large(src_priv) ||
+        glamor_pixmap_priv_is_large(dst_priv))
+        return FALSE;
+
+    if (src_priv->fbo->is_red != dst_priv->fbo->is_red ||
+        src_pixmap->drawable.depth != dst_pixmap->drawable.depth)
+        return FALSE;
+
+    glamor_make_current(glamor_priv);
+
+    glamor_get_drawable_deltas(src, src_pixmap, &src_off_x, &src_off_y);
+    glamor_get_drawable_deltas(dst, dst_pixmap, &dst_off_x, &dst_off_y);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, src_priv->fbo->fb);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst_priv->fbo->fb);
+
+    for (int n = 0; n < nbox; n++) {
+        glBlitFramebuffer(box[n].x1 + dx + src_off_x, box[n].y1 + dy + src_off_y,
+                          box[n].x2 + dx + src_off_x, box[n].y2 + dy + src_off_y,
+                          box[n].x1 + dst_off_x,      box[n].y1 + dst_off_y,
+                          box[n].x2 + dst_off_x,      box[n].y2 + dst_off_y,
+                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    }
+
+    return TRUE;
 }
 
 static Bool
