@@ -212,6 +212,7 @@ glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
         return NullPixmap;
 
     if ((usage == GLAMOR_CREATE_PIXMAP_CPU
+         || usage == CREATE_PIXMAP_USAGE_XY_TO_Z
          || (usage == CREATE_PIXMAP_USAGE_GLYPH_PICTURE &&
              w <= glamor_priv->glyph_max_dim &&
              h <= glamor_priv->glyph_max_dim)

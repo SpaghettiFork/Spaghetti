@@ -185,6 +185,8 @@ typedef void (*ClipNotifyProcPtr) (WindowPtr /*pWindow */ ,
 #define CREATE_PIXMAP_USAGE_GLYPH_PICTURE               3
 /* pixmap will be shared */
 #define CREATE_PIXMAP_USAGE_SHARED                      4
+/* pixmap will be used to convert a XYPixmap to a ZPixmap */
+#define CREATE_PIXMAP_USAGE_XY_TO_Z                     5
 
 typedef PixmapPtr (*CreatePixmapProcPtr) (ScreenPtr /*pScreen */ ,
                                           int /*width */ ,

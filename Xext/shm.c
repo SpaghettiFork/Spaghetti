@@ -497,7 +497,7 @@ doShmPutImage(DrawablePtr dst, GCPtr pGC,
             return;
 
         pPixmap = (*dst->pScreen->CreatePixmap) (dst->pScreen, sw, sh, depth,
-                                                 CREATE_PIXMAP_USAGE_SCRATCH);
+                                                 CREATE_PIXMAP_USAGE_XY_TO_Z);
         if (!pPixmap) {
             FreeScratchGC(putGC);
             return;

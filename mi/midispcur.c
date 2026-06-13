@@ -195,9 +195,10 @@ miDCRealize(ScreenPtr pScreen, CursorPtr pCursor)
         if (!pFormat)
             return FALSE;
 
+        /* the cursor picture retains a reference, so this pixmap is persistent */
         pPixmap = (*pScreen->CreatePixmap) (pScreen, pCursor->bits->width,
                                             pCursor->bits->height, 32,
-                                            CREATE_PIXMAP_USAGE_SCRATCH);
+                                            0);
         if (!pPixmap)
             return FALSE;
 

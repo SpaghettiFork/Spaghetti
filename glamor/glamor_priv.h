@@ -272,6 +272,9 @@ typedef struct glamor_screen_private {
     glamor_program      copy_area_prog;
     glamor_program      copy_plane_prog;
 
+    /* glamor image shaders */
+    glamor_program      put_bitmap_prog;
+
     /* glamor line shader */
     glamor_program_fill poly_line_program;
 
