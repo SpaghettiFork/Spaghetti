@@ -172,8 +172,6 @@ struct glamor_pixmap_private;
 #define GLAMOR_COMPOSITE_VBO_VERT_CNT (64*1024)
 
 struct glamor_format {
-    /** X Server's "depth" value */
-    int depth;
     /** GL internalformat for creating textures of this type */
     GLenum internalformat;
     /** GL format transferring pixels in/out of textures of this type. */

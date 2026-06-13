@@ -499,7 +499,6 @@ glamor_add_format(ScreenPtr screen, int depth, CARD32 render_format,
         }
     }
 
-    f->depth = depth;
     f->render_format = render_format;
     f->internalformat = internalformat;
     f->format = format;
@@ -589,7 +588,7 @@ glamor_setup_formats(ScreenPtr screen, Bool has_rg)
                           GL_RGB10_A2, GL_BGRA, GL_UNSIGNED_INT_2_10_10_10_REV, TRUE);
     }
 
-    glamor_priv->cbcr_format.depth = 16;
+    /* depth = 16 */
     if (glamor_priv->is_gles && has_rg) {
         glamor_priv->cbcr_format.internalformat = GL_RG;
     } else {
