@@ -121,6 +121,104 @@ if (((rx1) < (rx2)) && ((ry1) < (ry2)) &&			\
     r++;							\
 }
 
+/*
+ * Count consecutive equal bits from the screen-left side of a word.
+ * For LSBFirst, screen-left is bit 0; for MSBFirst, bit (FB_UNIT-1).
+ */
+#if __has_builtin(__builtin_ctz)
+# if BITMAP_BIT_ORDER == LSBFirst
+#  define FbCountLeftZeros(w) __builtin_ctz(w)
+#  define FbCountLeftOnes(w)  __builtin_ctz(~(w))
+# else
+#  define FbCountLeftZeros(w) __builtin_clz(w)
+#  define FbCountLeftOnes(w)  __builtin_clz(~(w))
+# endif
+#else
+static inline int
+FbCtz(uint32_t x)
+{
+    int n = 0;
+    if (!(x & 0x0000FFFF)) { n += 16; x >>= 16; }
+    if (!(x & 0x000000FF)) { n +=  8; x >>=  8; }
+    if (!(x & 0x0000000F)) { n +=  4; x >>=  4; }
+    if (!(x & 0x00000003)) { n +=  2; x >>=  2; }
+    if (!(x & 0x00000001)) { n +=  1; }
+    return n;
+}
+
+static inline int
+FbClz(uint32_t x)
+{
+    int n = 0;
+    if (!(x & 0xFFFF0000)) { n += 16; x <<= 16; }
+    if (!(x & 0xFF000000)) { n +=  8; x <<=  8; }
+    if (!(x & 0xF0000000)) { n +=  4; x <<=  4; }
+    if (!(x & 0xC0000000)) { n +=  2; x <<=  2; }
+    if (!(x & 0x80000000)) { n +=  1; }
+    return n;
+}
+# if BITMAP_BIT_ORDER == LSBFirst
+#  define FbCountLeftZeros(w) FbCtz(w)
+#  define FbCountLeftOnes(w)  FbCtz((uint32_t) ~(w))
+# else
+#  define FbCountLeftZeros(w) FbClz(w)
+#  define FbCountLeftOnes(w)  FbClz((uint32_t) ~(w))
+# endif
+#endif
+
+/*
+ * Process one FbBits word using transition-skipping instead of
+ * bit-by-bit iteration.
+ */
+static inline void
+fb_word_to_rects(RegionPtr pReg, BoxPtr *rects, BoxPtr *FirstRect,
+                 FbBits w, int base, int h, Bool *fInBox, int *rx1)
+{
+    BoxPtr r = *rects;
+    int pos = 0;
+
+    if (*fInBox) {
+        int first_zero;
+        if (w == FB_ALLONES)
+            goto done;
+        first_zero = FbCountLeftOnes(w);
+        ADDRECT(pReg, r, *FirstRect,
+                *rx1, h, base + first_zero, h + 1);
+        *fInBox = FALSE;
+        if (first_zero + 1 < FB_UNIT) {
+            w = FbScrLeft(w, first_zero + 1);
+            pos = first_zero + 1;
+        } else {
+            w = 0;
+        }
+    }
+
+    while (w != 0) {
+        int zeros, ones;
+        zeros = FbCountLeftZeros(w);
+        pos += zeros;
+        w = FbScrLeft(w, zeros);
+
+        *rx1 = base + pos;
+        *fInBox = TRUE;
+
+        if (w == FB_ALLONES)
+            goto done;
+
+        ones = FbCountLeftOnes(w);
+        pos += ones;
+        w = FbScrLeft(w, ones);
+
+        if (pos < FB_UNIT) {
+            ADDRECT(pReg, r, *FirstRect,
+                    *rx1, h, base + pos, h + 1);
+            *fInBox = FALSE;
+        }
+    }
+done:
+    *rects = r;
+}
+
 /* Convert bitmap clip mask into clipping region.
  * First, goes through each line and makes boxes by noting the transitions
  * from 0 to 1 and 1 to 0.
@@ -132,14 +230,12 @@ fbPixmapToRegion(PixmapPtr pPix)
 {
     register RegionPtr pReg;
     FbBits *pw, w;
-    register int ib;
     int width, h, base, rx1 = 0, crects;
     FbBits *pwLineEnd;
     int irectPrevStart, irectLineStart;
     register BoxPtr prectO, prectN;
     BoxPtr FirstRect, rects, prectLineStart;
     Bool fInBox, fSame;
-    register FbBits mask0 = FB_ALLONES & ~FbScrRight(FB_ALLONES, 1);
     FbBits *pwLine;
     int nWidth;
 
@@ -164,7 +260,12 @@ fbPixmapToRegion(PixmapPtr pPix)
         irectLineStart = rects - FirstRect;
         /* If the Screen left most bit of the word is set, we're starting in
          * a box */
-        if (READ(pw) & mask0) {
+        w = READ(pw);
+#if BITMAP_BIT_ORDER == LSBFirst
+        if (w & 1) {
+#else
+        if (w & ~(FB_ALLONES >> 1)) {
+#endif
             fInBox = TRUE;
             rx1 = 0;
         }
@@ -174,65 +275,26 @@ fbPixmapToRegion(PixmapPtr pPix)
         pwLineEnd = pw + (width >> FB_SHIFT);
         for (base = 0; pw < pwLineEnd; base += FB_UNIT) {
             w = READ(pw++);
-            if (fInBox) {
-                if (!~w)
-                    continue;
-            }
-            else {
-                if (!w)
-                    continue;
-            }
-            for (ib = 0; ib < FB_UNIT; ib++) {
-                /* If the Screen left most bit of the word is set, we're
-                 * starting a box */
-                if (w & mask0) {
-                    if (!fInBox) {
-                        rx1 = base + ib;
-                        /* start new box */
-                        fInBox = TRUE;
-                    }
-                }
-                else {
-                    if (fInBox) {
-                        /* end box */
-                        ADDRECT(pReg, rects, FirstRect,
-                                rx1, h, base + ib, h + 1);
-                        fInBox = FALSE;
-                    }
-                }
-                /* Shift the word VISUALLY left one. */
-                w = FbScrLeft(w, 1);
-            }
+            fb_word_to_rects(pReg, &rects, &FirstRect, w, base, h,
+                             &fInBox, &rx1);
         }
         if (width & FB_MASK) {
             /* Process final partial word on line */
             w = READ(pw++);
-            for (ib = 0; ib < (width & FB_MASK); ib++) {
-                /* If the Screen left most bit of the word is set, we're
-                 * starting a box */
-                if (w & mask0) {
-                    if (!fInBox) {
-                        rx1 = base + ib;
-                        /* start new box */
-                        fInBox = TRUE;
-                    }
-                }
-                else {
-                    if (fInBox) {
-                        /* end box */
-                        ADDRECT(pReg, rects, FirstRect,
-                                rx1, h, base + ib, h + 1);
-                        fInBox = FALSE;
-                    }
-                }
-                /* Shift the word VISUALLY left one. */
-                w = FbScrLeft(w, 1);
-            }
+            /* Mask off bits beyond the drawable width */
+#if BITMAP_BIT_ORDER == LSBFirst
+            w &= ((FbBits) 1 << (width & FB_MASK)) - 1;
+#else
+            w &= FB_ALLONES << (FB_UNIT - (width & FB_MASK));
+#endif
+            fb_word_to_rects(pReg, &rects, &FirstRect, w, base, h,
+                             &fInBox, &rx1);
         }
         /* If scanline ended with last bit set, end the box */
         if (fInBox) {
             ADDRECT(pReg, rects, FirstRect,
                     rx1, h, base + (width & FB_MASK), h + 1);
+            FirstRect = RegionBoxptr(pReg);
         }
         /* if all rectangles on this line have the same x-coords as
          * those on the previous line, then add 1 to all the previous  y2s and
