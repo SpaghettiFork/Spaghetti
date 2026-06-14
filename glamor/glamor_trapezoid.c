@@ -38,7 +38,7 @@
 /**
  * Creates an appropriate picture for temp mask use.
  */
-static PicturePtr
+PicturePtr
 glamor_create_mask_picture(ScreenPtr screen,
                            PicturePtr dst,
                            PictFormatPtr pict_format,
