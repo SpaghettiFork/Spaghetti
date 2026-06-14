@@ -261,7 +261,6 @@ miArcSegment(DrawablePtr pDraw, GCPtr pGC, xArc tarc, miArcFacePtr right,
 {
     int l = pGC->lineWidth;
     int a0, a1, startAngle, endAngle;
-    miArcFacePtr temp;
 
     if (!l)
         l = 1;
@@ -285,9 +284,7 @@ miArcSegment(DrawablePtr pDraw, GCPtr pGC, xArc tarc, miArcFacePtr right,
     if (a1 < 0) {
         startAngle = a0 + a1;
         endAngle = a0;
-        temp = right;
-        right = left;
-        left = temp;
+        XORG_EXCHANGE(left, right)
     }
     else {
         startAngle = a0;
