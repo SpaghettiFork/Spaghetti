@@ -35,6 +35,7 @@ glamor_triangles(CARD8 op,
                  PictFormatPtr maskFormat,
                  INT16 xSrc, INT16 ySrc, int ntris, xTriangle * tris)
 {
+    /* SPAGHETTI-PERF: Any optimizations here provide negligible benefit. */
     if (glamor_prepare_access_picture(pDst, GLAMOR_ACCESS_RW) &&
         glamor_prepare_access_picture(pSrc, GLAMOR_ACCESS_RO)) {
         fbTriangles(op, pSrc, pDst, maskFormat, xSrc, ySrc, ntris, tris);
