@@ -41,17 +41,11 @@
 #include "glamor_priv.h"
 #include "mipict.h"
 
-static void byte_swap_swizzle(GLenum *swizzle)
+static inline
+void byte_swap_swizzle(GLenum *swizzle)
 {
-    GLenum temp;
-
-    temp = swizzle[0];
-    swizzle[0] = swizzle[3];
-    swizzle[3] = temp;
-
-    temp = swizzle[1];
-    swizzle[1] = swizzle[2];
-    swizzle[2] = temp;
+    XORG_EXCHANGE(swizzle[0], swizzle[3])
+    XORG_EXCHANGE(swizzle[1], swizzle[2])
 }
 
 /**
