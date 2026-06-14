@@ -138,13 +138,13 @@ glamor_text(DrawablePtr drawable, GCPtr gc,
 
     for (c = 0; c < count; c++) {
         if ((ci = *charinfo++)) {
-            int     x1 = x + ci->metrics.leftSideBearing;
-            int     y1 = y - ci->metrics.ascent;
-            int     width = GLYPHWIDTHPIXELS(ci);
-            int     height = GLYPHHEIGHTPIXELS(ci);
-            int     tx, ty = 0;
-            int     row = 0, col;
-            int     second_row = 0;
+            int x1 = x + ci->metrics.leftSideBearing;
+            int y1 = y - ci->metrics.ascent;
+            int width = GLYPHWIDTHPIXELS(ci);
+            int height = GLYPHHEIGHTPIXELS(ci);
+            int tx, ty = 0;
+            int row = 0, col;
+            int second_row = 0;
             x += ci->metrics.characterWidth;
 
             if (sixteen) {
@@ -172,12 +172,12 @@ glamor_text(DrawablePtr drawable, GCPtr gc,
             /* adjust for second row layout */
             tx += second_row * glamor_font->row_width * 8;
 
-            v[ 0] = x1;
-            v[ 1] = y1;
-            v[ 2] = width;
-            v[ 3] = height;
-            v[ 4] = tx;
-            v[ 5] = ty;
+            v[0] = x1;
+            v[1] = y1;
+            v[2] = width;
+            v[3] = height;
+            v[4] = tx;
+            v[5] = ty;
 
             v += 6;
             nglyph++;
