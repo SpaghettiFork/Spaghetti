@@ -527,26 +527,69 @@ glamor_copy_fbo_fbo_temp(DrawablePtr src,
     PixmapPtr tmp_pixmap;
     int n;
 
-    if (nbox == 0)
-        return TRUE;
-
-    glamor_make_current(glamor_priv);
-
-    if (gc && !glamor_set_planemask(gc->depth, gc->planemask))
+    if (gc && !glamor_pm_is_solid(gc->depth, gc->planemask))
         return FALSE;
 
-    if (!glamor_set_alu(dst, gc ? gc->alu : GXcopy))
+    if (gc && glamor_priv->is_gles && gc->alu != GXcopy)
         return FALSE;
 
-    /* Find the largest box dimensions so one temp pixmap can serve
-     * all iterations without reallocation. */
-    int max_w = 0, max_h = 0;
-    for (n = 0; n < nbox; n++) {
-        max_w = max(max_w, box[n].x2 - box[n].x1);
-        max_h = max(max_h, box[n].y2 - box[n].y1);
+    /* Compute the bounding box of all destination boxes. */
+    BoxRec bbox = box[0];
+    for (n = 1; n < nbox; n++) {
+        bbox.x1 = min(bbox.x1, box[n].x1);
+        bbox.y1 = min(bbox.y1, box[n].y1);
+        bbox.x2 = max(bbox.x2, box[n].x2);
+        bbox.y2 = max(bbox.y2, box[n].y2);
     }
 
-    tmp_pixmap = glamor_create_pixmap(screen, max_w, max_h,
+    int tmp_w = bbox.x2 - bbox.x1;
+    int tmp_h = bbox.y2 - bbox.y1;
+
+    /*
+     * If the bounding box fits in a single FBO tile, handle all boxes
+     * in exactly two draw calls.
+     */
+    if (glamor_check_fbo_size(glamor_priv, tmp_w, tmp_h)) {
+        BoxPtr tmp_boxes;
+        Bool ret = FALSE;
+
+        tmp_pixmap = glamor_create_pixmap(screen, tmp_w, tmp_h,
+                                          glamor_drawable_effective_depth(src), 0);
+        if (!tmp_pixmap)
+            return FALSE;
+
+        tmp_boxes = xallocarray(nbox, sizeof(BoxRec));
+        if (!tmp_boxes) {
+            glamor_destroy_pixmap(tmp_pixmap);
+            return FALSE;
+        }
+
+        for (n = 0; n < nbox; n++) {
+            tmp_boxes[n].x1 = box[n].x1 - bbox.x1;
+            tmp_boxes[n].y1 = box[n].y1 - bbox.y1;
+            tmp_boxes[n].x2 = box[n].x2 - bbox.x1;
+            tmp_boxes[n].y2 = box[n].y2 - bbox.y1;
+        }
+
+        if (!glamor_copy_fbo_fbo_draw(src,
+                                      &tmp_pixmap->drawable,
+                                      NULL, tmp_boxes, nbox,
+                                      dx + bbox.x1, dy + bbox.y1,
+                                      FALSE, FALSE, 0, NULL))
+            goto bail_batched;
+
+        ret = glamor_copy_fbo_fbo_draw(&tmp_pixmap->drawable,
+                                       dst, gc, box, nbox,
+                                       -bbox.x1, -bbox.y1,
+                                       FALSE, FALSE, bitplane, closure);
+
+bail_batched:
+        free(tmp_boxes);
+        glamor_destroy_pixmap(tmp_pixmap);
+        return ret;
+    }
+
+    tmp_pixmap = glamor_create_pixmap(screen, tmp_w, tmp_h,
                                       glamor_drawable_effective_depth(src), 0);
     if (!tmp_pixmap)
         return FALSE;
