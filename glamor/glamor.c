@@ -360,11 +360,10 @@ glamor_gldrawarrays_quads_using_indices(glamor_screen_private *glamor_priv,
             glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 
             glamor_priv->ib_size = count;
-            glamor_priv->ib_type = GL_UNSIGNED_SHORT;
         }
     }
 
-    glDrawElements(GL_TRIANGLES, count * 6, glamor_priv->ib_type, NULL);
+    glDrawElements(GL_TRIANGLES, count * 6, GL_UNSIGNED_SHORT, NULL);
     return;
 
 fallback:

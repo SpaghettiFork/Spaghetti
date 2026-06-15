@@ -315,8 +315,6 @@ typedef struct glamor_screen_private {
 
     /** Cached index buffer for translating GL_QUADS to triangles. */
     GLuint ib;
-    /** Index buffer type: GL_UNSIGNED_SHORT or GL_UNSIGNED_INT */
-    GLenum ib_type;
     /** Number of quads the index buffer has indices for. */
     unsigned ib_size;
 
