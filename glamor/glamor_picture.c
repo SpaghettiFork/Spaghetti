@@ -82,6 +82,11 @@ glamor_get_tex_format_type_from_pictformat(ScreenPtr pScreen,
         *temp_format = PICT_a8;
         break;
 
+    case PICT_a8:
+        *tex_format = glamor_priv->formats[8].format;
+        *tex_type = GL_UNSIGNED_BYTE;
+        break;
+
     case PICT_b8g8r8x8:
     case PICT_b8g8r8a8:
         if (!glamor_priv->is_gles) {
@@ -154,12 +159,14 @@ glamor_get_tex_format_type_from_pictformat(ScreenPtr pScreen,
         *tex_format = GL_RGB;
         *tex_type = GL_UNSIGNED_SHORT_5_6_5;
         break;
+
     case PICT_b5g6r5:
         *tex_format = GL_RGB;
         if (!glamor_priv->is_gles) {
             *tex_type = GL_UNSIGNED_SHORT_5_6_5_REV;
         } else {
             *tex_type = GL_UNSIGNED_SHORT_5_6_5;
+
             swizzle[0] = GL_BLUE;
             swizzle[2] = GL_RED;
         }
@@ -185,20 +192,19 @@ glamor_get_tex_format_type_from_pictformat(ScreenPtr pScreen,
         }
         break;
 
-    case PICT_a8:
-        *tex_format = glamor_priv->formats[8].format;
-        *tex_type = GL_UNSIGNED_BYTE;
-        break;
-
     case PICT_x4r4g4b4:
     case PICT_a4r4g4b4:
         if (!glamor_priv->is_gles) {
             *tex_format = GL_BGRA;
             *tex_type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
         } else {
-            /* XXX */
             *tex_format = GL_RGBA;
             *tex_type = GL_UNSIGNED_SHORT_4_4_4_4;
+
+            swizzle[0] = GL_GREEN;
+            swizzle[1] = GL_BLUE;
+            swizzle[2] = GL_ALPHA;
+            swizzle[3] = GL_RED;
         }
         break;
 
@@ -208,9 +214,13 @@ glamor_get_tex_format_type_from_pictformat(ScreenPtr pScreen,
             *tex_format = GL_RGBA;
             *tex_type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
         } else {
-            /* XXX */
             *tex_format = GL_RGBA;
             *tex_type = GL_UNSIGNED_SHORT_4_4_4_4;
+
+            swizzle[0] = GL_ALPHA;
+            swizzle[1] = GL_BLUE;
+            swizzle[2] = GL_GREEN;
+            swizzle[3] = GL_RED;
         }
         break;
 
