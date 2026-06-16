@@ -123,35 +123,3 @@ dri3_extension_init(void)
 bail:
     FatalError("Cannot initialize DRI3 extension");
 }
-
-uint32_t
-drm_format_for_depth(uint32_t depth, uint32_t bpp)
-{
-    struct drm_format {
-        int32_t depth;
-        uint32_t bpp;
-        uint32_t drm;
-    } static const drm_formats[] = {
-        { .depth = 8,  .bpp = 8,  .drm = DRM_FORMAT_C8 },
-        { .depth = 15, .bpp = 16, .drm = DRM_FORMAT_XRGB1555 },
-        { .depth = 16, .bpp = 16, .drm = DRM_FORMAT_RGB565   },
-        { .depth = -1, .bpp = 24, .drm = DRM_FORMAT_XRGB8888 },
-        { .depth = -1, .bpp = 30, .drm = DRM_FORMAT_XRGB2101010 },
-        { .depth = 24, .bpp = 32, .drm = DRM_FORMAT_XRGB8888    },
-        { .depth = 30, .bpp = 32, .drm = DRM_FORMAT_XRGB2101010 },
-        { .depth = 32, .bpp = 32, .drm = DRM_FORMAT_ARGB8888    },
-    };
-
-    int idx = 0;
-    for (; idx < ARRAY_SIZE(drm_formats); idx++) {
-        struct drm_format format = drm_formats[idx];
-
-        if (format.depth == -1 && format.bpp == bpp)
-            return format.drm;
-
-        if (format.depth == depth && format.bpp == bpp)
-            return format.drm;
-    }
-
-    return DRM_FORMAT_INVALID;
-}

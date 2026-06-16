@@ -28,6 +28,14 @@
 #include <drm_fourcc.h>
 #include <unistd.h>
 
+static const uint32_t drm_fmt_by_bpp[33] = {
+    [8]  = DRM_FORMAT_C8,
+    [16] = DRM_FORMAT_RGB565,
+    [24] = DRM_FORMAT_XRGB8888,
+    [30] = DRM_FORMAT_XRGB2101010,
+    [32] = DRM_FORMAT_ARGB8888,
+};
+
 int
 dri3_open(ClientPtr client, ScreenPtr screen, RRProviderPtr provider, int *fd)
 {
@@ -234,7 +242,7 @@ dri3_get_supported_modifiers(ScreenPtr screen, DrawablePtr drawable,
     if (ret != Success)
         return ret;
 
-    format = drm_format_for_depth(depth, bpp);
+    format = drm_fmt_by_bpp[bpp];
     if (format == 0)
         return BadValue;
 
