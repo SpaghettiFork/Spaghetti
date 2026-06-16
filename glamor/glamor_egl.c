@@ -394,6 +394,37 @@ glamor_get_name_from_bo(int gbm_fd, struct gbm_bo *bo, int *name)
         *name = -1;
 }
 
+static bool
+gbm_format_for_pixmap(CARD8 depth, CARD8 bpp, uint32_t *format)
+{
+    switch (depth) {
+    case 8:
+        *format = GBM_FORMAT_R8;
+        return true;
+    case 15:
+        *format = GBM_FORMAT_ARGB1555;
+        return true;
+    case 16:
+        *format = GBM_FORMAT_RGB565;
+        return true;
+    case 24:
+        if (bpp == 32)
+            *format = GBM_FORMAT_ARGB8888;
+        else
+            *format = GBM_FORMAT_XRGB8888;
+        return true;
+    case 30:
+        *format = GBM_FORMAT_ARGB2101010;
+        return true;
+    case 32:
+        *format = GBM_FORMAT_ARGB8888;
+        return true;
+    default:
+        ErrorF("unexpected depth: %d\n", depth);
+        return false;
+    }
+}
+
 static Bool
 glamor_make_pixmap_exportable(PixmapPtr pixmap, Bool modifiers_ok)
 {
@@ -415,24 +446,8 @@ glamor_make_pixmap_exportable(PixmapPtr pixmap, Bool modifiers_ok)
         (modifiers_ok || !pixmap_priv->used_modifiers))
         return TRUE;
 
-    switch (pixmap->drawable.depth) {
-    case 30:
-        format = GBM_FORMAT_ARGB2101010;
-        break;
-    case 32:
-    case 24:
-        format = GBM_FORMAT_ARGB8888;
-        break;
-    case 16:
-        format = GBM_FORMAT_RGB565;
-        break;
-    case 15:
-        format = GBM_FORMAT_ARGB1555;
-        break;
-    case 8:
-        format = GBM_FORMAT_R8;
-        break;
-    default:
+    if (!gbm_format_for_pixmap(pixmap->drawable.depth,
+                               pixmap->drawable.bitsPerPixel, &format)) {
         xf86DrvMsg(scrn->scrnIndex, X_ERROR,
                    "Failed to make %d depth, %dbpp pixmap exportable\n",
                    pixmap->drawable.depth, pixmap->drawable.bitsPerPixel);
@@ -659,31 +674,6 @@ glamor_egl_fd_name_from_pixmap(ScreenPtr screen,
     return fd;
 }
 
-static bool
-gbm_format_for_depth(CARD8 depth, uint32_t *format)
-{
-    switch (depth) {
-    case 15:
-        *format = GBM_FORMAT_ARGB1555;
-        return true;
-    case 16:
-        *format = GBM_FORMAT_RGB565;
-        return true;
-    case 24:
-        *format = GBM_FORMAT_XRGB8888;
-        return true;
-    case 30:
-        *format = GBM_FORMAT_ARGB2101010;
-        return true;
-    case 32:
-        *format = GBM_FORMAT_ARGB8888;
-        return true;
-    default:
-        ErrorF("unexpected depth: %d\n", depth);
-        return false;
-    }
-}
-
 Bool
 glamor_back_pixmap_from_fd(PixmapPtr pixmap,
                            int fd,
@@ -700,7 +690,7 @@ glamor_back_pixmap_from_fd(PixmapPtr pixmap,
 
     glamor_egl = glamor_egl_get_screen_private(scrn);
 
-    if (!gbm_format_for_depth(depth, &import_data.format) ||
+    if (!gbm_format_for_pixmap(depth, bpp, &import_data.format) ||
         width == 0 || height == 0)
         return FALSE;
 
@@ -741,7 +731,7 @@ glamor_pixmap_from_fds(ScreenPtr screen,
         struct gbm_import_fd_modifier_data import_data = { 0 };
         struct gbm_bo *bo;
 
-        if (!gbm_format_for_depth(depth, &import_data.format) ||
+        if (!gbm_format_for_pixmap(depth, bpp, &import_data.format) ||
             width == 0 || height == 0)
             goto error;
 
