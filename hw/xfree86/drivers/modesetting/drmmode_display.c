@@ -4150,6 +4150,7 @@ drmmode_update_kms_state(drmmode_ptr drmmode)
     int i, j;
     Bool found = FALSE;
     Bool changed = FALSE;
+    Bool link_fixed = FALSE;
 
     /* Try to re-set the mode on all the connectors with a BAD link-state:
      * This may happen if a link degrades and a new modeset is necessary, using
@@ -4181,6 +4182,7 @@ drmmode_update_kms_state(drmmode_ptr drmmode)
                     /* the connector got a link failure, re-set the current mode */
                     drmmode_set_mode_major(crtc, &crtc->mode, crtc->rotation,
                                            crtc->x, crtc->y);
+                    link_fixed = TRUE;
 
                     drmModeConnectorPtr mode_output = drmmode_output->mode_output;
                     if (mode_output) {
@@ -4267,7 +4269,7 @@ out_free_res:
 
     drmModeFreeResources(mode_res);
 out:
-    RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
+    RRGetInfo(xf86ScrnToScreen(scrn), (changed || link_fixed));
 }
 
 #undef DRM_MODE_LINK_STATUS_BAD
