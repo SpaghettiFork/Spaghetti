@@ -23,6 +23,37 @@
 #include "glamor_priv.h"
 #include "glamor_transfer.h"
 
+#if __has_attribute(vector_size)
+typedef uint32_t v4ui __attribute__((vector_size(16)));
+#define GLAMOR_V4UI_COUNT 4
+#else
+typedef uint32_t v4ui;
+#define GLAMOR_V4UI_COUNT 1
+#endif
+
+static inline void
+glamor_fixup_alpha_row(uint32_t *dst, const uint32_t *src,
+                       int width, int height, int stride)
+{
+#if GLAMOR_V4UI_COUNT > 1
+    const v4ui alpha_mask = { 0xff000000, 0xff000000, 0xff000000, 0xff000000 };
+#else
+    const uint32_t alpha_mask = 0xff000000;
+#endif
+    int y, i;
+
+    for (y = 0; y < height; y++, dst += stride, src += stride) {
+        for (i = 0; i + GLAMOR_V4UI_COUNT <= width; i += GLAMOR_V4UI_COUNT) {
+            const v4ui *vp = (const v4ui *)(src + i);
+            v4ui *dp = (v4ui *)(dst + i);
+            *dp = *vp | alpha_mask;
+        }
+
+        for (; i < width; i++)
+            dst[i] = src[i] | (uint32_t)0xff000000;
+    }
+}
+
 /*
  * Write a region of bits into a drawable's backing pixmap
  */
@@ -79,14 +110,10 @@ glamor_upload_boxes(DrawablePtr drawable, BoxPtr in_boxes, int in_nbox,
 
             if (tmp_bits) {
                 uint32_t *tmp_line = (uint32_t *)(tmp_bits + ofs);
-                int x, y;
 
                 /* Make sure any sampling of the alpha channel will return 1.0 */
-                for (y = y1; y < y2;
-                     y++, src_line += byte_stride / 4, tmp_line += byte_stride / 4) {
-                    for (x = 0; x < x2 - x1; x++)
-                        tmp_line[x] = src_line[x] | 0xff000000;
-                }
+                glamor_fixup_alpha_row(tmp_line, src_line, x2 - x1,
+                                       y2 - y1, byte_stride / sizeof(uint32_t));
 
                 src_line = (uint32_t *)(tmp_bits + ofs);
             }
