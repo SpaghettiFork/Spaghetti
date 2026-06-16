@@ -1678,14 +1678,24 @@ xf86ProbeOutputModes(ScrnInfoPtr scrn, int maxX, int maxY)
         Bool add_default_modes;
         Bool debug_modes = config->debug_modes || xf86Initialising;
         enum det_monrec_source sync_source = sync_default;
-
-        while (output->probed_modes != NULL)
-            xf86DeleteMode(&output->probed_modes, output->probed_modes);
+        xf86OutputStatus new_status;
 
         /*
          * Check connection status
          */
-        output->status = (*output->funcs->detect) (output);
+        new_status = (*output->funcs->detect) (output);
+
+        /*
+         * If the status hasn't changed and modes are already probed,
+         * skip the expensive get_modes / EDID read.
+         */
+        if (new_status == output->status && output->probed_modes != NULL)
+            continue;
+
+        output->status = new_status;
+
+        while (output->probed_modes != NULL)
+            xf86DeleteMode(&output->probed_modes, output->probed_modes);
 
         if (output->status == XF86OutputStatusDisconnected &&
             !xf86ReturnOptValBool(output->options, OPTION_ENABLE, FALSE)) {
