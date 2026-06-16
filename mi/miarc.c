@@ -3480,25 +3480,17 @@ drawArc(xArc * tarc, int l, int a0, int a1, miArcFacePtr right,
         mirrorSppPoint(rightq, &right->clock);
         mirrorSppPoint(rightq, &right->center);
         mirrorSppPoint(rightq, &right->counterClock);
-        if (flipRight) {
-            SppPointRec temp;
 
-            temp = right->clock;
-            right->clock = right->counterClock;
-            right->counterClock = temp;
-        }
+        if (flipRight)
+            XORG_EXCHANGE(right->clock, right->counterClock)
     }
     if (left) {
         mirrorSppPoint(leftq, &left->counterClock);
         mirrorSppPoint(leftq, &left->center);
         mirrorSppPoint(leftq, &left->clock);
-        if (flipLeft) {
-            SppPointRec temp;
 
-            temp = left->clock;
-            left->clock = left->counterClock;
-            left->counterClock = temp;
-        }
+        if (flipLeft)
+            XORG_EXCHANGE(left->clock, left->counterClock)
     }
     return spdata;
 }
