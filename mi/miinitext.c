@@ -149,6 +149,9 @@ static const ExtensionModule staticExtensions[] = {
 #ifdef DRI3
     {dri3_extension_init, "DRI3", NULL},
 #endif
+#ifdef SPAGHETTI_VRR
+    {vrr_extension_init, "SPAGHETTI-VRR", NULL},
+#endif
 #ifdef RES
     {ResExtensionInit, "X-Resource", &noResExtension},
 #endif
