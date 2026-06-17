@@ -537,6 +537,7 @@ common_dep = [
 inc = include_directories(
     '.',
     'Xext',
+    'Xext/vrr',
     'Xi',
     'composite',
     'damageext',
@@ -646,6 +647,7 @@ subdir('include')
 subdir('config')
 subdir('dix')
 subdir('dri3')
+subdir('Xext/vrr')
 subdir('glx')
 subdir('fb')
 subdir('mi')
@@ -703,6 +705,7 @@ libxserver = [
 ]
 
 libxserver += libxserver_dri3
+libxserver += libxserver_vrr
 
 subdir('hw')
 
