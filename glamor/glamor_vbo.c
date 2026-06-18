@@ -183,8 +183,15 @@ glamor_fini_vbo(ScreenPtr screen)
 
     glDeleteVertexArrays(1, &glamor_priv->vao);
     glamor_priv->vao = 0;
+
+    if (glamor_priv->has_buffer_storage && glamor_priv->vb) {
+        glBindBuffer(GL_ARRAY_BUFFER, glamor_priv->vbo);
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+    }
+
     glDeleteBuffers(1, &glamor_priv->vbo);
     glamor_priv->vbo = 0;
+
     if (!glamor_priv->has_map_buffer_range)
         free(glamor_priv->vb);
 }
