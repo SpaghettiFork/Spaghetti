@@ -103,7 +103,7 @@ glamor_prep_drawable_box(DrawablePtr drawable, glamor_access_t access, BoxPtr bo
     } else {
         RegionInit(&priv->prepare_region, box, 1);
 
-        if (!glamor_priv->is_gles) {
+        if (!glamor_priv->is_gles || glamor_priv->has_map_buffer_range) {
             if (priv->pbo == 0)
                 glGenBuffers(1, &priv->pbo);
 
