@@ -88,6 +88,9 @@ ProcXIChangeCursor(ClientPtr client)
             return rc;
     }
 
+    if (pWin == NullWindow)
+        return BadWindow;
+
     if (stuff->cursor == None) {
         if (pWin == pWin->drawable.pScreen->root)
             pCursor = rootCursor;
