@@ -2348,7 +2348,6 @@ DRIMoveBuffersHelper(ScreenPtr pScreen,
                      int dx, int dy, int *xdir, int *ydir, RegionPtr reg)
 {
     BoxPtr extents, pbox, firstBox, lastBox;
-    BoxRec tmpBox;
     int y, nbox;
 
     extents = RegionExtents(reg);
@@ -2361,9 +2360,7 @@ DRIMoveBuffersHelper(ScreenPtr pScreen,
             firstBox = pbox;
             lastBox = pbox + nbox - 1;
             while ((unsigned long) firstBox < (unsigned long) lastBox) {
-                tmpBox = *firstBox;
-                *firstBox = *lastBox;
-                *lastBox = tmpBox;
+                XORG_EXCHANGE(*firstBox, *lastBox)
                 firstBox++;
                 lastBox--;
             }
@@ -2383,9 +2380,7 @@ DRIMoveBuffersHelper(ScreenPtr pScreen,
                     lastBox++;
                 else {
                     while ((unsigned long) firstBox < (unsigned long) lastBox) {
-                        tmpBox = *firstBox;
-                        *firstBox = *lastBox;
-                        *lastBox = tmpBox;
+                        XORG_EXCHANGE(*firstBox, *lastBox)
                         firstBox++;
                         lastBox--;
                     }
@@ -2395,9 +2390,7 @@ DRIMoveBuffersHelper(ScreenPtr pScreen,
                 }
             }
             while ((unsigned long) firstBox < (unsigned long) lastBox) {
-                tmpBox = *firstBox;
-                *firstBox = *lastBox;
-                *lastBox = tmpBox;
+                XORG_EXCHANGE(*firstBox, *lastBox)
                 firstBox++;
                 lastBox--;
             }
