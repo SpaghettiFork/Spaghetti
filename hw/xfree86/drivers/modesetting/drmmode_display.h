@@ -69,6 +69,7 @@ enum drmmode_crtc_property {
     DRMMODE_CRTC_GAMMA_LUT,
     DRMMODE_CRTC_GAMMA_LUT_SIZE,
     DRMMODE_CRTC_CTM,
+    DRMMODE_CRTC_VRR_ENABLED,
     DRMMODE_CRTC__COUNT
 };
 
@@ -137,8 +138,6 @@ typedef struct {
     Bool dri2_enable;
     Bool present_enable;
     Bool tearfree_enable;
-
-    uint32_t vrr_prop_id;
     Bool use_ctm;
 } drmmode_rec, *drmmode_ptr;
 
