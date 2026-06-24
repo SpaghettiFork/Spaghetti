@@ -2469,53 +2469,6 @@ drmmode_crtc_create_planes(xf86CrtcPtr crtc, int num)
     drmModeFreePlaneResources(kplane_res);
 }
 
-static uint32_t
-drmmode_crtc_get_prop_id(uint32_t drm_fd,
-                         drmModeObjectPropertiesPtr props,
-                         char const* name)
-{
-    uint32_t i, prop_id = 0;
-
-    for (i = 0; !prop_id && i < props->count_props; ++i) {
-        drmModePropertyPtr drm_prop =
-                     drmModeGetProperty(drm_fd, props->props[i]);
-
-        if (!drm_prop)
-            continue;
-
-        if (strcmp(drm_prop->name, name) == 0)
-            prop_id = drm_prop->prop_id;
-
-        drmModeFreeProperty(drm_prop);
-    }
-
-    return prop_id;
-}
-
-static void
-drmmode_crtc_vrr_init(int drm_fd, xf86CrtcPtr crtc)
-{
-    drmModeObjectPropertiesPtr drm_props;
-    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    drmmode_ptr drmmode = drmmode_crtc->drmmode;
-
-    if (drmmode->vrr_prop_id)
-        return;
-
-    drm_props = drmModeObjectGetProperties(drm_fd,
-                                           drmmode_crtc->mode_crtc->crtc_id,
-                                           DRM_MODE_OBJECT_CRTC);
-
-    if (!drm_props)
-        return;
-
-    drmmode->vrr_prop_id = drmmode_crtc_get_prop_id(drm_fd,
-                                                    drm_props,
-                                                    "VRR_ENABLED");
-
-    drmModeFreeObjectProperties(drm_props);
-}
-
 static unsigned int
 drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res, drmmode_cursor_dim_rec fallback, int num)
 {
@@ -2529,6 +2482,7 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
         [DRMMODE_CRTC_GAMMA_LUT] = { .name = "GAMMA_LUT" },
         [DRMMODE_CRTC_GAMMA_LUT_SIZE] = { .name = "GAMMA_LUT_SIZE" },
         [DRMMODE_CRTC_CTM] = { .name = "CTM" },
+        [DRMMODE_CRTC_VRR_ENABLED] = { .name = "VRR_ENABLED" },
     };
 
     crtc = xf86CrtcCreate(pScrn, &drmmode_crtc_funcs);
@@ -2566,8 +2520,6 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 
     /* Hide any cursors which may be active from previous users */
     drmModeSetCursor(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id, 0, 0, 0);
-
-    drmmode_crtc_vrr_init(drmmode->fd, crtc);
 
     /* Mark num'th crtc as in use on this device. */
     ms_ent->assigned_crtcs |= (1 << num);
@@ -4539,13 +4491,18 @@ drmmode_crtc_set_vrr(xf86CrtcPtr crtc, Bool enabled)
     ScrnInfoPtr pScrn = crtc->scrn;
     modesettingPtr ms = modesettingPTR(pScrn);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    drmmode_ptr drmmode = drmmode_crtc->drmmode;
+    uint32_t prop_id = drmmode_crtc->props[DRMMODE_CRTC_VRR_ENABLED].prop_id;
 
-    if (drmmode->vrr_prop_id && drmmode_crtc->vrr_enabled != enabled &&
-        drmModeObjectSetProperty(ms->fd,
+    if (!prop_id)
+        return;
+
+    if (drmmode_crtc->vrr_enabled == enabled)
+        return;
+
+    if (drmModeObjectSetProperty(ms->fd,
                                  drmmode_crtc->mode_crtc->crtc_id,
                                  DRM_MODE_OBJECT_CRTC,
-                                 drmmode->vrr_prop_id,
+                                 prop_id,
                                  enabled) == 0)
         drmmode_crtc->vrr_enabled = enabled;
 }
