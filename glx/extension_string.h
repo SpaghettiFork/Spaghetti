@@ -59,7 +59,6 @@ enum {
     OML_swap_method_bit,
     SGI_make_current_read_bit,
     SGI_swap_control_bit,
-    SGI_video_sync_bit,
     SGIS_multisample_bit,
     SGIX_fbconfig_bit,
     SGIX_pbuffer_bit,
