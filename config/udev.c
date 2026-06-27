@@ -129,6 +129,9 @@ device_added(struct udev_device *udev_device)
     if (subsys && !strcmp(subsys, "drm")) {
         const char *sysname = udev_device_get_sysname(udev_device);
 
+        if (!sysname)
+            return;
+
         if (strncmp(sysname, "card", 4) != 0)
             return;
 
@@ -329,7 +332,13 @@ device_removed(struct udev_device *device)
         const char *path = udev_device_get_devnode(device);
         dev_t devnum = udev_device_get_devnum(device);
 
-        if ((strncmp(sysname,"card", 4) != 0) || (path == NULL))
+        if (!sysname)
+            return;
+
+        if (!path)
+            return;
+
+        if (strncmp(sysname, "card", 4) != 0)
             return;
 
         LogMessage(X_INFO, "config/udev: removing GPU device %s %s\n",
@@ -525,6 +534,9 @@ config_udev_get_fallback_bus_id(struct udev_device *udev_device)
         return NULL;
 
     sysname = udev_device_get_sysname(udev_device);
+    if (!sysname)
+        return NULL;
+
     busid = XNFalloc(strlen(sysname) + 5);
     busid[0] = '\0';
     strcat(busid, "pci:");
