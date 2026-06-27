@@ -64,6 +64,7 @@ enum {
     SGIX_pbuffer_bit,
     SGIX_visual_select_group_bit,
     INTEL_swap_event_bit,
+    NV_float_buffer_bit,
     __NUM_GLX_EXTS,
 };
 

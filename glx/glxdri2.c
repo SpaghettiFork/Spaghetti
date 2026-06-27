@@ -875,6 +875,9 @@ initializeExtensions(__GLXscreen * screen)
     /* enable EXT_fbconfig_packed_float (even if there are no packed float fbconfigs) */
     __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_fbconfig_packed_float");
 
+    /* enable NV_float_buffer (legacy compatibility) */
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_NV_float_buffer");
+
     for (i = 0; extensions[i]; i++) {
         if (strcmp(extensions[i]->name, __DRI_TEX_BUFFER) == 0) {
             dri->texBuffer = (const __DRItexBufferExtension *) extensions[i];

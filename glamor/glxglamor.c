@@ -403,6 +403,7 @@ egl_screen_probe(ScreenPtr pScreen)
     __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_framebuffer_sRGB");
     __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_no_config_context");
     __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_texture_from_pixmap");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_NV_float_buffer");
 
     screen->fbconfigs = egl_setup_configs(pScreen, glamor_screen->ctx.display);
     if (!screen->fbconfigs) {

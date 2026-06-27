@@ -55,6 +55,9 @@
 #define GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB 0
 #define GLX_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB 0x2098
 #endif
+#ifndef GLX_FLOAT_COMPONENTS_NV
+#define GLX_FLOAT_COMPONENTS_NV 0x20B0
+#endif
 
 extern void __glXFlushContextCache(void);
 
