@@ -104,6 +104,7 @@ static const struct extension_info known_glx_extensions[] = {
     { GLX(SGIX_pbuffer),                VER(1,3), Y, },
     { GLX(SGIX_visual_select_group),    VER(0,0), Y, },
     { GLX(INTEL_swap_event),            VER(0,0), N, },
+    { GLX(NV_float_buffer),             VER(1,3), N, },
     { NULL }
     /* *INDENT-ON* */
 };

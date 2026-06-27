@@ -385,6 +385,7 @@ initializeExtensions(__GLXscreen * screen)
     __glXEnableExtension(screen->glx_enable_bits, "GLX_ARB_fbconfig_float");
     __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_fbconfig_packed_float");
     __glXEnableExtension(screen->glx_enable_bits, "GLX_EXT_texture_from_pixmap");
+    __glXEnableExtension(screen->glx_enable_bits, "GLX_NV_float_buffer");
 
     extensions = dri->core->getExtensions(dri->driScreen);
 
