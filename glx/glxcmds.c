@@ -1846,8 +1846,7 @@ __glXDisp_CopySubBufferMESA(__GLXclientState * cl, GLbyte * pc)
     if (!pGlxDraw)
         return error;
 
-    if (pGlxDraw == NULL ||
-        pGlxDraw->type != GLX_DRAWABLE_WINDOW ||
+    if (pGlxDraw->type != GLX_DRAWABLE_WINDOW ||
         pGlxDraw->copySubBuffer == NULL)
         return __glXError(GLXBadDrawable);
 
