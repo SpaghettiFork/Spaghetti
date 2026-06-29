@@ -898,27 +898,27 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     modesettingPtr ms = modesettingPTR(scrn);
     SourceValidateProcPtr SourceValidate = screen->SourceValidate;
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    drmmode_tearfree_rec tearfree = drmmode_crtc->tearfree;
+    drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
     pixman_f_transform_t transform;
     pixman_f_transform_t *transform_ptr = NULL;
     PixmapPtr src;
     RegionRec blit_region;
     BoxRec crtc_box;
-    int back = tearfree.back_idx;
+    int back = trf->back_idx;
     uint32_t seq;
     Bool ret;
 
     if (!crtc->enabled)
         return;
 
-    if (tearfree.flip_pending || tearfree.async_tear)
+    if (trf->flip_pending || trf->async_tear)
         return;
 
     if (ms->drmmode.present_flipping)
         return;
 
-    if (!tearfree.damage ||
-        !RegionNotEmpty(DamageRegion(tearfree.damage)))
+    if (!trf->damage ||
+        !RegionNotEmpty(DamageRegion(trf->damage)))
         return;
 
     /*
@@ -934,11 +934,11 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
 
     RegionInitBoxes(&blit_region, &crtc_box, 1);
     RegionIntersect(&blit_region, &blit_region,
-                    DamageRegion(tearfree.damage));
+                    DamageRegion(trf->damage));
     RegionTranslate(&blit_region, -crtc->x, -crtc->y);
 
     /* Include regions this buffer missed while it was being scanned out. */
-    RegionUnion(&blit_region, &blit_region, &tearfree.stale[back]);
+    RegionUnion(&blit_region, &blit_region, &trf->stale[back]);
 
     if (!RegionNotEmpty(&blit_region)) {
         RegionUninit(&blit_region);
@@ -962,7 +962,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
 
     screen->SourceValidate = miSourceValidate;
     ret = ms_copy_area(src,
-                       tearfree.pixmap[back],
+                       trf->pixmap[back],
                        transform_ptr, &blit_region);
     screen->SourceValidate = SourceValidate;
 
@@ -970,12 +970,12 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
         goto bail;
     }
 
-    RegionUnion(&tearfree.stale[back ^ 1],
-                &tearfree.stale[back ^ 1],
+    RegionUnion(&trf->stale[back ^ 1],
+                &trf->stale[back ^ 1],
                 &blit_region);
-    RegionEmpty(&tearfree.stale[back]);
+    RegionEmpty(&trf->stale[back]);
 
-    DamageEmpty(tearfree.damage);
+    DamageEmpty(trf->damage);
 
 #ifdef GLAMOR_HAS_GBM
     /* Ensure the blit is visible to the display engine before the flip. */
@@ -990,7 +990,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
         return;
 
     if (drmmode_crtc_flip(crtc,
-                          tearfree.fb_id[back],
+                          trf->fb_id[back],
                           0, 0,
                           DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK,
                           (void *)(intptr_t) seq) != 0) {
@@ -998,7 +998,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
         return;
     }
 
-    drmmode_crtc->tearfree.flip_pending = TRUE;
+    trf->flip_pending = TRUE;
 
 bail:
     RegionUninit(&blit_region);
@@ -1026,7 +1026,7 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
     pScreen->BlockHandler = msBlockHandler;
     if (pScreen->isGPU && !ms->drmmode.reverse_prime_offload_mode)
         dispatch_secondary_dirty(pScreen);
-    else if (ms->dirty_enabled)
+    else if (ms->dirty_enabled && !ms->drmmode.tearfree)
         dispatch_dirty(pScreen);
 
     ms_dirty_update(pScreen, timeout);

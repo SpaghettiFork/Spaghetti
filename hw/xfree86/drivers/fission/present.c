@@ -186,6 +186,20 @@ ms_present_flush(WindowPtr window)
 
 #ifdef GLAMOR_HAS_GBM
 
+/*
+ * A Present flip completing means any async-tearing suspension of
+ * TearFree is over; clear the flag on all CRTCs so the back-buffer
+ * blit loop can resume on the next BlockHandler pass.
+ */
+static inline void
+ms_present_stop_tearing(modesettingPtr ms, struct ms_present_vblank_event *event)
+{
+    if (ms->drmmode.tearfree && event->tearfree_crtc) {
+        drmmode_crtc_private_ptr dc = event->tearfree_crtc->driver_private;
+        dc->tearfree.async_tear = FALSE;
+    }
+}
+
 /**
  * Callback for the DRM event queue when a flip has completed on all pipes
  *
@@ -203,16 +217,8 @@ ms_present_flip_handler(modesettingPtr ms, uint64_t msc,
 
     if (event->unflip)
         ms->drmmode.present_flipping = FALSE;
-
-    /*
-     * A Present flip completing means any async-tearing suspension of
-     * TearFree is over; clear the flag on all CRTCs so the back-buffer
-     * blit loop can resume on the next BlockHandler pass.
-     */
-    if (ms->drmmode.tearfree && event->tearfree_crtc) {
-        drmmode_crtc_private_ptr dc = event->tearfree_crtc->driver_private;
-        dc->tearfree.async_tear = FALSE;
-    }
+    
+    ms_present_stop_tearing(ms, event);
 
     ms_present_vblank_handler(msc, ust, event);
 }
@@ -226,6 +232,8 @@ ms_present_flip_abort(modesettingPtr ms, void *data)
     struct ms_present_vblank_event *event = data;
 
     DebugPresent(("\t\tms:fa %lld\n", (long long) event->event_id));
+
+    ms_present_stop_tearing(ms, event);
 
     free(event);
 }
