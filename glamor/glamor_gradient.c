@@ -244,13 +244,10 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
 	    "\n"\
 	    "vec4 get_color(float stop_len);\n"\
 	    "\n"\
-	    "int t_invalid;\n"\
-	    "\n"\
-	    "float get_stop_len()\n"\
+	    "vec2 get_stop_len()\n"\
 	    "{\n"\
 	    "    float t = 0.0;\n"\
 	    "    float sqrt_value;\n"\
-	    "    t_invalid = 0;\n"\
 	    "    \n"\
 	    "    vec3 tmp = vec3(source_texture.x, source_texture.y, 1.0);\n"\
 	    "    vec3 source_texture_trans = transform_mat * tmp;\n"\
@@ -262,17 +259,13 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
 	    "                     + (source_texture_trans.y - c1.y) * (source_texture_trans.y - c1.y)\n"\
 	    "                     - r1*r1;\n"\
 	    "    if(abs(A_value) < 0.00001) {\n"\
-	    "        if(B_value == 0.0) {\n"\
-	    "            t_invalid = 1;\n"\
-	    "            return t;\n"\
-	    "        }\n"\
+	    "        if(B_value == 0.0)\n"\
+	    "            return vec2(t, 1.0);\n"\
 	    "        t = 0.5 * C_value / B_value;"\
 	    "    } else {\n"\
 	    "        sqrt_value = B_value * B_value - A_value * C_value;\n"\
-	    "        if(sqrt_value < 0.0) {\n"\
-	    "            t_invalid = 1;\n"\
-	    "            return t;\n"\
-	    "        }\n"\
+	    "        if(sqrt_value < 0.0)\n"\
+	    "            return vec2(t, 1.0);\n"\
 	    "        sqrt_value = sqrt(sqrt_value);\n"\
 	    "        t = (B_value + sqrt_value) / A_value;\n"\
 	    "    }\n"\
@@ -281,19 +274,15 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
 	    /*           try another if first one invalid*/\
 	    "            t = (B_value - sqrt_value) / A_value;\n"\
 	    "        \n"\
-	    "        if((t <= 0.0) || (t > 1.0)) {\n" /*still invalid, return.*/\
-	    "            t_invalid = 1;\n"\
-	    "            return t;\n"\
-	    "        }\n"\
+	    "        if((t <= 0.0) || (t > 1.0))\n" /*still invalid, return.*/\
+	    "            return vec2(t, 1.0);\n"\
 	    "    } else {\n"\
 	    "        if(t * (r2 - r1) <= -1.0 * r1)\n"\
 	    /*           try another if first one invalid*/\
 	    "            t = (B_value - sqrt_value) / A_value;\n"\
 	    "        \n"\
-	    "        if(t * (r2 -r1) <= -1.0 * r1) {\n" /*still invalid, return.*/\
-	    "            t_invalid = 1;\n"\
-	    "            return t;\n"\
-	    "        }\n"\
+	    "        if(t * (r2 -r1) <= -1.0 * r1)\n" /*still invalid, return.*/\
+	    "            return vec2(t, 1.0);\n"\
 	    "    }\n"\
 	    "    \n"\
 	    "    if(repeat_type == %d){\n" /* repeat normal*/\
@@ -304,16 +293,16 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
 	    "        t = abs(fract(t * 0.5 + 0.5) * 2.0 - 1.0);\n"\
 	    "    }\n"\
 	    "    \n"\
-	    "    return t;\n"\
+	    "    return vec2(t, 0.0);\n"\
 	    "}\n"\
 	    "\n"\
 	    "void main()\n"\
 	    "{\n"\
-	    "    float stop_len = get_stop_len();\n"\
-	    "    if(t_invalid == 1) {\n"\
+	    "    vec2 result = get_stop_len();\n"\
+	    "    if(result.y > 0.5) {\n"\
 	    "        frag_color = vec4(0.0, 0.0, 0.0, 0.0);\n"\
 	    "    } else {\n"\
-	    "        frag_color = get_color(stop_len);\n"\
+	    "        frag_color = get_color(result.x);\n"\
 	    "    }\n"\
 	    "}\n"\
 	    "\n"\
