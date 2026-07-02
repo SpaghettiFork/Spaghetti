@@ -56,17 +56,6 @@ present_want_async_flip(uint32_t options, uint32_t capabilities)
 	return FALSE;
 }
 
-static inline void
-set_vblank_flip_type(present_vblank_ptr vblank, uint32_t options, Bool sync_flip)
-{
-    Bool wants_tearing = (options & PresentOptionAsyncMayTear);
-
-    if (sync_flip)
-        vblank->flip_type = PRESENT_TYPE_SYNCHRONOUS;
-    else
-        vblank->flip_type = (wants_tearing ? PRESENT_TYPE_ASYNC_TEARING : PRESENT_TYPE_ASYNCHRONOUS);
-}
-
 /* The memory vblank points to must be 0-initialized before calling this function.
  *
  * If this function returns FALSE, present_vblank_destroy must be called to clean
@@ -147,12 +136,19 @@ present_vblank_init(present_vblank_ptr vblank,
         screen_priv->check_flip) {
 
         Bool sync_flip = !present_want_async_flip(options, capabilities);
+        present_flip_type type;
 
-        if (screen_priv->check_flip (target_crtc, window, pixmap,
-                                     sync_flip, valid, x_off, y_off, &reason))
+        if (sync_flip)
+            type = PRESENT_TYPE_SYNCHRONOUS;
+        else
+            type = (options & PresentOptionAsyncMayTear)
+                 ? PRESENT_TYPE_ASYNC_TEARING : PRESENT_TYPE_ASYNCHRONOUS;
+
+        if (screen_priv->check_flip(target_crtc, window, pixmap,
+                                    type, valid, x_off, y_off, &reason))
         {
             vblank->flip = TRUE;
-            set_vblank_flip_type(vblank, options, sync_flip);
+            vblank->flip_type = type;
         }
     }
     vblank->reason = reason;

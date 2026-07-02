@@ -195,7 +195,8 @@ typedef struct {
     DamagePtr  damage;
     PixmapPtr  pixmap[2];  /* pixmap wrappers for blitting */
     RegionRec  stale[2];
-    Bool       async_tear;
+    Bool       yielded;    /* TearFree yielded to a direct commit */
+    uint32_t   flip_seq;   /* DRM queue seq for in-flight TearFree flip */
 } drmmode_tearfree_rec, *drmmode_tearfree_ptr;
 
 typedef struct {

@@ -187,16 +187,15 @@ ms_present_flush(WindowPtr window)
 #ifdef GLAMOR_HAS_GBM
 
 /*
- * A Present flip completing means any async-tearing suspension of
- * TearFree is over; clear the flag on all CRTCs so the back-buffer
- * blit loop can resume on the next BlockHandler pass.
+ * A Present commit completing means TearFree yield is over; clear the flag
+ * so the back-buffer blit loop can resume on the next BlockHandler pass.
  */
 static inline void
 ms_present_stop_tearing(modesettingPtr ms, struct ms_present_vblank_event *event)
 {
     if (ms->drmmode.tearfree && event->tearfree_crtc) {
         drmmode_crtc_private_ptr dc = event->tearfree_crtc->driver_private;
-        dc->tearfree.async_tear = FALSE;
+        dc->tearfree.yielded = FALSE;
     }
 }
 
@@ -322,17 +321,34 @@ ms_tearfree_is_active_on_crtc(xf86CrtcPtr crtc)
            xf86_crtc_on(crtc);
 }
 
+/*
+ * Yield or resume TearFree on 'crtc'.
+ */
+static void
+ms_set_tearfree_yielded(RRCrtcPtr crtc, Bool enabled)
+{
+    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
+    drmmode_crtc_private_ptr dc = xf86_crtc->driver_private;
+
+    dc->tearfree.yielded = enabled;
+}
+
+/*
+ * Check if 'pixmap' is suitable for committing to 'window'.
+ */
 static Bool
-ms_present_check_flip(RRCrtcPtr crtc,
-                      WindowPtr window,
-                      PixmapPtr pixmap,
-                      Bool sync_flip,
-                      PresentFlipReason *reason)
+ms_present_check_commit(RRCrtcPtr crtc,
+                        WindowPtr window,
+                        PixmapPtr pixmap,
+                        present_flip_type type,
+                        PresentFlipReason *reason)
 {
     ScreenPtr screen = window->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
+    Bool sync_flip = (type == PRESENT_TYPE_SYNCHRONOUS);
     Bool async_flip = !sync_flip;
+    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
 
     if (ms->drmmode.sprites_visible > 0)
         goto no_flip;
@@ -353,37 +369,31 @@ ms_present_check_flip(RRCrtcPtr crtc,
         goto no_flip;
     }
 
+    /* TearFree is active but we can yield... allow the commit */
+    if (ms_tearfree_is_active_on_crtc(xf86_crtc)) {
+        if (reason)
+            *reason = PRESENT_FLIP_REASON_TEARFREE_PREEMPTED;
+    }
+
     ms->flip_window = window;
     return TRUE;
 
 no_flip:
-    if (reason && *reason == PRESENT_FLIP_REASON_UNKNOWN && crtc) {
-        xf86CrtcPtr xf86_crtc = crtc->devPrivate;
-
-        if (ms_tearfree_is_active_on_crtc(xf86_crtc)) {
-            drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-
-            *reason = drmmode_crtc->tearfree.flip_pending ?
-                      PRESENT_FLIP_REASON_DRIVER_TEARFREE_FLIPPING :
-                      PRESENT_FLIP_REASON_DRIVER_TEARFREE;
-        }
-    }
-
     return FALSE;
 }
 
 /*
- * Queue a flip on 'crtc' to 'pixmap' at 'target_msc'. If 'sync_flip' is true,
- * then wait for vblank. Otherwise, flip immediately
+ * Commit a pixmap to 'crtc' at 'target_msc'.
+ *
+ * Yields TearFree if active, allowing a zero-copy direct commit instead of
+ * the copy-then-TearFree-deliver path.
  */
-
-#if PRESENT_SCREEN_INFO_VERSION >= 2
 static Bool
-ms_present_flip2(RRCrtcPtr crtc,
-                 uint64_t event_id,
-                 uint64_t target_msc,
-                 PixmapPtr pixmap,
-                 present_flip_type type)
+ms_present_commit(RRCrtcPtr crtc,
+                  uint64_t event_id,
+                  uint64_t target_msc,
+                  PixmapPtr pixmap,
+                  present_flip_type type)
 {
     ScreenPtr screen = crtc->pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -391,18 +401,17 @@ ms_present_flip2(RRCrtcPtr crtc,
     xf86CrtcPtr xf86_crtc = crtc->devPrivate;
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
     Bool sync_flip = (type == PRESENT_TYPE_SYNCHRONOUS);
-    Bool async_tear = (type == PRESENT_TYPE_ASYNC_TEARING);
     struct ms_present_vblank_event *event;
     Bool ret;
 
-    if (!ms_present_check_flip(crtc, ms->flip_window, pixmap, sync_flip, NULL))
+    if (!ms_present_check_commit(crtc, ms->flip_window, pixmap, type, NULL))
         return FALSE;
 
     event = calloc(1, sizeof(struct ms_present_vblank_event));
     if (!event)
         return FALSE;
 
-    DebugPresent(("\t\tms:pf2 %lld msc %llu type %d\n",
+    DebugPresent(("\t\tms:commit %lld msc %llu type %d\n",
                   (long long) event_id, (long long) target_msc, (int) type));
 
     event->event_id = event_id;
@@ -412,77 +421,31 @@ ms_present_flip2(RRCrtcPtr crtc,
         ms_window_has_variable_refresh(ms, ms->flip_window))
         ms_present_set_screen_vrr(scrn, TRUE);
 
-    /*
-     * Suspend TearFree on all active CRTCs for the duration of this flip.
-     * The client has opted into tearing so we must not queue a competing
-     * back-buffer flip on top of the async page flip.
-     */
-    if (async_tear && ms->drmmode.tearfree) {
-        drmmode_crtc->tearfree.async_tear = TRUE;
+    /* Yield TearFree so it doesn't compete with the direct commit */
+    if (ms->drmmode.tearfree) {
+        ms_set_tearfree_yielded(crtc, TRUE);
         event->tearfree_crtc = xf86_crtc;
+
+        /* If TearFree has a flip in-flight, abort it so DRM can
+         * serialize the new commit without waiting.
+         */
+        if (drmmode_crtc->tearfree.flip_pending) {
+            ms_drm_abort_seq(scrn, drmmode_crtc->tearfree.flip_seq);
+        }
     }
 
-    ret = ms_do_pageflip(screen, pixmap, event, drmmode_crtc->vblank_pipe,
-                         !sync_flip,
+    ret = ms_do_pageflip(screen, pixmap, event,
+                         drmmode_crtc->vblank_pipe, !sync_flip,
                          ms_present_flip_handler, ms_present_flip_abort,
-                         "Present-flip2");
+                         "PRESENT-commit");
     if (ret) {
         ms->drmmode.present_flipping = TRUE;
-    } else if (async_tear && ms->drmmode.tearfree) {
-        drmmode_crtc->tearfree.async_tear = FALSE;
+    } else if (ms->drmmode.tearfree) {
+        ms_set_tearfree_yielded(crtc, FALSE);
     }
 
     return ret;
 }
-#else
-static Bool
-ms_present_flip(RRCrtcPtr crtc,
-                uint64_t event_id,
-                uint64_t target_msc,
-                PixmapPtr pixmap,
-                Bool sync_flip)
-{
-    ScreenPtr screen = crtc->pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
-    drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-    Bool ret;
-    struct ms_present_vblank_event *event;
-
-    if (!ms_present_check_flip(crtc, ms->flip_window, pixmap, sync_flip, NULL))
-        return FALSE;
-
-    event = calloc(1, sizeof(struct ms_present_vblank_event));
-    if (!event)
-        return FALSE;
-
-    DebugPresent(("\t\tms:pf %lld msc %llu\n",
-                  (long long) event_id, (long long) target_msc));
-
-    event->event_id = event_id;
-    event->unflip = FALSE;
-
-    /* A window can only flip if it covers the entire X screen.
-     * Only one window can flip at a time.
-     *
-     * If the window also has the variable refresh property then
-     * variable refresh supported can be enabled on every CRTC.
-     */
-    if (ms->vrr_support && ms->is_connector_vrr_capable &&
-          ms_window_has_variable_refresh(ms, ms->flip_window)) {
-        ms_present_set_screen_vrr(scrn, TRUE);
-    }
-
-    ret = ms_do_pageflip(screen, pixmap, event, drmmode_crtc->vblank_pipe, !sync_flip,
-                         ms_present_flip_handler, ms_present_flip_abort,
-                         "Present-flip");
-    if (ret)
-        ms->drmmode.present_flipping = TRUE;
-
-    return ret;
-}
-#endif
 
 /*
  * Queue a flip back to the normal frame buffer
@@ -555,17 +518,11 @@ static present_screen_info_rec ms_present_screen_info = {
 
     .capabilities = PresentCapabilityNone,
 #ifdef GLAMOR_HAS_GBM
-    .check_flip = NULL,
-    .check_flip2 = ms_present_check_flip,
-
-#if PRESENT_SCREEN_INFO_VERSION >= 2
     .flip = NULL,
     .unflip = ms_present_unflip,
-    .flip2 = ms_present_flip2
-#else
-    .flip = ms_present_flip,
-    .unflip = ms_present_unflip,
-#endif
+
+    .check_commit = ms_present_check_commit,
+    .commit = ms_present_commit,
 #endif
 };
 
@@ -583,12 +540,8 @@ ms_present_screen_init(ScreenPtr screen)
 
     ret = drmGetCap(ms->fd, DRM_CAP_ATOMIC_ASYNC_PAGE_FLIP, &value);
     if (ret == 0 && value == 1) {
-        ms_present_screen_info.capabilities |= PresentCapabilityAsync;
-
-#if PRESENT_SCREEN_INFO_VERSION >= 2
-        ms_present_screen_info.capabilities |= PresentCapabilityAsyncMayTear;
-#endif
-
+        ms_present_screen_info.capabilities = 
+            (PresentCapabilityAsync | PresentCapabilityAsyncMayTear);
         ms->drmmode.can_async_flip = TRUE;
     }
 

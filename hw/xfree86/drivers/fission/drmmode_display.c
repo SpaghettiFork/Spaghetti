@@ -4584,6 +4584,8 @@ drmmode_tearfree_alloc_crtc(xf86CrtcPtr crtc)
 
     drmmode_crtc->tearfree.back_idx     = 0;
     drmmode_crtc->tearfree.flip_pending = FALSE;
+    drmmode_crtc->tearfree.flip_seq     = 0;
+    drmmode_crtc->tearfree.yielded      = FALSE;
 
     /*
      * Mark both buffers as fully stale so the first blit to each

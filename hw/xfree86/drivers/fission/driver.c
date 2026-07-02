@@ -911,7 +911,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     if (!crtc->enabled)
         return;
 
-    if (trf->flip_pending || trf->async_tear)
+    if (trf->flip_pending || trf->yielded)
         return;
 
     if (ms->drmmode.present_flipping)
@@ -999,6 +999,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     }
 
     trf->flip_pending = TRUE;
+    trf->flip_seq = seq;
 
 bail:
     RegionUninit(&blit_region);
