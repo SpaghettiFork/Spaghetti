@@ -198,8 +198,7 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
     const char *dest_swizzle_alpha_to_red =
         "vec4 dest_swizzle(vec4 color)\n"
         "{"
-        "	float undef;\n"
-        "	return vec4(color.a, undef, undef, undef);"
+        "	return vec4(color.a, 0.0, 0.0, 0.0);"
         "}";
     const char *dest_swizzle_ignore_alpha =
         "vec4 dest_swizzle(vec4 color)\n"
