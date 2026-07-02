@@ -104,33 +104,28 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         "}\n";
     /* The texture and the pixmap size is not match exactly, so can't sample it directly.
      * rel_sampler will recalculate the texture coords.*/
+#define REL_SAMPLER_BODY \
+    "	if (repeat >= RepeatFix) {\n" \
+    "		tex = rel_tex_coord(tex, wh, repeat);\n" \
+    "		if (repeat == RepeatFix + RepeatNone) {\n" \
+    "			if (tex.x < 0.0 || tex.x >= 1.0 || \n" \
+    "			    tex.y < 0.0 || tex.y >= 1.0)\n" \
+    "				return vec4(0.0, 0.0, 0.0, 0.0);\n" \
+    "			tex = (fract(tex) / wh.xy);\n" \
+    "		}\n" \
+    "	}\n"
     const char *rel_sampler =
         " vec4 rel_sampler_rgba(sampler2D tex_image, vec2 tex, vec4 wh, int repeat)\n"
         "{\n"
-        "	if (repeat >= RepeatFix) {\n"
-        "		tex = rel_tex_coord(tex, wh, repeat);\n"
-        "		if (repeat == RepeatFix + RepeatNone) {\n"
-        "			if (tex.x < 0.0 || tex.x >= 1.0 || \n"
-        "			    tex.y < 0.0 || tex.y >= 1.0)\n"
-        "				return vec4(0.0, 0.0, 0.0, 0.0);\n"
-        "			tex = (fract(tex) / wh.xy);\n"
-        "		}\n"
-        "	}\n"
+        REL_SAMPLER_BODY
         "	return texture(tex_image, tex);\n"
         "}\n"
         " vec4 rel_sampler_rgbx(sampler2D tex_image, vec2 tex, vec4 wh, int repeat)\n"
         "{\n"
-        "	if (repeat >= RepeatFix) {\n"
-        "		tex = rel_tex_coord(tex, wh, repeat);\n"
-        "		if (repeat == RepeatFix + RepeatNone) {\n"
-        "			if (tex.x < 0.0 || tex.x >= 1.0 || \n"
-        "			    tex.y < 0.0 || tex.y >= 1.0)\n"
-        "				return vec4(0.0, 0.0, 0.0, 0.0);\n"
-        "			tex = (fract(tex) / wh.xy);\n"
-        "		}\n"
-        "	}\n"
+        REL_SAMPLER_BODY
         "	return vec4(texture(tex_image, tex).rgb, 1.0);\n"
         "}\n";
+#undef REL_SAMPLER_BODY
     const char *stub_rel_sampler =
         " vec4 rel_sampler_rgba(sampler2D tex_image, vec2 tex, vec4 wh, int repeat)\n"
         "{\n"
