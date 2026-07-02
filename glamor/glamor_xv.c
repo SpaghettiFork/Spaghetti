@@ -172,7 +172,7 @@ static const glamor_facet glamor_facet_xv_rgb_raw = {
     .fs_vars = ("uniform sampler2D sampler;\n"
                 "in vec2 tcs;\n"),
     .fs_exec = (
-                "        frag_color = texture2D(sampler, tcs);\n"
+                "        frag_color = texture(sampler, tcs);\n"
                 ),
 };
 

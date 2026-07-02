@@ -63,7 +63,7 @@ static const glamor_facet glamor_fill_stipple = {
     .name = "stipple",
     .vs_exec =  "       fill_pos = (fill_offset + primitive.xy + pos) * fill_size_inv;\n",
     .fs_exec = ("       float a = texture(sampler, fill_pos).w;\n"
-                "       if (a == 0.0)\n"
+                "       if (a < 0.5)\n"
                 "               discard;\n"
                 "       frag_color = fg;\n"),
     .locations = glamor_program_location_fg | glamor_program_location_fillsamp | glamor_program_location_fillpos,
@@ -83,7 +83,7 @@ static const glamor_facet glamor_fill_opaque_stipple = {
     .name = "opaque_stipple",
     .vs_exec =  "       fill_pos = (fill_offset + primitive.xy + pos) * fill_size_inv;\n",
     .fs_exec = ("       float a = texture(sampler, fill_pos).w;\n"
-                "       if (a == 0.0)\n"
+                "       if (a < 0.5)\n"
                 "               frag_color = bg;\n"
                 "       else\n"
                 "               frag_color = fg;\n"),
