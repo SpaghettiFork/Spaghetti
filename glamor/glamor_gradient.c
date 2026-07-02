@@ -186,13 +186,19 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
 
     GLint gradient_prog = 0;
     char *gradient_fs = NULL;
+    char *vs_source;
     GLint fs_prog, vs_prog;
+    const char *header;
 
     const char *gradient_vs =
         GLAMOR_DEFAULT_PRECISION
-        "attribute vec4 v_position;\n"
-        "attribute vec4 v_texcoord;\n"
-        "varying vec2 source_texture;\n"
+        "#if __VERSION__ < 130\n"
+        "#define in attribute\n"
+        "#define out varying\n"
+        "#endif\n"
+        "in vec4 v_position;\n"
+        "in vec4 v_texcoord;\n"
+        "out vec2 source_texture;\n"
         "\n"
         "void main()\n"
         "{\n"
@@ -224,7 +230,9 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
      */
 
 #define gradient_radial_fs_template\
+	    "%s"\
 	    GLAMOR_DEFAULT_PRECISION\
+	    GLAMOR_COMPAT_DEFINES_FS\
 	    "uniform mat3 transform_mat;\n"\
 	    "uniform int repeat_type;\n"\
 	    "uniform float A_value;\n"\
@@ -232,7 +240,7 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
 	    "uniform float r1;\n"\
 	    "uniform vec2 c2;\n"\
 	    "uniform float r2;\n"\
-	    "varying vec2 source_texture;\n"\
+	    "in vec2 source_texture;\n"\
 	    "\n"\
 	    "vec4 get_color(float stop_len);\n"\
 	    "\n"\
@@ -303,9 +311,9 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
 	    "{\n"\
 	    "    float stop_len = get_stop_len();\n"\
 	    "    if(t_invalid == 1) {\n"\
-	    "        gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);\n"\
+	    "        frag_color = vec4(0.0, 0.0, 0.0, 0.0);\n"\
 	    "    } else {\n"\
-	    "        gl_FragColor = get_color(stop_len);\n"\
+	    "        frag_color = get_color(stop_len);\n"\
 	    "    }\n"\
 	    "}\n"\
 	    "\n"\
@@ -313,6 +321,9 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
     char *fs_getcolor_source;
 
     glamor_priv = glamor_get_screen_private(screen);
+
+    header = (glamor_priv->is_gles && glamor_priv->glsl_version > 100) ?
+        "#version 300 es\n" : "";
 
     if ((glamor_priv->radial_max_nstops >= stops_count) && (dyn_gen)) {
         /* Very Good, not to generate again. */
@@ -328,7 +339,9 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
 
     gradient_prog = glCreateProgram();
 
-    vs_prog = glamor_compile_glsl_prog(GL_VERTEX_SHADER, gradient_vs);
+    XNFasprintf(&vs_source, "%s%s", header, gradient_vs);
+    vs_prog = glamor_compile_glsl_prog(GL_VERTEX_SHADER, vs_source);
+    free(vs_source);
 
     fs_getcolor_source =
         _glamor_create_getcolor_fs_source(screen, stops_count,
@@ -336,6 +349,7 @@ _glamor_create_radial_gradient_program(ScreenPtr screen, int stops_count,
 
     XNFasprintf(&gradient_fs,
                 gradient_radial_fs_template,
+                header,
                 PIXMAN_REPEAT_NONE, PIXMAN_REPEAT_NORMAL,
                 PIXMAN_REPEAT_REFLECT,
                 fs_getcolor_source);
@@ -383,13 +397,19 @@ _glamor_create_linear_gradient_program(ScreenPtr screen, int stops_count,
     int index = 0;
     GLint gradient_prog = 0;
     char *gradient_fs = NULL;
+    char *vs_source;
     GLint fs_prog, vs_prog;
+    const char *header;
 
     const char *gradient_vs =
         GLAMOR_DEFAULT_PRECISION
-        "attribute vec4 v_position;\n"
-        "attribute vec4 v_texcoord;\n"
-        "varying vec2 source_texture;\n"
+        "#if __VERSION__ < 130\n"
+        "#define in attribute\n"
+        "#define out varying\n"
+        "#endif\n"
+        "in vec4 v_position;\n"
+        "in vec4 v_texcoord;\n"
+        "out vec2 source_texture;\n"
         "\n"
         "void main()\n"
         "{\n"
@@ -446,7 +466,9 @@ _glamor_create_linear_gradient_program(ScreenPtr screen, int stops_count,
      */
 
 #define gradient_fs_template	\
+	    "%s"\
 	    GLAMOR_DEFAULT_PRECISION\
+	    GLAMOR_COMPAT_DEFINES_FS\
 	    "uniform mat3 transform_mat;\n"\
 	    "uniform int repeat_type;\n"\
 	    "uniform int hor_ver;\n"\
@@ -454,7 +476,7 @@ _glamor_create_linear_gradient_program(ScreenPtr screen, int stops_count,
 	    "uniform float cos_val;\n"\
 	    "uniform float p1_distance;\n"\
 	    "uniform float pt_distance;\n"\
-	    "varying vec2 source_texture;\n"\
+	    "in vec2 source_texture;\n"\
 	    "\n"\
 	    "vec4 get_color(float stop_len);\n"\
 	    "\n"\
@@ -495,13 +517,16 @@ _glamor_create_linear_gradient_program(ScreenPtr screen, int stops_count,
 	    "void main()\n"\
 	    "{\n"\
 	    "    float stop_len = get_stop_len();\n"\
-	    "    gl_FragColor = get_color(stop_len);\n"\
+	    "    frag_color = get_color(stop_len);\n"\
 	    "}\n"\
 	    "\n"\
             "%s" /* fs_getcolor_source */
     char *fs_getcolor_source;
 
     glamor_priv = glamor_get_screen_private(screen);
+
+    header = (glamor_priv->is_gles && glamor_priv->glsl_version > 100) ?
+        "#version 300 es\n" : "";
 
     if ((glamor_priv->linear_max_nstops >= stops_count) && (dyn_gen)) {
         /* Very Good, not to generate again. */
@@ -516,13 +541,16 @@ _glamor_create_linear_gradient_program(ScreenPtr screen, int stops_count,
 
     gradient_prog = glCreateProgram();
 
-    vs_prog = glamor_compile_glsl_prog(GL_VERTEX_SHADER, gradient_vs);
+    XNFasprintf(&vs_source, "%s%s", header, gradient_vs);
+    vs_prog = glamor_compile_glsl_prog(GL_VERTEX_SHADER, vs_source);
+    free(vs_source);
 
     fs_getcolor_source =
         _glamor_create_getcolor_fs_source(screen, stops_count, stops_count > 0);
 
     XNFasprintf(&gradient_fs,
                 gradient_fs_template,
+                header,
                 PIXMAN_REPEAT_NORMAL, PIXMAN_REPEAT_REFLECT,
                 fs_getcolor_source);
 
