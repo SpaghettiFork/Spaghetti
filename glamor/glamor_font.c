@@ -156,10 +156,7 @@ glamor_font_get(ScreenPtr screen, FontPtr font)
                  */
                 if (gw < 0 || gh < 0 ||
                     gw > glyph_width_bytes || gh > glyph_height) {
-                    glDeleteTextures(1, &glamor_font->texture_id);
-                    glamor_font->texture_id = 0;
-                    free(bits);
-                    return NULL;
+                    goto fallback;
                 }
 
                 dst = bits;
@@ -186,13 +183,13 @@ glamor_font_get(ScreenPtr screen, FontPtr font)
     glamor_priv->suppress_gl_out_of_memory_logging = false;
 
     if (glGetError() == GL_OUT_OF_MEMORY)
-        goto out_of_memory;
+        goto fallback;
 
     free(bits);
     glamor_font->realized = TRUE;
     return glamor_font;
 
-out_of_memory:
+fallback:
     glDeleteTextures(1, &glamor_font->texture_id);
     glamor_font->texture_id = 0;
     free(bits);
