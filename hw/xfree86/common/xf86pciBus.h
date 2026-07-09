@@ -54,4 +54,12 @@ xf86MatchDriverFromFiles(uint16_t match_vendor, uint16_t match_chip,
                          XF86MatchedDrivers *md);
 void
 xf86VideoPtrToDriverList(struct pci_device *dev, XF86MatchedDrivers *md);
+
+#ifndef HAVE_PCI_DEVICE_IS_BOOT_DISPLAY
+static inline Bool pci_device_is_boot_display(struct pci_device *dev)
+{
+    return FALSE;
+}
+#endif
+
 #endif                          /* _XF86_PCI_BUS_H */
