@@ -33,9 +33,6 @@ srcs_glamor = [
     'glamor_sync.c',
 ]
 
-if build_glx
-    srcs_glamor += 'glxglamor.c'
-endif
 if build_xv
     srcs_glamor += 'glamor_xv.c'
 endif
