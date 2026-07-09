@@ -346,11 +346,6 @@ conf_data.set('PCVT_SUPPORT', supports_pcvt ? '1' : false)
 conf_data.set('SYSCONS_SUPPORT', supports_syscons ? '1' : false)
 conf_data.set('WSCONS_SUPPORT', supports_wscons ? '1' : false)
 conf_data.set('XSERVER_LIBPCIACCESS', get_option('pciaccess') ? '1' : false)
-if get_option('pciaccess')
-    pciaccess_dep = dependency('pciaccess', required: build_xorg)
-    conf_data.set('HAVE_PCI_DEVICE_IS_BOOT_DISPLAY',
-                  cc.has_function('pci_device_is_boot_display', dependencies: pciaccess_dep) ? '1' : false)
-endif
 conf_data.set('XSERVER_PLATFORM_BUS', build_udev_kms ? '1' : false)
 
 configure_file(output : 'dix-config.h',
@@ -400,6 +395,11 @@ xorg_data.set_quoted('DEFAULT_MODULE_PATH', get_option('prefix') / module_dir)
 xorg_data.set_quoted('DEFAULT_LIBRARY_PATH', get_option('prefix') / get_option('libdir'))
 xorg_data.set_quoted('__XSERVERNAME__', 'Xorg')
 xorg_data.set('XSERVER_LIBPCIACCESS', get_option('pciaccess') ? '1' : false)
+if get_option('pciaccess')
+    pciaccess_dep = dependency('pciaccess', required: build_xorg)
+    xorg_data.set('HAVE_PCI_DEVICE_IS_BOOT_DISPLAY',
+                  cc.has_function('pci_device_is_boot_display', dependencies: pciaccess_dep) ? '1' : false)
+endif
 xorg_data.set_quoted('PCI_TXT_IDS_PATH', '')
 xorg_data.set('XSERVER_PLATFORM_BUS', build_udev_kms ? '1' : false)
 xorg_data.set('WSCONS_SUPPORT',
