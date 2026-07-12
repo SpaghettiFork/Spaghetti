@@ -692,6 +692,16 @@ xf86platformAddDevice(const char *driver_name, int index)
     int i, old_screens, scr_index, scrnum;
     DriverPtr drvp = NULL;
     screenLayoutPtr layout;
+#ifdef XSERVER_LIBPCIACCESS
+#if LEGACY_ABI_COMPAT
+    const char *auto_val;
+    Bool is_nvidia;
+    ScrnInfoPtr pScrn_gpu, pScrn_primary;
+    struct pci_device *pci;
+    ScreenPtr gpu_screen, primary_screen;
+    rrScrPrivPtr gpuPriv, primaryPriv;
+#endif
+#endif
 
     if (!xf86Info.autoAddGPU)
         return -1;
@@ -763,9 +773,62 @@ xf86platformAddDevice(const char *driver_name, int index)
    /* attach unbound to the configured protocol screen (or 0) */
    scrnum = xf86GPUScreens[i]->confScreen->screennum;
    AttachUnboundGPU(xf86Screens[scrnum]->pScreen, xf86GPUScreens[i]->pScreen);
-   if (xf86Info.autoBindGPU)
-       RRProviderAutoConfigGpuScreen(xf86ScrnToScreen(xf86GPUScreens[i]),
-                                     xf86ScrnToScreen(xf86Screens[scrnum]));
+    if (xf86Info.autoBindGPU)
+        RRProviderAutoConfigGpuScreen(xf86ScrnToScreen(xf86GPUScreens[i]),
+                                      xf86ScrnToScreen(xf86Screens[scrnum]));
+
+#ifdef XSERVER_LIBPCIACCESS
+#if LEGACY_ABI_COMPAT
+    /* GPU offloading on legacy NVIDIA drivers requires manual setup,
+     * this is an attempt at automating this for users on such hardware.
+     *
+     * See the following for more details.
+     * https://us.download.nvidia.com/XFree86/Linux-x86_64/390.157/README/randr14.html */
+    pScrn_gpu = xf86GPUScreens[i];
+    pScrn_primary = xf86Screens[scrnum];
+    is_nvidia = FALSE;
+    auto_val = xf86FindOptionValue(pScrn_gpu->options, "AutoOutputSource");
+
+    if (auto_val && xf86NameCmp(auto_val, "true") == 0) {
+        if (pScrn_primary->entityList && pScrn_primary->numEntities > 0) {
+            pci = xf86GetPciInfoForEntity(pScrn_primary->entityList[0]);
+            if (pci && pci->vendor_id == 0x10DE)
+                is_nvidia = TRUE;
+        }
+
+        if (!is_nvidia && pScrn_gpu->entityList && pScrn_gpu->numEntities > 0) {
+            pci = xf86GetPciInfoForEntity(pScrn_gpu->entityList[0]);
+            if (pci && pci->vendor_id == 0x10DE)
+                is_nvidia = TRUE;
+        }
+
+        if (is_nvidia) {
+            gpu_screen = xf86ScrnToScreen(pScrn_gpu);
+            primary_screen = xf86ScrnToScreen(pScrn_primary);
+            gpuPriv = rrGetScrPriv(gpu_screen);
+            primaryPriv = rrGetScrPriv(primary_screen);
+
+            if (gpuPriv && primaryPriv &&
+                gpuPriv->provider && primaryPriv->provider &&
+                gpuPriv->rrProviderSetOutputSource) {
+
+                /* Equivalent of: 
+                 * xrandr --setprovideroutputsource <prov-xid> <source-xid> */
+                gpuPriv->rrProviderSetOutputSource(gpu_screen,
+                                                   gpuPriv->provider,
+                                                   primaryPriv->provider);
+
+                RRResourcesChanged(primary_screen);
+                RRTellChanged(primary_screen);
+                xf86Msg(X_CONFIG,
+                        "AutoOutputSource bound %s output to %s provider\n",
+                        gpuPriv->provider->name ? gpuPriv->provider->name : "GPU",
+                        primaryPriv->provider->name ? primaryPriv->provider->name : "primary");
+            }
+        }
+    }
+#endif /* LEGACY_ABI_COMPAT */
+#endif /* XSERVER_LIBPCIACCESS */
 
    RRResourcesChanged(xf86Screens[scrnum]->pScreen);
    RRTellChanged(xf86Screens[scrnum]->pScreen);

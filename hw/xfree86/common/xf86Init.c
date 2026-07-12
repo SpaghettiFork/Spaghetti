@@ -80,9 +80,6 @@
 #include "xf86Bus.h"
 #ifdef XSERVER_LIBPCIACCESS
 #include "xf86VGAarbiter.h"
-#ifndef PCI_VENDOR_NVIDIA
-#define PCI_VENDOR_NVIDIA 0x10DE
-#endif
 #endif
 #include "globals.h"
 #include "xserver-properties.h"
@@ -217,77 +214,6 @@ xf86AutoConfigOutputDevices(void)
         RRProviderAutoConfigGpuScreen(xf86ScrnToScreen(xf86GPUScreens[i]),
                                       xf86ScrnToScreen(xf86Screens[scrnum]));
     }
-
-#ifdef XSERVER_LIBPCIACCESS
-#if LEGACY_ABI_COMPAT
-    /* GPU offloading on legacy NVIDIA drivers requires manual setup,
-     * this is an attempt at automating this for users on such hardware.
-     *
-     * See the following for more details.
-     * https://us.download.nvidia.com/XFree86/Linux-x86_64/390.157/README/randr14.html */
-    for (i = 0; i < xf86NumGPUScreens; i++) {
-        ScrnInfoPtr pScrn_gpu = xf86GPUScreens[i];
-        const char *val;
-        Bool is_nvidia = FALSE;
-
-        val = xf86FindOptionValue(pScrn_gpu->options, "AutoOutputSource");
-        if (!val || xf86NameCmp(val, "true") != 0)
-            continue;
-
-        int scrnum = pScrn_gpu->confScreen->screennum;
-        ScrnInfoPtr pScrn_primary = xf86Screens[scrnum];
-
-        if (!pScrn_primary->entityList || pScrn_primary->numEntities == 0)
-            continue;
-
-        /* Check primary screen for NVIDIA */
-        struct pci_device *pci =
-            xf86GetPciInfoForEntity(pScrn_primary->entityList[0]);
-        if (pci && pci->vendor_id == PCI_VENDOR_NVIDIA)
-            is_nvidia = TRUE;
-
-        /* Also check GPU screen for NVIDIA */
-        if (!is_nvidia && pScrn_gpu->entityList && pScrn_gpu->numEntities > 0) {
-            pci = xf86GetPciInfoForEntity(pScrn_gpu->entityList[0]);
-            if (pci && pci->vendor_id == PCI_VENDOR_NVIDIA)
-                is_nvidia = TRUE;
-        }
-
-        if (!is_nvidia)
-            continue;
-
-        ScreenPtr gpu_screen = xf86ScrnToScreen(pScrn_gpu);
-        ScreenPtr primary_screen = xf86ScrnToScreen(pScrn_primary);
-        rrScrPrivPtr gpuPriv = rrGetScrPriv(gpu_screen);
-        rrScrPrivPtr primaryPriv = rrGetScrPriv(primary_screen);
-
-        if (!gpuPriv || !primaryPriv)
-            continue;
-
-        RRProviderPtr gpu_provider = gpuPriv->provider;
-        RRProviderPtr primary_provider = primaryPriv->provider;
-
-        if (!gpu_provider || !primary_provider)
-            continue;
-
-        if (!gpuPriv->rrProviderSetOutputSource)
-            continue;
-
-        /* Equivalent of: 
-         * xrandr --setprovideroutputsource <prov-xid> <source-xid> */
-        gpuPriv->rrProviderSetOutputSource(gpu_screen, gpu_provider,
-                                           primary_provider);
-
-        RRResourcesChanged(primary_screen);
-        RRTellChanged(primary_screen);
-
-        xf86DrvMsg(pScrn_gpu->scrnIndex, X_CONFIG,
-                   "AutoOutputSource bound %s output to %s provider\n",
-                   gpu_provider->name ? gpu_provider->name : "GPU",
-                   primary_provider->name ? primary_provider->name : "primary");
-    }
-#endif /* LEGACY_ABI_COMPAT */
-#endif /* XSERVER_LIBPCIACCESS */
 }
 
 static void
