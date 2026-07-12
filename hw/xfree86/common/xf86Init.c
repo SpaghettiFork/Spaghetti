@@ -274,6 +274,20 @@ xf86EnsureRANDR(ScreenPtr pScreen)
 #endif
 }
 
+static inline Bool
+xf86FetchUnboundGPU(int i, int* scrnum)
+{
+    int screenNum = xf86GPUScreens[i]->confScreen->screennum;
+
+    if (!xf86Screens[screenNum])
+        return FALSE;
+    if (!xf86GPUScreens[screenNum])
+        return FALSE;
+
+    *scrnum = screenNum;
+    return TRUE;
+}
+
 /*
  * InitOutput --
  *	Initialize screenInfo for all actually accessible framebuffers.
@@ -692,8 +706,12 @@ InitOutput(ScreenInfo * pScreenInfo, int argc, char **argv)
     }
 
     for (i = 0; i < xf86NumGPUScreens; i++) {
-        int scrnum = xf86GPUScreens[i]->confScreen->screennum;
-        AttachUnboundGPU(xf86Screens[scrnum]->pScreen, xf86GPUScreens[i]->pScreen);
+        int scrnum;
+
+        if (xf86FetchUnboundGPU(i, &scrnum))
+            AttachUnboundGPU(xf86Screens[scrnum]->pScreen, xf86GPUScreens[i]->pScreen);
+        else
+            FatalError("Cannot AttachUnboundGPU on a non-existant screen!");
     }
 
     xf86AutoConfigOutputDevices();
