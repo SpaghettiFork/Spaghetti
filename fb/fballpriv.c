@@ -34,7 +34,7 @@ fbGetScreenPrivateKey(void)
     return &fbScreenPrivateKeyRec;
 }
 
-#ifdef LEGACY_ABI_COMPAT
+#if LEGACY_ABI_COMPAT
 DevPrivateKey
 fbGetGCPrivateKey(GCPtr pGC)
 {
