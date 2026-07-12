@@ -759,29 +759,29 @@ xf86platformAddDevice(const char *driver_name, int index)
     xf86GPUScreens[i]->SetDGAMode = xf86SetDGAMode;
 #endif
 
-   scr_index = AddGPUScreen(xf86GPUScreens[i]->ScreenInit, 0, NULL);
-   if (scr_index == -1) {
-       xf86DeleteScreen(xf86GPUScreens[i]);
-       xf86UnclaimPlatformSlot(&xf86_platform_devices[index], NULL);
-       xf86NumGPUScreens = old_screens;
-       return -1;
-   }
-   dixSetPrivate(&xf86GPUScreens[i]->pScreen->devPrivates,
-                 xf86ScreenKey, xf86GPUScreens[i]);
+    scr_index = AddGPUScreen(xf86GPUScreens[i]->ScreenInit, 0, NULL);
+    if (scr_index == -1) {
+        xf86DeleteScreen(xf86GPUScreens[i]);
+        xf86UnclaimPlatformSlot(&xf86_platform_devices[index], NULL);
+        xf86NumGPUScreens = old_screens;
+        return -1;
+    }
+    dixSetPrivate(&xf86GPUScreens[i]->pScreen->devPrivates,
+                  xf86ScreenKey, xf86GPUScreens[i]);
 
-   PixmapScreenInit(xf86GPUScreens[i]->pScreen);
+    PixmapScreenInit(xf86GPUScreens[i]->pScreen);
 
-   if (xf86GPUScreens[i]->pScreen->CreateScreenResources &&
-       !(*xf86GPUScreens[i]->pScreen->CreateScreenResources) (xf86GPUScreens[i]->pScreen)) {
-       RemoveGPUScreen(xf86GPUScreens[i]->pScreen);
-       xf86DeleteScreen(xf86GPUScreens[i]);
-       xf86UnclaimPlatformSlot(&xf86_platform_devices[index], NULL);
-       xf86NumGPUScreens = old_screens;
-       return -1;
-   }
-   /* attach unbound to the configured protocol screen (or 0) */
-   scrnum = xf86GPUScreens[i]->confScreen->screennum;
-   AttachUnboundGPU(xf86Screens[scrnum]->pScreen, xf86GPUScreens[i]->pScreen);
+    if (xf86GPUScreens[i]->pScreen->CreateScreenResources &&
+        !(*xf86GPUScreens[i]->pScreen->CreateScreenResources) (xf86GPUScreens[i]->pScreen)) {
+        RemoveGPUScreen(xf86GPUScreens[i]->pScreen);
+        xf86DeleteScreen(xf86GPUScreens[i]);
+        xf86UnclaimPlatformSlot(&xf86_platform_devices[index], NULL);
+        xf86NumGPUScreens = old_screens;
+        return -1;
+    }
+    /* attach unbound to the configured protocol screen (or 0) */
+    scrnum = xf86GPUScreens[i]->confScreen->screennum;
+    AttachUnboundGPU(xf86Screens[scrnum]->pScreen, xf86GPUScreens[i]->pScreen);
     if (xf86Info.autoBindGPU)
         RRProviderAutoConfigGpuScreen(xf86ScrnToScreen(xf86GPUScreens[i]),
                                       xf86ScrnToScreen(xf86Screens[scrnum]));
@@ -839,10 +839,10 @@ xf86platformAddDevice(const char *driver_name, int index)
 #endif /* LEGACY_ABI_COMPAT */
 #endif /* XSERVER_LIBPCIACCESS */
 
-   RRResourcesChanged(xf86Screens[scrnum]->pScreen);
-   RRTellChanged(xf86Screens[scrnum]->pScreen);
+    RRResourcesChanged(xf86Screens[scrnum]->pScreen);
+    RRTellChanged(xf86Screens[scrnum]->pScreen);
 
-   return 0;
+    return 0;
 }
 
 void
