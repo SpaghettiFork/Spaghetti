@@ -423,7 +423,7 @@ typedef struct {
     unsigned int dashLength;    /* total of all dash elements */
 } FbGCPrivRec, *FbGCPrivPtr;
 
-#ifdef LEGACY_ABI_COMPAT
+#if LEGACY_ABI_COMPAT
 extern _X_EXPORT DevPrivateKey fbGetGCPrivateKey(GCPtr pGC);
 #else
 #define fbGetGCPrivateKey(pGC)  (&fbGetScreenPrivate((pGC)->pScreen)->gcPrivateKeyRec)

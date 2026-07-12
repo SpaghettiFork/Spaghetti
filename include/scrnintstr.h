@@ -606,7 +606,7 @@ typedef struct _Screen {
     SetScreenPixmapProcPtr SetScreenPixmap;
     NameWindowPixmapProcPtr NameWindowPixmap;
 
-#ifdef LEGACY_ABI_COMPAT
+#if LEGACY_ABI_COMPAT
 #define SIZEOF_POINTER (UINTPTR_MAX / 255 % 255)
     uint8_t __UNUSED__[SIZEOF_POINTER];
 #undef  SIZEOF_POINTER
