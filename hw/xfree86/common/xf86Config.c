@@ -659,7 +659,7 @@ typedef enum {
  * if the parser found the option in the config file.
  */
 static OptionInfoRec FlagOptions[] = {
-    {FLAG_DONTVTSWITCH, "AllowForceTerminate", OPTV_BOOLEAN,
+    {FLAG_ALLOW_FORCE_TERMINATE, "AllowForceTerminate", OPTV_BOOLEAN,
      {0}, FALSE},
     {FLAG_DONTVTSWITCH, "DontVTSwitch", OPTV_BOOLEAN,
      {0}, FALSE},
