@@ -424,9 +424,6 @@ typedef struct {
 } FbGCPrivRec, *FbGCPrivPtr;
 
 #ifdef LEGACY_ABI_COMPAT
-#ifdef FB_ACCESS_WRAPPER
-extern _X_EXPORT DevPrivateKey wfbGetGCPrivateKey(GCPtr pGC);
-#endif
 extern _X_EXPORT DevPrivateKey fbGetGCPrivateKey(GCPtr pGC);
 #else
 #define fbGetGCPrivateKey(pGC)  (&fbGetScreenPrivate((pGC)->pScreen)->gcPrivateKeyRec)
