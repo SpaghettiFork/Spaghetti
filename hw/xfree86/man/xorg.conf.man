@@ -1547,6 +1547,21 @@ detected when the X server starts.
 If enabled, bring up monitors of a screen in clone mode instead of horizontal
 extended layout by default. (Defaults to off; the video driver can change the
 default value, but this option can always override it)
+.TP 7
+.BI "Option \*qAutoOutputSource\*q \*q" boolean \*q
+If enabled, the server will automatically configure the provider output source
+for GPU screens when either the primary or GPU screen's device is an NVIDIA GPU.
+
+This is the equivalent to running
+.B "xrandr \-\-setprovideroutputsource"
+and
+.B "xrandr \-\-auto"
+which enables PRIME output without manual configuration.
+
+This option is only available when the server is built with
+.BR LEGACY_ABI_COMPAT .
+
+Default: off.
 .ig
 .TP 7
 This optional entry allows an IRQ number to be specified.
