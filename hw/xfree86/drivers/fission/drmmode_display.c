@@ -864,7 +864,7 @@ drmmode_set_ctm(xf86CrtcPtr crtc, const struct drm_color_ctm *ctm)
             xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
                        "Failed to queue CTM property: %d\n", ret);
         else {
-            ret = drmModeAtomicCommit(drmmode->fd, req, 0, NULL);
+            ret = drmModeAtomicCommit(drmmode->fd, req, DRM_MODE_ATOMIC_NONBLOCK, NULL);
             if (ret != 0)
                 xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
                            "Failed to commit CTM property: %d\n", ret);
@@ -1989,7 +1989,7 @@ drmmode_set_gamma_lut(drmmode_crtc_private_ptr drmmode_crtc,
                                          gamma_lut_info->prop_id,
                                          blob_id);
         if (r >= 0)
-            drmModeAtomicCommit(drmmode->fd, req, 0, NULL);
+            drmModeAtomicCommit(drmmode->fd, req, DRM_MODE_ATOMIC_NONBLOCK, NULL);
         drmModeAtomicFree(req);
     }
 
