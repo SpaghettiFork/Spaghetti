@@ -51,7 +51,9 @@
 #define fbFixCoordModePrevious wfbFixCoordModePrevious
 #define fbGCFuncs wfbGCFuncs
 #define fbGCOps wfbGCOps
+#if LEGACY_ABI_COMPAT
 #define fbGetGCPrivateKey wfbGetGCPrivateKey
+#endif
 #define fbGetImage wfbGetImage
 #define fbGetScreenPrivateKey wfbGetScreenPrivateKey
 #define fbGetSpans wfbGetSpans
