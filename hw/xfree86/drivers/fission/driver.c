@@ -1963,8 +1963,8 @@ CreateScreenResources(ScreenPtr pScreen)
 
     err = drmModeDirtyFB(ms->fd, ms->drmmode.fb_id, NULL, 0);
     if ((err != -EINVAL && err != -ENOSYS)) {
-        ms->dirty_enabled = ms->drmmode.tearfree;
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Damage tracking for TearFree available\n");
+        ms->dirty_enabled = TRUE;
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Damage tracking available\n");
     }
 
     if (dixPrivateKeyRegistered(rrPrivKey)) {
