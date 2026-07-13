@@ -838,6 +838,7 @@ drmmode_set_ctm(xf86CrtcPtr crtc, const struct drm_color_ctm *ctm)
         &drmmode_crtc->props[DRMMODE_CRTC_CTM];
     int ret;
     uint32_t blob_id = 0;
+    drmModeAtomicReq *req;
 
     if (ctm_info->prop_id == 0)
         return;
@@ -851,27 +852,26 @@ drmmode_set_ctm(xf86CrtcPtr crtc, const struct drm_color_ctm *ctm)
         }
     }
 
-    {
-        drmModeAtomicReq *req = drmModeAtomicAlloc();
-        if (!req) {
-            drmModeDestroyPropertyBlob(drmmode->fd, blob_id);
-            return;
-        }
-        ret = drmModeAtomicAddProperty(req,
-                                       drmmode_crtc->mode_crtc->crtc_id,
-                                       ctm_info->prop_id, blob_id);
-        if (ret < 0)
-            xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-                       "Failed to queue CTM property: %d\n", ret);
-        else {
-            ret = drmModeAtomicCommit(drmmode->fd, req, DRM_MODE_ATOMIC_NONBLOCK, NULL);
-            if (ret != 0)
-                xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
-                           "Failed to commit CTM property: %d\n", ret);
-        }
-        drmModeAtomicFree(req);
+    req = drmModeAtomicAlloc();
+    if (!req) {
+        drmModeDestroyPropertyBlob(drmmode->fd, blob_id);
+        return;
     }
 
+    ret = drmModeAtomicAddProperty(req,
+                                   drmmode_crtc->mode_crtc->crtc_id,
+                                   ctm_info->prop_id, blob_id);
+    if (ret < 0)
+        xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
+                    "Failed to queue CTM property: %d\n", ret);
+    else {
+        ret = drmModeAtomicCommit(drmmode->fd, req, DRM_MODE_ATOMIC_NONBLOCK, NULL);
+        if (ret != 0)
+            xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
+                       "Failed to commit CTM property: %d\n", ret);
+    }
+
+    drmModeAtomicFree(req);
     drmModeDestroyPropertyBlob(drmmode->fd, blob_id);
 }
 
