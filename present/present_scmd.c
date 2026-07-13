@@ -535,7 +535,6 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
     if (pixmap && window &&
         (vblank->reason < PRESENT_FLIP_REASON_DRIVER_TEARFREE ||
-         vblank->reason == PRESENT_FLIP_REASON_TEARFREE_PREEMPTED ||
          vblank->exec_msc != vblank->target_msc)) {
 
         if (vblank->flip) {
