@@ -265,7 +265,8 @@ get_drawable_modifiers(DrawablePtr draw, uint32_t format,
     modesettingPtr ms = modesettingPTR(scrn);
     Bool async_flip;
 
-    if (!ms->drmmode.pageflip || ms->drmmode.dri2_flipping || !scrn->vtSema
+    if (!ms->drmmode.pageflip || !scrn->vtSema ||
+        any_crtc_has_flip_owner(draw->pScreen, FLIP_OWNER_DRI2)
 #ifdef PRESENT
     || !present_can_window_flip((WindowPtr) draw)
 #endif
@@ -1704,7 +1705,7 @@ static void drmmode_prepare_modeset(ScrnInfoPtr scrn)
     ScreenPtr pScreen = scrn->pScreen;
     modesettingPtr ms = modesettingPTR(scrn);
 
-    if (!ms->drmmode.present_flipping)
+    if (!any_crtc_has_flip_owner(pScreen, FLIP_OWNER_PRESENT))
         return;
 
     if (ms->drmmode.pending_modeset)
@@ -4583,9 +4584,8 @@ drmmode_tearfree_alloc_crtc(xf86CrtcPtr crtc)
     }
 
     drmmode_crtc->tearfree.back_idx     = 0;
-    drmmode_crtc->tearfree.flip_pending = FALSE;
     drmmode_crtc->tearfree.flip_seq     = 0;
-    drmmode_crtc->tearfree.yielded      = FALSE;
+    drmmode_crtc->flip_owner            = FLIP_OWNER_NONE;
 
     /*
      * Mark both buffers as fully stale so the first blit to each

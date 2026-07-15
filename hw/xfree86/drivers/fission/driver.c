@@ -911,10 +911,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     if (!crtc->enabled)
         return;
 
-    if (trf->flip_pending || trf->yielded)
-        return;
-
-    if (ms->drmmode.present_flipping)
+    if (crtc_flip_owner(crtc) != FLIP_OWNER_NONE)
         return;
 
     if (!trf->damage ||
@@ -940,10 +937,8 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     /* Include regions this buffer missed while it was being scanned out. */
     RegionUnion(&blit_region, &blit_region, &trf->stale[back]);
 
-    if (!RegionNotEmpty(&blit_region)) {
-        RegionUninit(&blit_region);
-        return;
-    }
+    if (!RegionNotEmpty(&blit_region))
+        goto bail;
 
     /*
      * When the CRTC has a software-rotated shadow pixmap, blit from that
@@ -987,7 +982,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
                              ms_tearfree_flip_handler,
                              ms_tearfree_flip_abort);
     if (!seq)
-        return;
+        goto bail;
 
     if (drmmode_crtc_flip(crtc,
                           trf->fb_id[back],
@@ -995,10 +990,10 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
                           DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK,
                           (void *)(intptr_t) seq) != 0) {
         ms_drm_abort_seq(scrn, seq);
-        return;
+        goto bail;
     }
 
-    trf->flip_pending = TRUE;
+    crtc_flip_claim(crtc, FLIP_OWNER_TEARFREE);
     trf->flip_seq = seq;
 
 bail:
@@ -1064,8 +1059,10 @@ ms_vrr_property_update(WindowPtr window, Bool variable_refresh)
                                                 &ms->drmmode.vrrPrivateKeyRec);
     priv->variable_refresh = variable_refresh;
 
-    if (ms->flip_window == window && ms->drmmode.present_flipping)
-        ms_present_set_screen_vrr(scrn, variable_refresh);
+    if (ms->flip_window == window) {
+        if (any_crtc_has_flip_owner(scrn->pScreen, FLIP_OWNER_PRESENT))
+            ms_present_set_screen_vrr(scrn, variable_refresh);
+    }
 }
 
 /* Wrapper for xserver/dix/property.c:ProcChangeProperty */
