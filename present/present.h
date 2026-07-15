@@ -30,14 +30,8 @@
 #include "presentext.h"
 
 typedef enum {
-    /* PREEMPTED is placed before the TearFree block so that
-     * `reason >= PRESENT_FLIP_REASON_DRIVER_TEARFREE` still works.
-     */
-    PRESENT_FLIP_REASON_TEARFREE_PREEMPTED = -1,
-
     PRESENT_FLIP_REASON_UNKNOWN = 0,
     PRESENT_FLIP_REASON_BUFFER_FORMAT,
-
 
     /* Don't add new flip reasons after the TearFree ones, since it's expected
      * that the TearFree reasons are the highest ones in order to allow doing
@@ -144,6 +138,14 @@ typedef Bool (*present_check_commit_ptr) (RRCrtcPtr crtc, WindowPtr window,
                                           PixmapPtr pixmap,
                                           present_flip_type type,
                                           PresentFlipReason *reason);
+
+/* "uncommit" back to the regular screen scanout buffer
+ *
+ * present_event_notify should be called with 'event_id' when the unflip occurs.
+ */
+typedef void (*present_uncommit_ptr) (ScreenPtr screen,
+                                      RRCrtcPtr crtc,
+                                      uint64_t event_id);
 #endif
 
 /* Flip pixmap for window, return false if it didn't happen.
@@ -193,6 +195,7 @@ typedef struct present_screen_info {
 #if SPAGHETTI
     present_check_commit_ptr            check_commit;
     present_commit_ptr                  commit;
+    present_uncommit_ptr                uncommit;
 #endif
 } present_screen_info_rec, *present_screen_info_ptr;
 

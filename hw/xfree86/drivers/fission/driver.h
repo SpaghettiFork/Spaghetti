@@ -43,6 +43,7 @@
 #endif
 
 #include "drmmode_display.h"
+
 #define MS_LOGLEVEL_DEBUG 4
 
 struct ms_vrr_priv {
@@ -195,6 +196,12 @@ typedef enum ms_queue_flag {
     MS_QUEUE_NEXT_ON_MISS = 2
 } ms_queue_flag;
 
+typedef enum ms_pageflip_type {
+    MS_PAGEFLIP_SYNCHRONOUS   = 0,
+    MS_PAGEFLIP_ASYNCHRONOUS  = 1,
+    MS_PAGEFLIP_ASYNC_TEARING = 2
+} ms_pageflip_type;
+
 Bool ms_queue_vblank(xf86CrtcPtr crtc, ms_queue_flag flags,
                      uint64_t msc, uint64_t *msc_queued, uint32_t seq);
 
@@ -236,7 +243,7 @@ Bool ms_do_pageflip(ScreenPtr screen,
                     PixmapPtr new_front,
                     void *event,
                     int ref_crtc_vblank_pipe,
-                    Bool async,
+                    enum ms_pageflip_type type,
                     ms_pageflip_handler_proc pageflip_handler,
                     ms_pageflip_abort_proc pageflip_abort,
                     const char *log_prefix);
@@ -254,3 +261,77 @@ void ms_window_update_async_flip_modifiers(WindowPtr win, Bool async_flip);
 
 void ms_tearfree_flip_handler(uint64_t frame, uint64_t usec, void *data);
 void ms_tearfree_flip_abort(void *data);
+
+static inline enum drmmode_crtc_flip_owner
+crtc_flip_owner(xf86CrtcPtr crtc)
+{
+    drmmode_crtc_private_ptr dc = crtc->driver_private;
+    return dc->flip_owner;
+}
+
+static inline void
+crtc_flip_claim(xf86CrtcPtr crtc, enum drmmode_crtc_flip_owner who)
+{
+    drmmode_crtc_private_ptr dc = crtc->driver_private;
+    dc->flip_owner = who;
+}
+
+static inline void
+crtc_flip_release(xf86CrtcPtr crtc, enum drmmode_crtc_flip_owner expected)
+{
+    drmmode_crtc_private_ptr dc = crtc->driver_private;
+    
+    if (_X_LIKELY(dc->flip_owner == expected))
+        dc->flip_owner = FLIP_OWNER_NONE;
+}
+
+static inline Bool
+any_crtc_has_flip_owner(ScreenPtr screen, enum drmmode_crtc_flip_owner who)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+    int i;
+
+    for (i = 0; i < config->num_crtc; i++) {
+        if (crtc_flip_owner(config->crtc[i]) == who)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static inline void
+all_crtcs_release(ScreenPtr screen)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+    int i;
+
+    for (i = 0; i < config->num_crtc; i++) {
+        drmmode_crtc_private_ptr dc = config->crtc[i]->driver_private;
+        dc->flip_owner = FLIP_OWNER_NONE;
+    }
+}
+
+static inline void
+all_crtcs_claim(ScreenPtr screen, enum drmmode_crtc_flip_owner who)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+    int i;
+
+    for (i = 0; i < config->num_crtc; i++)
+        crtc_flip_claim(config->crtc[i], who);
+}
+
+static inline void
+all_crtcs_release_matching(ScreenPtr screen, enum drmmode_crtc_flip_owner who)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
+    int i;
+
+    for (i = 0; i < config->num_crtc; i++) {
+        crtc_flip_release(config->crtc[i], who);
+    }
+}

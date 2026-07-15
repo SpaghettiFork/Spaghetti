@@ -42,18 +42,18 @@ present_vblank_notify(present_vblank_ptr vblank, CARD8 kind, CARD8 mode, uint64_
     }
 }
 
-static Bool
-present_want_async_flip(uint32_t options, uint32_t capabilities)
+static inline present_flip_type
+present_get_flip_type(uint32_t options, uint32_t capabilities)
 {
-	if (options & PresentOptionAsync &&
-	    capabilities & PresentCapabilityAsync)
-		return TRUE;
-
 	if (options & PresentOptionAsyncMayTear &&
 	    capabilities & PresentCapabilityAsyncMayTear)
-		return TRUE;
+		return PRESENT_TYPE_ASYNC_TEARING;
 
-	return FALSE;
+	if (options & PresentOptionAsync &&
+	    capabilities & PresentCapabilityAsync)
+		return PRESENT_TYPE_ASYNCHRONOUS;
+
+	return PRESENT_TYPE_SYNCHRONOUS;
 }
 
 /* The memory vblank points to must be 0-initialized before calling this function.
@@ -135,14 +135,7 @@ present_vblank_init(present_vblank_ptr vblank,
         !(options & PresentOptionCopy) &&
         screen_priv->check_flip) {
 
-        Bool sync_flip = !present_want_async_flip(options, capabilities);
-        present_flip_type type;
-
-        if (sync_flip)
-            type = PRESENT_TYPE_SYNCHRONOUS;
-        else
-            type = (options & PresentOptionAsyncMayTear)
-                 ? PRESENT_TYPE_ASYNC_TEARING : PRESENT_TYPE_ASYNCHRONOUS;
+        present_flip_type type = present_get_flip_type(options, capabilities);
 
         if (screen_priv->check_flip(target_crtc, window, pixmap,
                                     type, valid, x_off, y_off, &reason))

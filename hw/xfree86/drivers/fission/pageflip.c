@@ -180,6 +180,9 @@ static Bool
 do_queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc, uint32_t flags,
                       uint32_t seq, uint32_t fb_id, int x, int y)
 {
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
+
     while (drmmode_crtc_flip(crtc, fb_id, x, y, flags, (void *)(long)seq)) {
         /* We may have failed because the event queue was full.  Flush it
          * and retry.  If there was nothing to flush, then we failed for
@@ -189,7 +192,7 @@ do_queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc, uint32_t flags,
             /* The failure could be caused by a pending TearFree flip, in which
              * case we should wait until there's a new event and try again.
              */
-            if (ms_flush_drm_events_timeout(screen, -1) < 0) {
+            if (!trf->flip_seq || ms_flush_drm_events_timeout(screen, -1) < 0) {
                 ms_drm_abort_seq(crtc->scrn, seq);
                 return TRUE;
             }
@@ -331,7 +334,7 @@ ms_do_pageflip(ScreenPtr screen,
                PixmapPtr new_front,
                void *event,
                int ref_crtc_vblank_pipe,
-               Bool async,
+               enum ms_pageflip_type type,
                ms_pageflip_handler_proc pageflip_handler,
                ms_pageflip_abort_proc pageflip_abort,
                const char *log_prefix)
@@ -416,17 +419,25 @@ ms_do_pageflip(ScreenPtr screen,
 
         /*
          * Promote this CRTC's flip to async in two cases: the flip was already
-         * requested as async (e.g. PRESENT_TYPE_ASYNC_TEARING), or this is a
-         * secondary CRTC not used for flip timing and event delivery.  In the
-         * latter case, tearing may occur on the secondary output, but it
+         * requested as async or this is a secondary CRTC not used for flip
+         * timing and event delivery. 
+         * 
+         * In the latter case, tearing may occur on the secondary output, but it
          * prevents multi-display flips from being throttled to the refresh
          * cycle of every active CRTC, avoiding periodic slowdowns and judder
          * on unsynchronised outputs.  This is especially beneficial in
          * clone-mode or mirror-mode configurations.
          */
         if (ms->drmmode.can_async_flip &&
-            ms_can_promote_to_async(drmmode_crtc, async, ref_crtc_vblank_pipe))
+            ms_can_promote_to_async(drmmode_crtc, type, ref_crtc_vblank_pipe))
             flags |= DRM_MODE_PAGE_FLIP_ASYNC;
+
+        /*
+         * Enable non-blocking commits if we want to tear.
+         */
+        if (ms->drmmode.can_async_flip &&
+            type == MS_PAGEFLIP_ASYNC_TEARING)
+            flags |= DRM_MODE_ATOMIC_NONBLOCK;
 
         flip_status = queue_flip_on_crtc(screen, crtc, flipdata,
                                          ref_crtc_vblank_pipe,
@@ -501,8 +512,9 @@ ms_tearfree_flip_handler(uint64_t frame, uint64_t usec, void *data)
 
     /* Back buffer is now being scanned out; swap roles. */
     drmmode_crtc->tearfree.back_idx     ^= 1;
-    drmmode_crtc->tearfree.flip_pending  = FALSE;
     drmmode_crtc->tearfree.flip_seq      = 0;
+
+    crtc_flip_release(crtc, FLIP_OWNER_TEARFREE);
 }
 
 void
@@ -511,6 +523,6 @@ ms_tearfree_flip_abort(void *data)
     xf86CrtcPtr crtc = data;
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-    drmmode_crtc->tearfree.flip_pending = FALSE;
-    drmmode_crtc->tearfree.flip_seq     = 0;
+    drmmode_crtc->tearfree.flip_seq = 0;
+    crtc_flip_release(crtc, FLIP_OWNER_TEARFREE);
 }
