@@ -448,7 +448,7 @@ struct ms_dri2_vblank_event {
 static void
 ms_dri2_flip_abort(modesettingPtr ms, void *data)
 {
-    struct ms_present_vblank_event *event = data;
+    struct ms_dri2_vblank_event *event = data;
 
     ms->drmmode.dri2_flipping = FALSE;
     free(event);
