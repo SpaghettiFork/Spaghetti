@@ -1,0 +1,106 @@
+.\" Copyright (C) 2026 Spaghetti Fork
+.\"
+.\" Permission to use, copy, modify, distribute, and sell this software and its
+.\" documentation for any purpose is hereby granted without fee, provided that
+.\" the above copyright notice appear in all copies and that both that
+.\" copyright notice and this permission notice appear in supporting
+.\" documentation.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+.\" IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+.\" FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+.\" COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+.\" WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+.\" OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+.\" SOFTWARE.
+.TH NAMESPACES 7 "2026-06-20" "X Version 11" " Miscellaneous Information Functions"
+.SH NAME
+namespaces \- SPAGHETTI-NS display namespace extension
+.SH SYNOPSIS
+.B #include <X11/extensions/namespacesproto.h>
+.SH DESCRIPTION
+The SPAGHETTI-NS extension provides display namespace isolation for X11 clients.
+Each application gets its own "display namespace" \(em an isolated view of the X
+server. Children automatically inherit the parent's namespace via fork/exec.
+.PP
+When enabled via the
+.B \-namespaces
+command-line option or
+.BR "Option \(dqNamespaces\(dq \(dqtrue\(dq" " in"
+.BR xorg.conf (5),
+the extension provides:
+.IP \(bu 2
+Window visibility isolation
+.IP \(bu 2
+Event delivery isolation
+.IP \(bu 2
+Input grab isolation
+.IP \(bu 2
+Screen capture protection
+.IP \(bu 2
+Property access control
+.IP \(bu 2
+Selection/clipboard isolation (optional)
+.SH REQUESTS
+The extension provides the following protocol requests:
+.TP
+.B xNSQueryVersion
+Query the extension version.
+.TP
+.B xNSListNamespaces
+List namespaces visible to the calling client. Root-namespace clients see all
+namespaces; non-root clients see only root and their own namespace.
+.TP
+.B xNSGetClientNamespace
+Query which namespace a client belongs to.
+.TP
+.B xNSGetWindowNamespace
+Query which namespace a window belongs to.
+.TP
+.B xNSMoveClient
+Move a client to a different namespace. Requires root namespace privilege.
+The targetNamespace field controls the destination: 0 for root,
+XNS_NEW_NAMESPACE (0xFFFFFFFF) to create a new namespace, or any other
+value to move to that existing namespace. Sibling promotion applies only
+when moving to root.
+.TP
+.B xNSListClients
+List client IDs in a namespace.
+.TP
+.B xNSPromoteSelf
+Promote the calling client to the root namespace. Optionally promotes all
+sibling clients in the same namespace. If a PromotePassword is configured,
+the password field in the request must match or the request is denied.
+.TP
+.B xNSGetClientPID
+Query the process ID of a client. Requires root namespace privilege. Returns
+xNSClientIsExternal if the client has no local PID.
+.SH ERRORS
+.TP
+.B xNSBadNamespace
+Namespace does not exist.
+.TP
+.B xNSBadAccess
+Not authorized for this operation.
+.TP
+.B xNSBadClient
+Client ID not found.
+.TP
+.B xNSClientIsExternal
+Target client has no local PID (e.g. external/socket client).
+.SH CONFIGURATION
+.SS xorg.conf
+.nf
+Section "ServerFlags"
+    Option "Namespaces" "true"
+    Option "IsolateClipboard" "true"    # optional
+    Option "PromotePassword" "secret"   # optional, up to 32 bytes, null-padded
+EndSection
+.fi
+.SS Command-line
+.nf
+Xorg -namespaces :0
+.fi
+.SH SEE ALSO
+.BR XSECURITY (7),
+.BR xorg.conf (5)

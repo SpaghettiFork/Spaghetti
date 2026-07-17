@@ -147,6 +147,10 @@ Equipment Corporation.
 #include "eventconvert.h"
 #include "mi.h"
 
+#ifdef SPAGHETTI_NS
+#include "namespacesstr.h"
+#endif
+
 #define _XkbWantsDetectableAutoRepeat(c) \
         ((c)->xkbClientFlags&XkbPCF_DetectableAutoRepeatMask)
 
@@ -2517,6 +2521,15 @@ DeliverRawEvent(RawDeviceEvent *ev, DeviceIntPtr device)
              * device.
              */
             ic.next = NULL;
+
+#if SPAGHETTI_NS
+            if (UseNamespaces && xns_client_namespace(rClient(&ic)) != 0) {
+                if (rClient(&ic) != serverClient &&
+                    (xi2_get_type(xi) == XI_RawKeyPress || xi2_get_type(xi) == XI_RawKeyRelease)) {
+                    continue;
+                }
+            }
+#endif
 
             if (!FilterRawEvents(rClient(&ic), grab, root))
                 DeliverEventToInputClients(device, &ic, root, xi, 1,
@@ -5693,6 +5706,16 @@ ProcGrabKey(ClientPtr client)
     if (rc != Success)
         return rc;
 
+#if SPAGHETTI_NS
+    /* Check namespace isolation for grabs */
+    if (UseNamespaces) {
+        uint32_t win_ns = xns_window_namespace(pWin);
+        uint32_t client_ns = xns_client_namespace(client);
+        if (win_ns != 0 && win_ns != client_ns)
+            return BadAccess;
+    }
+#endif
+
     mask.core = (KeyPressMask | KeyReleaseMask);
 
     grab = CreateGrab(client->index, keybd, keybd, pWin, CORE, &mask,
@@ -5750,6 +5773,17 @@ ProcGrabButton(ClientPtr client)
     rc = dixLookupWindow(&pWin, stuff->grabWindow, client, DixSetAttrAccess);
     if (rc != Success)
         return rc;
+
+#if SPAGHETTI_NS
+    /* Check namespace isolation for grabs */
+    if (UseNamespaces) {
+        uint32_t win_ns = xns_window_namespace(pWin);
+        uint32_t client_ns = xns_client_namespace(client);
+        if (win_ns != 0 && win_ns != client_ns)
+            return BadAccess;
+    }
+#endif
+
     if (stuff->confineTo == None)
         confineTo = NullWindow;
     else {

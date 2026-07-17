@@ -96,6 +96,10 @@ in this Software without prior written authorization from The Open Group.
 
 #include "extinit.h"
 
+#ifdef SPAGHETTI_NS
+#include "namespacesstr.h"
+#endif
+
 typedef struct _ShmScrPrivateRec {
     CloseScreenProcPtr CloseScreen;
     ShmFuncsPtr shmFuncs;
@@ -641,6 +645,13 @@ ProcShmGetImage(ClientPtr client)
         return rc;
     VERIFY_SHMPTR(stuff->shmseg, stuff->offset, TRUE, shmdesc, client);
     if (pDraw->type == DRAWABLE_WINDOW) {
+#if SPAGHETTI_NS
+        if (pDraw == (DrawablePtr) ((WindowPtr) pDraw)->drawable.pScreen->root) {
+            if (UseNamespaces && xns_client_namespace(client) != 0) {
+                return BadAccess;
+            }
+        }
+#endif
         if (   /* check for being viewable */
                !((WindowPtr) pDraw)->realized ||
                /* check for being on screen */
@@ -823,6 +834,12 @@ ProcPanoramiXShmGetImage(ClientPtr client)
     planemask = stuff->planeMask;
 
     isRoot = (draw->type == XRT_WINDOW) && draw->u.win.root;
+
+#if SPAGHETTI_NS
+    if (isRoot && (UseNamespaces && xns_client_namespace(client) != 0)) {
+        return BadAccess;
+    }
+#endif
 
     if (isRoot) {
         if (                    /* check for being onscreen */

@@ -729,6 +729,11 @@ ProcessCommandLine(int argc, char *argv[])
         else if (strcmp(argv[i], "-ac") == 0) {
             defeatAccessControl = TRUE;
         }
+#if SPAGHETTI_NS
+        else if (strcmp(argv[i], "-namespaces") == 0) {
+            UseNamespaces = TRUE;
+        }
+#endif
         else if (strcmp(argv[i], "-audit") == 0) {
             if (++i < argc)
                 auditTrailLevel = atoi(argv[i]);

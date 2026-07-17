@@ -118,3 +118,9 @@ const char *display;
 int displayfd = -1;
 Bool explicit_display = FALSE;
 char *ConnectionInfo;
+
+#if SPAGHETTI_NS
+Bool UseNamespaces = FALSE;
+Bool IsolateClipboard = FALSE;
+const char *PromotePassword = NULL;
+#endif

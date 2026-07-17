@@ -52,6 +52,11 @@ if build_xsecurity
     srcs_xext += ['security.c']
 endif
 
+if build_spaghetti_ns
+    srcs_xext += ['namespaces/namespaces.c']
+    hdrs_xext += ['namespaces/namespacesproto.h']
+endif
+
 if build_xselinux
     srcs_xext += ['xselinux_ext.c', 'xselinux_hooks.c', 'xselinux_label.c']
 endif

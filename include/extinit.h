@@ -125,6 +125,10 @@ extern _X_EXPORT Bool noSecurityExtension;
 extern void SecurityExtensionInit(void);
 #endif
 
+#ifdef SPAGHETTI_NS
+extern void xNSExtensionInit(void);
+#endif
+
 #ifdef XF86BIGFONT
 extern _X_EXPORT Bool noXFree86BigfontExtension;
 extern void XFree86BigfontExtensionInit(void);

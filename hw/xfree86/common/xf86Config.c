@@ -652,6 +652,9 @@ typedef enum {
     FLAG_IGLX,
     FLAG_DEBUG,
     FLAG_ALLOW_BYTE_SWAPPED_CLIENTS,
+    FLAG_NAMESPACES,
+    FLAG_ISOLATE_CLIPBOARD,
+    FLAG_PROMOTE_PASSWORD,
 } FlagValues;
 
 /**
@@ -715,6 +718,12 @@ static OptionInfoRec FlagOptions[] = {
      {0}, FALSE},
     {FLAG_ALLOW_BYTE_SWAPPED_CLIENTS, "AllowByteSwappedClients", OPTV_BOOLEAN,
      {0}, FALSE},
+    {FLAG_NAMESPACES, "Namespaces", OPTV_BOOLEAN,
+     {0}, FALSE},
+    {FLAG_ISOLATE_CLIPBOARD, "IsolateClipboard", OPTV_BOOLEAN,
+     {0}, FALSE},
+    {FLAG_PROMOTE_PASSWORD, "PromotePassword", OPTV_STRING,
+     {0}, FALSE},
     {-1, NULL, OPTV_NONE,
      {0}, FALSE},
 };
@@ -767,6 +776,33 @@ configServerFlags(XF86ConfFlagsPtr flagsconf, XF86OptionPtr layoutopts)
     if (AllowByteSwappedClients) {
         xf86Msg(X_CONFIG, "Allowing byte-swapped clients\n");
     }
+
+#if SPAGHETTI_NS
+    if (xf86GetOptValBool(FlagOptions, FLAG_NAMESPACES, &value))
+        UseNamespaces = value;
+    if (UseNamespaces) {
+        xf86Msg(X_CONFIG, "Display namespaces enabled\n");
+    }
+
+    if (xf86GetOptValBool(FlagOptions, FLAG_ISOLATE_CLIPBOARD, &value))
+        IsolateClipboard = value;
+    if (IsolateClipboard) {
+        xf86Msg(X_CONFIG, "Clipboard isolation enabled\n");
+    }
+
+    if ((s = xf86GetOptValString(FlagOptions, FLAG_PROMOTE_PASSWORD))) {
+        char buf[32];
+        size_t len = strlen(s);
+        if (len > 31) {
+            xf86Msg(X_WARNING, "PromotePassword truncated to 31 characters\n");
+            len = 31;
+        }
+        memcpy(buf, s, len);
+        buf[len] = '\0';
+        PromotePassword = Xstrdup(buf);
+        xf86Msg(X_CONFIG, "PromoteSelf password authentication enabled\n");
+    }
+#endif
 
     if (xf86IsOptionSet(FlagOptions, FLAG_AUTO_ADD_DEVICES)) {
         xf86GetOptValBool(FlagOptions, FLAG_AUTO_ADD_DEVICES,

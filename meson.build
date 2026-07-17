@@ -450,6 +450,13 @@ if build_xsecurity
     endif
 endif
 
+build_spaghetti_ns = get_option('namespaces')
+if build_spaghetti_ns
+    if not build_xace
+        error('cannot build SPAGHETTI-NS extension without X-ACE')
+    endif
+endif
+
 build_xv = get_option('xv')
 build_xvmc = get_option('xvmc')
 if not build_xv
@@ -537,6 +544,7 @@ common_dep = [
 inc = include_directories(
     '.',
     'Xext',
+    'Xext/namespaces',
     'Xi',
     'composite',
     'damageext',

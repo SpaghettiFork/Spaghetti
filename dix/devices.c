@@ -87,6 +87,11 @@ SOFTWARE.
 #include "xserver-properties.h"
 #include "xichangehierarchy.h"  /* For XISendDeviceHierarchyEvent */
 #include "syncsrv.h"
+#include "opaque.h"
+
+#ifdef SPAGHETTI_NS
+#include "namespacesstr.h"
+#endif
 
 /** @file
  * This file handles input device-related stuff.
@@ -2531,6 +2536,15 @@ ProcQueryKeymap(ClientPtr client)
     };
 
     rc = XaceHookDeviceAccess(client, keybd, DixReadAccess);
+
+#if SPAGHETTI_NS
+    if ((UseNamespaces && xns_client_namespace(client) != 0) && client != serverClient) {
+        memset(rep.map, 0, sizeof(rep.map));
+        WriteReplyToClient(client, sizeof(xQueryKeymapReply), &rep);
+        return Success;
+    }
+#endif
+
     /* If rc is Success, we're allowed to copy out the keymap.
      * If it's BadAccess, we leave it empty & lie to the client.
      */

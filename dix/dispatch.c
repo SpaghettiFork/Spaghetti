@@ -128,6 +128,10 @@ Equipment Corporation.
 #include "client.h"
 #include "xfixesint.h"
 
+#ifdef SPAGHETTI_NS
+#include "namespacesstr.h"
+#endif
+
 // temporary workaround for win32/mingw32 name clash
 #undef CreateWindow
 
@@ -1077,8 +1081,17 @@ ProcQueryTree(ClientPtr client)
         .parent = (pWin->parent) ? pWin->parent->drawable.id : (Window) None
     };
     pHead = RealChildHead(pWin);
-    for (pChild = pWin->lastChild; pChild != pHead; pChild = pChild->prevSib)
+    for (pChild = pWin->lastChild; pChild != pHead; pChild = pChild->prevSib) {
+#if SPAGHETTI_NS
+        if (UseNamespaces) {
+            uint32_t child_ns  = xns_window_namespace(pChild);
+            uint32_t client_ns = xns_client_namespace(client);
+            if (client_ns != 0 && child_ns != 0 && child_ns != client_ns)
+                continue;
+        }
+#endif
         numChildren++;
+    }
     if (numChildren) {
         int curChild = 0;
 
@@ -1086,8 +1099,19 @@ ProcQueryTree(ClientPtr client)
         if (!childIDs)
             return BadAlloc;
         for (pChild = pWin->lastChild; pChild != pHead;
-             pChild = pChild->prevSib)
+             pChild = pChild->prevSib) {
+
+#if SPAGHETTI_NS
+            if (UseNamespaces) {
+                uint32_t child_ns  = xns_window_namespace(pChild);
+                uint32_t client_ns = xns_client_namespace(client);
+                if (client_ns != 0 && child_ns != 0 && child_ns != client_ns)
+                    continue;
+            }
+#endif
+
             childIDs[curChild++] = pChild->drawable.id;
+        }
     }
 
     reply.nChildren = numChildren;
@@ -2168,6 +2192,14 @@ DoGetImage(ClientPtr client, int format, Drawable drawable,
 
     if (pDraw->type == DRAWABLE_WINDOW) {
         WindowPtr pWin = (WindowPtr) pDraw;
+
+#if SPAGHETTI_NS
+        if (pDraw == (DrawablePtr) pWin->drawable.pScreen->root) {
+            if (UseNamespaces && xns_client_namespace(client) != 0) {
+                return BadAccess;
+            }
+        }
+#endif
 
         /* "If the drawable is a window, the window must be viewable ... or a
          * BadMatch error results" */

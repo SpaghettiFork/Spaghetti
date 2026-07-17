@@ -93,6 +93,8 @@ option('xinerama', type: 'boolean', value: true,
        description: 'Xinerama extension')
 option('xcsecurity', type: 'boolean', value: false,
        description: 'Security extension')
+option('namespaces', type: 'boolean', value: false,
+       description: 'Enable the SPAGHETTI-NS extension (experimental)')
 option('xv', type: 'boolean', value: true,
        description: 'Xv extension')
 option('xvmc', type: 'boolean', value: true,
