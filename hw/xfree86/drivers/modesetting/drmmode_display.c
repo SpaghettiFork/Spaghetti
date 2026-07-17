@@ -280,7 +280,7 @@ get_drawable_modifiers(DrawablePtr draw, uint32_t format,
     ms_window_update_async_flip_modifiers((WindowPtr)draw, async_flip);
 
     *num_modifiers = get_modifiers_set(scrn, format, modifiers,
-                                       TRUE, FALSE, async_flip);
+                                       TRUE, !ms->drmmode.multiplanar, async_flip);
     return TRUE;
 }
 #endif
