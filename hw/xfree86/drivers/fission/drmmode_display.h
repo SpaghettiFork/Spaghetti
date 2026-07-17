@@ -118,6 +118,7 @@ typedef struct {
     /* Broken-out options. */
     OptionInfoPtr Options;
 
+    Bool multiplanar;
     Bool glamor;
     Bool shadow_enable;
     Bool shadow_enable2;
