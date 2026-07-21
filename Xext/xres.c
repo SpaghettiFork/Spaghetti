@@ -585,6 +585,8 @@ ProcXResQueryClientIds (ClientPtr client)
     InitConstructClientIdCtx(&ctx);
 
     REQUEST_AT_LEAST_SIZE(xXResQueryClientIdsReq);
+    if (stuff->numSpecs > UINT32_MAX / sizeof(specs[0]))
+        return BadLength;
     REQUEST_FIXED_SIZE(xXResQueryClientIdsReq,
                        stuff->numSpecs * sizeof(specs[0]));
 
@@ -1060,6 +1062,8 @@ SProcXResQueryClientIds (ClientPtr client)
 
     REQUEST_AT_LEAST_SIZE (xXResQueryClientIdsReq);
     swapl(&stuff->numSpecs);
+    if (stuff->numSpecs > UINT32_MAX / sizeof(*specs))
+        return BadLength;
     REQUEST_FIXED_SIZE(xXResQueryClientIdsReq,
                        stuff->numSpecs * sizeof(xXResClientIdSpec));
 
