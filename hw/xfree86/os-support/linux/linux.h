@@ -26,7 +26,13 @@
 #ifndef XF86_LINUX_H
 #define XF86_LINUX_H
 
+#include "xf86.h"
+
 int linux_parse_vt_settings(int may_fail);
 int linux_get_keeptty(void);
+
+extern Bool disable_cgroup;
+
+void xf86SetupCGroup(void);
 
 #endif
