@@ -371,6 +371,11 @@ xf86ProcessArgument(int argc, char *argv[], int i)
      * Keep server from detaching from controlling tty.  This is useful
      * when debugging (so the server can receive keyboard signals.
      */
+    if (!strcmp(argv[i], "-nocgroup")) {
+        nocgroup = TRUE;
+        return 1;
+    }
+
     if (!strcmp(argv[i], "-keeptty")) {
         KeepTty = TRUE;
         return 1;
@@ -404,6 +409,8 @@ void
 xf86UseMsg(void)
 {
     ErrorF("vtXX                   use the specified VT number\n");
+    ErrorF("-nocgroup              ");
+    ErrorF("disable cgroup assignment\n");
     ErrorF("-keeptty               ");
     ErrorF("don't detach controlling tty (for debugging only)\n");
     ErrorF("-masterfd <fd>         use the specified fd as the DRM master fd (not if setuid/gid)\n");

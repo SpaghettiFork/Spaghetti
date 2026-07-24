@@ -92,6 +92,8 @@
 #ifdef __linux__
 #include <linux/major.h>
 #include <sys/sysmacros.h>
+extern void xf86cgroupSetup(void);
+extern void xf86cgroupCleanup(void);
 #endif
 #include <hotplug.h>
 
@@ -783,6 +785,9 @@ OsVendorInit(void)
     if (!beenHere) {
         umask(022);
         xf86LogInit();
+#ifdef __linux__
+        xf86cgroupSetup();
+#endif
     }
 
     /* Set stderr to non-blocking. */
@@ -861,6 +866,10 @@ ddxGiveUp(enum ExitCode error)
 
     if (xorgHWOpenConsole)
         xf86CloseConsole();
+
+#ifdef __linux__
+    xf86cgroupCleanup();
+#endif
 
     systemd_logind_fini();
     dbus_core_fini();

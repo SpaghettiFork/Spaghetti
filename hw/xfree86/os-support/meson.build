@@ -34,6 +34,7 @@ endif
 if host_machine.system() == 'linux'
     srcs_xorg_os_support += [
         'linux/lnx_bell.c',
+        'linux/lnx_cgroup.c',
         'linux/lnx_init.c',
         'linux/lnx_kmod.c',
         'linux/lnx_video.c',
