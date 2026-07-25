@@ -2606,7 +2606,7 @@ static void GetTime(void)
     if (millis < (CARD32)(Now & 0xffffffff))
         maxis++;
 
-    Now = ((INT64)maxis << 32) | (INT64)millis;
+    Now = ((int64_t)maxis << 32) | (int64_t)millis;
 }
 
 /*
