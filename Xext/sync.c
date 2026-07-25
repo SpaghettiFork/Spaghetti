@@ -577,18 +577,29 @@ SyncAlarmTriggerFired(SyncTrigger * pTrigger)
         if (paTrigger->test_type == XSyncPositiveComparison ||
             paTrigger->test_type == XSyncNegativeComparison) {
 
-            int64_t diff = paCounter->value - paTrigger->test_value;
-            int64_t steps = diff / pAlarm->delta + 1;
-            int64_t advance;
+            int64_t diff, steps, advance;
 
-            if (INT64_MUL_OVERFLOW(steps, pAlarm->delta, &advance))
+            if (checked_int64_subtract(&diff, paCounter->value,
+                                       paTrigger->test_value)) {
                 overflow = TRUE;
-            else
-                overflow = checked_int64_add(&paTrigger->test_value,
-                                             paTrigger->test_value, advance);
+            }
+            else if (pAlarm->delta == -1 && diff == INT64_MIN) {
+                /* INT64_MIN / -1 is not representable as int64_t */
+                overflow = TRUE;
+            }
+            else {
+                steps = diff / pAlarm->delta + 1;
+
+                if (INT64_MUL_OVERFLOW(steps, pAlarm->delta, &advance))
+                    overflow = TRUE;
+                else
+                    overflow = checked_int64_add(&paTrigger->test_value,
+                                                 paTrigger->test_value, advance);
+            }
 
 #ifdef DEBUG
-            BUG_WARN((*paTrigger->CheckTrigger)(paTrigger, paCounter->value));
+            BUG_WARN(!overflow &&
+                     (*paTrigger->CheckTrigger) (paTrigger, paCounter->value));
 #endif
         } else {
             overflow = checked_int64_add(&paTrigger->test_value,
