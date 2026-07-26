@@ -1102,22 +1102,21 @@ DoGetFBConfigs(__GLXclientState * cl, unsigned screen)
         WRITE_PAIR(GLX_BIND_TO_MIPMAP_TEXTURE_EXT, modes->bindToMipmapTexture);
         WRITE_PAIR(GLX_BIND_TO_TEXTURE_TARGETS_EXT,
                    modes->bindToTextureTargets);
-	/* can't report honestly until mesa is fixed */
-	WRITE_PAIR(GLX_Y_INVERTED_EXT, GLX_DONT_CARE);
-	if (modes->drawableType & GLX_PBUFFER_BIT) {
-	    WRITE_PAIR(GLX_MAX_PBUFFER_WIDTH, modes->maxPbufferWidth);
-	    WRITE_PAIR(GLX_MAX_PBUFFER_HEIGHT, modes->maxPbufferHeight);
-	    WRITE_PAIR(GLX_MAX_PBUFFER_PIXELS, modes->maxPbufferPixels);
-	    WRITE_PAIR(GLX_OPTIMAL_PBUFFER_WIDTH_SGIX,
-		       modes->optimalPbufferWidth);
-	    WRITE_PAIR(GLX_OPTIMAL_PBUFFER_HEIGHT_SGIX,
-		       modes->optimalPbufferHeight);
-	}
+        /* can't report honestly until mesa is fixed */
+        WRITE_PAIR(GLX_Y_INVERTED_EXT, GLX_DONT_CARE);
+        if (modes->drawableType & GLX_PBUFFER_BIT) {
+            WRITE_PAIR(GLX_MAX_PBUFFER_WIDTH, modes->maxPbufferWidth);
+            WRITE_PAIR(GLX_MAX_PBUFFER_HEIGHT, modes->maxPbufferHeight);
+            WRITE_PAIR(GLX_MAX_PBUFFER_PIXELS, modes->maxPbufferPixels);
+            WRITE_PAIR(GLX_OPTIMAL_PBUFFER_WIDTH_SGIX, modes->optimalPbufferWidth);
+            WRITE_PAIR(GLX_OPTIMAL_PBUFFER_HEIGHT_SGIX, modes->optimalPbufferHeight);
+        }
         /* Add attribute only if its value is not default. */
         if (modes->sRGBCapable != GL_FALSE) {
             WRITE_PAIR(GLX_FRAMEBUFFER_SRGB_CAPABLE_EXT, modes->sRGBCapable);
         }
-        WRITE_PAIR(GLX_FLOAT_COMPONENTS_NV, modes->renderType & (GLX_RGBA_FLOAT_BIT_ARB | GLX_RGBA_UNSIGNED_FLOAT_BIT_EXT));
+        WRITE_PAIR(GLX_FLOAT_COMPONENTS_NV, modes->renderType 
+            & (GLX_RGBA_FLOAT_BIT_ARB | GLX_RGBA_UNSIGNED_FLOAT_BIT_EXT));
         /* Pad the remaining place with zeroes, so that attributes count is constant. */
         while (p < __GLX_FBCONFIG_ATTRIBS_LENGTH) {
             WRITE_PAIR(0, 0);
