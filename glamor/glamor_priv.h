@@ -285,6 +285,7 @@ typedef struct glamor_screen_private {
     glamor_program_fill on_off_dash_line_progs;
     glamor_program      double_dash_line_prog;
     glamor_program      stippled_double_dash_line_prog;
+    glamor_program      stippled_opaque_double_dash_line_prog;
 
     /* glamor composite_glyphs shaders */
     glamor_program_render       glyphs_program;

@@ -72,6 +72,14 @@ static const char stippled_double_fs_exec[] =
     "       else\n"
     "               frag_color = fg;\n";
 
+static const char stippled_opaque_double_fs_exec[] =
+    "       float pattern = texture(dash, vec2(dash_offset, 0.5)).w;\n"
+    "       float a = texture(sampler, fill_pos).w;\n"
+    "       if (a == 0.0 || pattern == 0.0)\n"
+    "               frag_color = bg;\n"
+    "       else\n"
+    "               frag_color = fg;\n";
+
 static Bool
 use_stippled_double_dash(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
@@ -90,6 +98,21 @@ static const glamor_facet glamor_facet_stippled_double_dash_lines = {
     .vs_exec = stippled_dash_vs_exec,
     .fs_vars = stippled_dash_fs_vars,
     .fs_exec = stippled_double_fs_exec,
+    .locations = (glamor_program_location_dash |
+                  glamor_program_location_fg |
+                  glamor_program_location_bg |
+                  glamor_program_location_fillsamp |
+                  glamor_program_location_fillpos),
+    .use = use_stippled_double_dash,
+};
+
+static const glamor_facet glamor_facet_stippled_opaque_double_dash_lines = {
+    .version = 130,
+    .name = "poly_lines_stippled_opaque_double_dash",
+    .vs_vars = stippled_dash_vs_vars,
+    .vs_exec = stippled_dash_vs_exec,
+    .fs_vars = stippled_dash_fs_vars,
+    .fs_exec = stippled_opaque_double_fs_exec,
     .locations = (glamor_program_location_dash |
                   glamor_program_location_fg |
                   glamor_program_location_bg |
@@ -227,12 +250,24 @@ glamor_dash_setup(DrawablePtr drawable, GCPtr gc)
             glamor_set_color(drawable, gc->bgPixel, prog->bg_uniform);
             break;
         case FillStippled:
-        case FillOpaqueStippled:
             prog = &glamor_priv->stippled_double_dash_line_prog;
 
             if (!prog->prog) {
                 if (!glamor_build_program(screen, prog,
                                           &glamor_facet_stippled_double_dash_lines,
+                                          NULL, NULL, NULL))
+                    goto bail;
+            }
+
+            if (!glamor_use_program(drawable, gc, prog, NULL))
+                goto bail;
+            break;
+        case FillOpaqueStippled:
+            prog = &glamor_priv->stippled_opaque_double_dash_line_prog;
+
+            if (!prog->prog) {
+                if (!glamor_build_program(screen, prog,
+                                          &glamor_facet_stippled_opaque_double_dash_lines,
                                           NULL, NULL, NULL))
                     goto bail;
             }
