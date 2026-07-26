@@ -202,6 +202,8 @@ glamor_put_image_xybitmap_gl(DrawablePtr drawable, GCPtr gc, int x, int y,
 
     /* Set up vertex buffers for the 4 quad vertices */
     v = glamor_get_vbo_space(screen, (4 * 6 * sizeof(GLshort)), &vbo_offset);
+    if (_X_UNLIKELY(!v))
+        goto bail_tex;
 
     glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
     glVertexAttribPointer(GLAMOR_VERTEX_POS, 4, GL_SHORT, GL_FALSE,
@@ -247,6 +249,7 @@ glamor_put_image_xybitmap_gl(DrawablePtr drawable, GCPtr gc, int x, int y,
 
     ret = TRUE;
 bail_tex:
+    glActiveTexture(GL_TEXTURE0);
     glDeleteTextures(1, &texture_id);
 bail:
     return ret;
