@@ -25,6 +25,7 @@
 
 #include <X11/extensions/shmproto.h>
 
+#include "list.h"
 #include "screenint.h"
 #include "pixmap.h"
 #include "gc.h"
@@ -61,14 +62,16 @@ typedef struct _ShmFuncs {
 #endif
 
 typedef struct _ShmDesc {
-    struct _ShmDesc *next;
+    struct xorg_list entry;
     int shmid;
     int refcnt;
     char *addr;
     Bool writable;
-    unsigned long size;
 #ifdef SHM_FD_PASSING
     Bool is_fd;
+#endif
+    unsigned long size;
+#ifdef SHM_FD_PASSING
     struct busfault *busfault;
     XID resource;
 #endif

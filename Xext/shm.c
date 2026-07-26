@@ -114,7 +114,7 @@ static unsigned char ShmReqCode;
 int ShmCompletionCode;
 int BadShmSegCode;
 RESTYPE ShmSegType;
-static ShmDescPtr Shmsegs;
+static struct xorg_list Shmsegs;
 static Bool sharedPixmaps;
 static DevPrivateKeyRec shmScrPrivateKeyRec;
 
@@ -378,6 +378,7 @@ ProcShmAttach(ClientPtr client)
 {
     SHMSTAT_TYPE buf;
     ShmDescPtr shmdesc;
+    Bool found = FALSE;
 
     REQUEST(xShmAttachReq);
 
@@ -387,10 +388,17 @@ ProcShmAttach(ClientPtr client)
         client->errorValue = stuff->readOnly;
         return BadValue;
     }
-    for (shmdesc = Shmsegs; shmdesc; shmdesc = shmdesc->next) {
-        if (!SHMDESC_IS_FD(shmdesc) && shmdesc->shmid == stuff->shmid)
+
+    xorg_list_for_each_entry(shmdesc, &Shmsegs, entry) {
+        if (!SHMDESC_IS_FD(shmdesc) && shmdesc->shmid == stuff->shmid) {
+            found = TRUE;
             break;
+        }
     }
+
+    if (!found)
+        shmdesc = NULL;
+
     if (shmdesc) {
         if (!stuff->readOnly && !shmdesc->writable)
             return BadAccess;
@@ -424,8 +432,7 @@ ProcShmAttach(ClientPtr client)
         shmdesc->refcnt = 1;
         shmdesc->writable = !stuff->readOnly;
         shmdesc->size = SHM_SEGSZ(buf);
-        shmdesc->next = Shmsegs;
-        Shmsegs = shmdesc;
+        xorg_list_add(&shmdesc->entry, &Shmsegs);
     }
     if (!AddResource(stuff->shmseg, ShmSegType, (void *) shmdesc))
         return BadAlloc;
@@ -437,7 +444,6 @@ ShmDetachSegment(void *value, /* must conform to DeleteType */
                  XID unused)
 {
     ShmDescPtr shmdesc = (ShmDescPtr) value;
-    ShmDescPtr *prev;
 
     if (--shmdesc->refcnt)
         return TRUE;
@@ -449,8 +455,7 @@ ShmDetachSegment(void *value, /* must conform to DeleteType */
     } else
 #endif
         shmdt(shmdesc->addr);
-    for (prev = &Shmsegs; *prev != shmdesc; prev = &(*prev)->next);
-    *prev = shmdesc->next;
+    xorg_list_del(&shmdesc->entry);
     free(shmdesc);
     return Success;
 }
@@ -1200,8 +1205,7 @@ ProcShmAttachFd(ClientPtr client)
         return BadAlloc;
     }
 
-    shmdesc->next = Shmsegs;
-    Shmsegs = shmdesc;
+    xorg_list_add(&shmdesc->entry, &Shmsegs);
 
     if (!AddResource(stuff->shmseg, ShmSegType, (void *) shmdesc))
         return BadAlloc;
@@ -1319,8 +1323,7 @@ ProcShmCreateSegment(ClientPtr client)
         return BadAlloc;
     }
 
-    shmdesc->next = Shmsegs;
-    Shmsegs = shmdesc;
+    xorg_list_add(&shmdesc->entry, &Shmsegs);
 
     if (!AddResource(stuff->shmseg, ShmSegType, (void *) shmdesc)) {
         close(fd);
@@ -1538,7 +1541,10 @@ ShmExtensionInit(void)
     if (!ShmRegisterPrivates())
         return;
 
+    xorg_list_init(&Shmsegs);
+
     sharedPixmaps = xFalse;
+
     {
         sharedPixmaps = xTrue;
         for (i = 0; i < screenInfo.numScreens; i++) {
