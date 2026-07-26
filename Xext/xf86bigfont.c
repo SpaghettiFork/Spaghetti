@@ -528,7 +528,7 @@ ProcXF86BigfontQueryFont(ClientPtr client)
                 }
             }
             nUniqCharInfos = NextUniqIndex;
-            /* fprintf(stderr, "font metrics: nCharInfos = %d, nUniqCharInfos = %d, hashModulus = %d\n", nCharInfos, nUniqCharInfos, hashModulus); */
+            DebugF("font metrics: nCharInfos = %d, nUniqCharInfos = %d, hashModulus = %d\n", nCharInfos, nUniqCharInfos, hashModulus);
         }
     }
 
