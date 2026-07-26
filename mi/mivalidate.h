@@ -38,9 +38,9 @@ from The Open Group.
 typedef union _Validate {
     struct BeforeValidate {
         DDXPointRec oldAbsCorner;       /* old window position */
+        Bool resized;                   /* unclipped winSize has changed */
+                                        /* non-null when size changes */
         RegionPtr borderVisible;        /* visible region of border, */
-        /* non-null when size changes */
-        Bool resized;           /* unclipped winSize has changed */
     } before;
     struct AfterValidate {
         RegionRec exposed;      /* exposed regions, absolute pos */
