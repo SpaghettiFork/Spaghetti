@@ -639,9 +639,9 @@ SyncAwaitTriggerFired(SyncTrigger * pTrigger)
 {
     SyncAwait *pAwait = (SyncAwait *) pTrigger;
     int numwaits;
+    int num_events = 0;
     SyncAwaitUnion *pAwaitUnion;
     SyncAwait **ppAwait;
-    int num_events = 0;
 
     pAwaitUnion = (SyncAwaitUnion *) pAwait->pHeader;
     numwaits = pAwaitUnion->header.num_waitconditions;
@@ -662,7 +662,7 @@ SyncAwaitTriggerFired(SyncTrigger * pTrigger)
      */
     for (; numwaits; numwaits--, pAwait++) {
         int64_t diff;
-        Bool overflow, diffgreater, diffequal;
+        Bool diffgreater, diffequal;
 
         /* "A CounterNotify event with the destroyed flag set to TRUE is
          *  always generated if the counter for one of the triggers is
@@ -679,15 +679,14 @@ SyncAwaitTriggerFired(SyncTrigger * pTrigger)
             /* "The difference between the counter and the test value is
              *  calculated by subtracting the test value from the value of
              *  the counter."
-             */
-            overflow = checked_int64_subtract(&diff, pCounter->value,
-                                              pAwait->trigger.test_value);
-
-            /* "If the difference lies outside the range for an INT64, an
+             * 
+             * "If the difference lies outside the range for an INT64, an
              *  event is not generated."
              */
-            if (overflow)
+            if (checked_int64_subtract(&diff, pCounter->value,
+                                              pAwait->trigger.test_value))
                 continue;
+
             diffgreater = diff > pAwait->event_threshold;
             diffequal = diff == pAwait->event_threshold;
 
