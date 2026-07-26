@@ -379,9 +379,6 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
 
     glamor_make_current(glamor_priv);
 
-    if (glamor_copy_blit(src, dst, gc, box, nbox, dx, dy, bitplane))
-        return TRUE;
-
     if (gc && !glamor_set_planemask(gc->depth, gc->planemask))
         goto bail_ctx;
 
@@ -390,6 +387,9 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
 
     if (bitplane && !glamor_priv->can_copyplane)
         goto bail_ctx;
+
+    if (glamor_copy_blit(src, dst, gc, box, nbox, dx, dy, bitplane))
+        return TRUE;
 
     if (bitplane) {
         prog = &glamor_priv->copy_plane_prog;
@@ -726,7 +726,10 @@ glamor_copy_blit(DrawablePtr src, DrawablePtr dst, GCPtr gc,
     if (bitplane)
         return FALSE;
 
-    if (gc && (gc->alu != GXcopy || glamor_pm_is_solid(gc->depth, gc->planemask)))
+    if (gc && gc->alu != GXcopy)
+        return FALSE;
+
+    if (gc && !glamor_pm_is_solid(gc->depth, gc->planemask))
         return FALSE;
 
     if (!GLAMOR_PIXMAP_PRIV_HAS_FBO(src_priv) ||
@@ -740,8 +743,6 @@ glamor_copy_blit(DrawablePtr src, DrawablePtr dst, GCPtr gc,
     if (src_priv->fbo->is_red != dst_priv->fbo->is_red ||
         src_pixmap->drawable.depth != dst_pixmap->drawable.depth)
         return FALSE;
-
-    glamor_make_current(glamor_priv);
 
     glamor_get_drawable_deltas(src, src_pixmap, &src_off_x, &src_off_y);
     glamor_get_drawable_deltas(dst, dst_pixmap, &dst_off_x, &dst_off_y);
