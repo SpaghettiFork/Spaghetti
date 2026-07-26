@@ -2583,11 +2583,6 @@ SyncExtensionInit(void)
      */
     SyncInitServerTime();
     SyncInitIdleTime();
-
-#ifdef DEBUG
-    fprintf(stderr, "Sync Extension %d.%d\n",
-            SYNC_MAJOR_VERSION, SYNC_MINOR_VERSION);
-#endif
 }
 
 /*
