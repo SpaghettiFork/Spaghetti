@@ -1934,12 +1934,11 @@ static inline void
 DamageCombineExtents(DamagePtr pDamage, RegionPtr pDamageRegion)
 {
     if (!pDamage->isInternal) {
+        BoxRec box = *RegionExtents(pDamageRegion);
         RegionUninit(pDamageRegion);
-        RegionUnion(&pDamage->damage, &pDamage->damage, pDamageRegion);
-        RegionUninit(&pDamage->damage);
-    } else {
-        RegionUnion(&pDamage->damage, &pDamage->damage, pDamageRegion);
+        RegionInit(pDamageRegion, &box, 1);
     }
+    RegionUnion(&pDamage->damage, &pDamage->damage, pDamageRegion);
 }
 
 void
