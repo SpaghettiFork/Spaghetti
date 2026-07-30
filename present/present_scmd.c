@@ -821,7 +821,7 @@ present_scmd_pixmap(WindowPtr window,
                                    release_point,
 #endif /* DRI3 */
                                    options,
-                                   screen_priv->info ? screen_priv->info->capabilities : 0,
+                                   (screen_priv && screen_priv->info) ? screen_priv->info->capabilities : 0,
                                    notifies,
                                    num_notifies,
                                    target_msc,
