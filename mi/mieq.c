@@ -89,18 +89,13 @@ static EventQueueRec miEventQueue;
 
 static CallbackListPtr miCallbacksWhenDrained = NULL;
 
-static size_t
+static inline size_t
 mieqNumEnqueued(EventQueuePtr eventQueue)
 {
-    size_t n_enqueued = 0;
-
-    if (eventQueue->nevents) {
-        /* % is not well-defined with negative numbers... sigh */
-        n_enqueued = eventQueue->tail - eventQueue->head + eventQueue->nevents;
-        if (n_enqueued >= eventQueue->nevents)
-            n_enqueued -= eventQueue->nevents;
-    }
-    return n_enqueued;
+    if (eventQueue->nevents)
+        return (eventQueue->tail - eventQueue->head + eventQueue->nevents) % eventQueue->nevents;
+    else
+        return 0;
 }
 
 /* Pre-condition: Called with input_lock held */
