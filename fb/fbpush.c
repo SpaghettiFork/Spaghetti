@@ -27,114 +27,69 @@
 #include "fb.h"
 
 static void
-fbPushPattern(DrawablePtr pDrawable,
-              GCPtr pGC,
-              FbStip * src,
-              FbStride srcStride, int srcX, int x, int y, int width, int height)
-{
-    FbStip *s, bitsMask, bitsMask0, bits;
-    int xspan;
-    int w;
-    int lenspan;
-
-    src += srcX >> FB_STIP_SHIFT;
-    srcX &= FB_STIP_MASK;
-
-    bitsMask0 = FbStipMask(srcX, 1);
-
-    while (height--) {
-        bitsMask = bitsMask0;
-        w = width;
-        s = src;
-        src += srcStride;
-        bits = READ(s++);
-        xspan = x;
-        while (w) {
-            if (bits & bitsMask) {
-                lenspan = 0;
-                do {
-                    lenspan++;
-                    if (lenspan == w)
-                        break;
-                    bitsMask = FbStipRight(bitsMask, 1);
-                    if (!bitsMask) {
-                        bits = READ(s++);
-                        bitsMask = FbBitsMask(0, 1);
-                    }
-                } while (bits & bitsMask);
-                fbFill(pDrawable, pGC, xspan, y, lenspan, 1);
-                xspan += lenspan;
-                w -= lenspan;
-            }
-            else {
-                do {
-                    w--;
-                    xspan++;
-                    if (!w)
-                        break;
-                    bitsMask = FbStipRight(bitsMask, 1);
-                    if (!bitsMask) {
-                        bits = READ(s++);
-                        bitsMask = FbBitsMask(0, 1);
-                    }
-                } while (!(bits & bitsMask));
-            }
-        }
-        y++;
-    }
-}
-
-static void
 fbPushFill(DrawablePtr pDrawable,
            GCPtr pGC,
            FbStip * src,
            FbStride srcStride, int srcX, int x, int y, int width, int height)
 {
     FbGCPrivPtr pPriv = fbGetGCPrivate(pGC);
+    FbBits *dst;
+    FbStride dstStride;
+    int dstBpp;
+    int dstXoff, dstYoff;
+    int dstX, dstWidth;
+
+    fbGetDrawable(pDrawable, dst, dstStride, dstBpp, dstXoff, dstYoff);
+    dst = dst + (y + dstYoff) * dstStride;
+    dstX = (x + dstXoff) * dstBpp;
+    dstWidth = width * dstBpp;
 
     if (pGC->fillStyle == FillSolid) {
-        FbBits *dst;
-        FbStride dstStride;
-        int dstBpp;
-        int dstXoff, dstYoff;
-        int dstX;
-        int dstWidth;
-
-        fbGetDrawable(pDrawable, dst, dstStride, dstBpp, dstXoff, dstYoff);
-        dst = dst + (y + dstYoff) * dstStride;
-        dstX = (x + dstXoff) * dstBpp;
-        dstWidth = width * dstBpp;
         if (dstBpp == 1) {
-            fbBltStip(src,
-                      srcStride,
-                      srcX,
+            fbBltStip(src, srcStride, srcX,
                       (FbStip *) dst,
                       FbBitsStrideToStipStride(dstStride),
-                      dstX,
-                      dstWidth,
-                      height,
+                      dstX, dstWidth, height,
                       FbStipple1Rop(pGC->alu, pGC->fgPixel), pPriv->pm, dstBpp);
         }
         else {
-            fbBltOne(src,
-                     srcStride,
-                     srcX,
-                     dst,
-                     dstStride,
-                     dstX,
-                     dstBpp,
-                     dstWidth,
-                     height,
+            fbBltOne(src, srcStride, srcX,
+                     dst, dstStride, dstX, dstBpp, dstWidth, height,
                      pPriv->and, pPriv->xor,
                      fbAnd(GXnoop, (FbBits) 0, FB_ALLONES),
                      fbXor(GXnoop, (FbBits) 0, FB_ALLONES));
         }
-        fbFinishAccess(pDrawable);
     }
     else {
-        fbPushPattern(pDrawable, pGC, src, srcStride, srcX,
-                      x, y, width, height);
+        FbBits bgand, bgxor;
+
+        if (pGC->fillStyle == FillStippled) {
+            bgand = FB_ALLONES;
+            bgxor = 0;
+        }
+        else {
+            bgand = pPriv->bgand;
+            bgxor = pPriv->bgxor;
+        }
+
+        if (dstBpp == 1) {
+            fbBltStip(src, srcStride, srcX,
+                      (FbStip *) dst,
+                      FbBitsStrideToStipStride(dstStride),
+                      dstX, dstWidth, height,
+                      (pGC->fillStyle == FillStippled)
+                          ? FbStipple1Rop(pGC->alu, pGC->fgPixel)
+                          : FbOpaqueStipple1Rop(pGC->alu, pGC->fgPixel,
+                                                pGC->bgPixel),
+                      pPriv->pm, dstBpp);
+        }
+        else {
+            fbBltOne(src, srcStride, srcX,
+                     dst, dstStride, dstX, dstBpp, dstWidth, height,
+                     pPriv->and, pPriv->xor, bgand, bgxor);
+        }
     }
+    fbFinishAccess(pDrawable);
 }
 
 void

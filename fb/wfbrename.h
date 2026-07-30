@@ -100,7 +100,6 @@
 #define fbPositionWindow wfbPositionWindow
 #define fbPushFill wfbPushFill
 #define fbPushImage wfbPushImage
-#define fbPushPattern wfbPushPattern
 #define fbPushPixels wfbPushPixels
 #define fbPutImage wfbPutImage
 #define fbPutXYImage wfbPutXYImage
