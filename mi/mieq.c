@@ -216,7 +216,7 @@ mieqEnqueue(DeviceIntPtr pDev, InternalEvent *e)
 
     if (isMotion && isMotion == miEventQueue.lastMotion &&
         oldtail != miEventQueue.head) {
-        oldtail = (oldtail - 1) % miEventQueue.nevents;
+        oldtail = (oldtail - 1) & (miEventQueue.nevents - 1);
     }
     else if (n_enqueued + 1 == miEventQueue.nevents) {
         if (!mieqGrowQueue(&miEventQueue, miEventQueue.nevents << 1)) {
@@ -267,7 +267,7 @@ mieqEnqueue(DeviceIntPtr pDev, InternalEvent *e)
     miEventQueue.events[oldtail].pDev = pDev;
 
     miEventQueue.lastMotion = isMotion;
-    miEventQueue.tail = (oldtail + 1) % miEventQueue.nevents;
+    miEventQueue.tail = (oldtail + 1) & (miEventQueue.nevents - 1);
 }
 
 /**
@@ -547,7 +547,7 @@ mieqProcessInputEvents(void)
         dev = e->pDev;
         screen = e->pScreen;
 
-        miEventQueue.head = (miEventQueue.head + 1) % miEventQueue.nevents;
+        miEventQueue.head = (miEventQueue.head + 1) & (miEventQueue.nevents - 1);
 
         input_unlock();
 
