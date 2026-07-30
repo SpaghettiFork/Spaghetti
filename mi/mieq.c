@@ -198,6 +198,7 @@ mieqFini(void)
 void
 mieqEnqueue(DeviceIntPtr pDev, InternalEvent *e)
 {
+#define MAX_TIME_SKEW_MS 10000
     unsigned int oldtail = miEventQueue.tail;
     InternalEvent *evt;
     int isMotion = 0;
@@ -256,8 +257,9 @@ mieqEnqueue(DeviceIntPtr pDev, InternalEvent *e)
     /* Make sure that event times don't go backwards - this
      * is "unnecessary", but very useful. */
     if (time < miEventQueue.lastEventTime &&
-        miEventQueue.lastEventTime - time < 10000)
+        miEventQueue.lastEventTime - time < MAX_TIME_SKEW_MS)
         e->any.time = miEventQueue.lastEventTime;
+#undef MAX_TIME_SKEW_MS
 
     miEventQueue.lastEventTime = evt->any.time;
     miEventQueue.events[oldtail].pScreen = pDev ? EnqueueScreen(pDev) : NULL;
