@@ -57,65 +57,91 @@ miCopyRegion(DrawablePtr pSrcDrawable,
 
     pboxNew1 = NULL;
     pboxNew2 = NULL;
-    if (careful && dy < 0) {
+    if (careful && dy < 0 && dx < 0 && nbox > 1) {
         upsidedown = TRUE;
+        reverse = TRUE;
 
-        if (nbox > 1) {
-            /* keep ordering in each band, reverse order of bands */
-            pboxNew1 = xallocarray(nbox, sizeof(BoxRec));
-            if (!pboxNew1)
-                return;
-            pboxBase = pboxNext = pbox + nbox - 1;
-            while (pboxBase >= pbox) {
-                while ((pboxNext >= pbox) && (pboxBase->y1 == pboxNext->y1))
-                    pboxNext--;
-                pboxTmp = pboxNext + 1;
-                while (pboxTmp <= pboxBase) {
-                    *pboxNew1++ = *pboxTmp++;
-                }
-                pboxBase = pboxNext;
-            }
-            pboxNew1 -= nbox;
-            pbox = pboxNew1;
+        pboxNew1 = xallocarray(nbox, sizeof(BoxRec));
+        if (!pboxNew1)
+            return;
+        pboxBase = pboxNext = pbox + nbox - 1;
+        while (pboxBase >= pbox) {
+            while ((pboxNext >= pbox) && (pboxNext->y1 == pboxBase->y1))
+                pboxNext--;
+            pboxTmp = pboxBase;
+            while (pboxTmp > pboxNext)
+                *pboxNew1++ = *pboxTmp--;
+            pboxBase = pboxNext;
         }
+        pboxNew1 -= nbox;
+        pbox = pboxNew1;
     }
     else {
-        /* walk source top to bottom */
-        upsidedown = FALSE;
-    }
+        if (careful && dy < 0) {
+            upsidedown = TRUE;
 
-    if (careful && dx < 0) {
-        /* walk source right to left */
-        if (dy <= 0)
-            reverse = TRUE;
-        else
+            if (nbox > 1) {
+                /* keep ordering in each band, reverse order of bands */
+                pboxNew1 = xallocarray(nbox, sizeof(BoxRec));
+                if (!pboxNew1)
+                    return;
+                pboxBase = pboxNext = pbox + nbox - 1;
+                while (pboxBase >= pbox) {
+                    while ((pboxNext >= pbox) && (pboxBase->y1 == pboxNext->y1))
+                        pboxNext--;
+                    pboxTmp = pboxNext + 1;
+                    while (pboxTmp <= pboxBase) {
+                        *pboxNew1++ = *pboxTmp++;
+                    }
+                    pboxBase = pboxNext;
+                }
+                pboxNew1 -= nbox;
+                pbox = pboxNew1;
+            }
+        }
+        else {
+            /* walk source top to bottom */
+            upsidedown = FALSE;
+        }
+
+        if (careful && dx < 0) {
+            /* walk source right to left */
+            if (dy <= 0)
+                reverse = TRUE;
+            else
+                reverse = FALSE;
+
+            if (nbox > 1) {
+                /* reverse order of rects in each band */
+                pboxNew2 = xallocarray(nbox, sizeof(BoxRec));
+                if (!pboxNew2) {
+                    free(pboxNew1);
+                    return;
+                }
+                pboxBase = pboxNext = pbox;
+                while (pboxBase < pbox + nbox) {
+                    while ((pboxNext < pbox + nbox) &&
+                           (pboxNext->y1 == pboxBase->y1))
+                        pboxNext++;
+                    pboxTmp = pboxNext;
+                    while (pboxTmp != pboxBase) {
+                        *pboxNew2++ = *--pboxTmp;
+                    }
+                    pboxBase = pboxNext;
+                }
+                pboxNew2 -= nbox;
+                pbox = pboxNew2;
+            }
+        }
+        else {
+            /* walk source left to right */
             reverse = FALSE;
-
-        if (nbox > 1) {
-            /* reverse order of rects in each band */
-            pboxNew2 = xallocarray(nbox, sizeof(BoxRec));
-            if (!pboxNew2) {
-                free(pboxNew1);
-                return;
-            }
-            pboxBase = pboxNext = pbox;
-            while (pboxBase < pbox + nbox) {
-                while ((pboxNext < pbox + nbox) &&
-                       (pboxNext->y1 == pboxBase->y1))
-                    pboxNext++;
-                pboxTmp = pboxNext;
-                while (pboxTmp != pboxBase) {
-                    *pboxNew2++ = *--pboxTmp;
-                }
-                pboxBase = pboxNext;
-            }
-            pboxNew2 -= nbox;
-            pbox = pboxNew2;
         }
     }
-    else {
-        /* walk source left to right */
+
+    if (nbox <= 1) {
         reverse = FALSE;
+        upsidedown = FALSE;
     }
 
     (*copyProc) (pSrcDrawable,
