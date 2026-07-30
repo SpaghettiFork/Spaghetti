@@ -470,21 +470,19 @@ damageDestroyClip(GCPtr pGC)
 static inline void
 damageAccumulateSpan(BoxPtr box, int x, int y, int w, int h)
 {
-    int x2 = x + w;
-    int y2 = y + h;
-    if (x < box->x1) box->x1 = x;
-    if (x2 > box->x2) box->x2 = x2;
-    if (y < box->y1) box->y1 = y;
-    if (y2 > box->y2) box->y2 = y2;
+    box->x1 = min(box->x1, x);
+    box->x2 = max(box->x2, x + w);
+    box->y1 = min(box->y1, y);
+    box->y2 = max(box->y2, y + h);
 }
 
 static inline void
 damageAccumulatePoint(BoxPtr box, int x, int y)
 {
-    if (x < box->x1) box->x1 = x;
-    else if (x > box->x2) box->x2 = x;
-    if (y < box->y1) box->y1 = y;
-    else if (y > box->y2) box->y2 = y;
+    box->x1 = min(box->x1, x);
+    box->x2 = max(box->x2, x);
+    box->y1 = min(box->y1, y);
+    box->y2 = max(box->y2, y);
 }
 
 #define checkGCDamage(d,g)	(getDrawableDamage(d) && \
