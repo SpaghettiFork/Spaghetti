@@ -120,7 +120,7 @@ extern _X_EXPORT void fbSetBits(FbStip * bits, int stride, FbStip data);
 #define FB_TAIL_BITS   (FbStip) (0xbaddf0ad)
 #else
 #define fbValidateDrawable(d)
-#define fdInitializeDrawable(d)
+#define fbInitializeDrawable(d)
 #endif
 
 #include "fbrop.h"
