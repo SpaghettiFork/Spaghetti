@@ -458,6 +458,15 @@ damageDestroyClip(GCPtr pGC)
 #define BOX_NOT_EMPTY(box) \
     (((box.x2 - box.x1) > 0) && ((box.y2 - box.y1) > 0))
 
+#define DAMAGE_REGION_UNION_BOX(region, box) do { \
+    if (BOX_NOT_EMPTY(box)) { \
+        RegionRec _damage_tmp; \
+        RegionInit(&_damage_tmp, &(box), 1); \
+        RegionUnion(&(region), &(region), &_damage_tmp); \
+        RegionUninit(&_damage_tmp); \
+    } \
+} while (0)
+
 static inline void
 damageAccumulateSpan(BoxPtr box, int x, int y, int w, int h)
 {
@@ -1008,11 +1017,13 @@ damagePolyRectangle(DrawablePtr pDrawable,
     DAMAGE_GC_OP_PROLOGUE(pGC, pDrawable);
 
     if (nRects && checkGCDamage(pDrawable, pGC)) {
+        RegionRec edgeRegion;
         BoxRec box;
         int offset1, offset2, offset3;
         int nRectsTmp = nRects;
         xRectangle *pRectsTmp = pRects;
 
+        RegionNull(&edgeRegion);
         offset2 = pGC->lineWidth;
         if (!offset2)
             offset2 = 1;
@@ -1025,35 +1036,35 @@ damagePolyRectangle(DrawablePtr pDrawable,
             box.x2 = box.x1 + pRectsTmp->width + offset2;
             box.y2 = box.y1 + offset2;
             TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
-            if (BOX_NOT_EMPTY(box))
-                damageDamageBox(pDrawable, &box, pGC->subWindowMode);
+            DAMAGE_REGION_UNION_BOX(edgeRegion, box);
 
             box.x1 = pRectsTmp->x - offset1;
             box.y1 = pRectsTmp->y + offset3;
             box.x2 = box.x1 + offset2;
             box.y2 = box.y1 + pRectsTmp->height - offset2;
             TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
-            if (BOX_NOT_EMPTY(box))
-                damageDamageBox(pDrawable, &box, pGC->subWindowMode);
+            DAMAGE_REGION_UNION_BOX(edgeRegion, box);
 
             box.x1 = pRectsTmp->x + pRectsTmp->width - offset1;
             box.y1 = pRectsTmp->y + offset3;
             box.x2 = box.x1 + offset2;
             box.y2 = box.y1 + pRectsTmp->height - offset2;
             TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
-            if (BOX_NOT_EMPTY(box))
-                damageDamageBox(pDrawable, &box, pGC->subWindowMode);
+            DAMAGE_REGION_UNION_BOX(edgeRegion, box);
 
             box.x1 = pRectsTmp->x - offset1;
             box.y1 = pRectsTmp->y + pRectsTmp->height - offset1;
             box.x2 = box.x1 + pRectsTmp->width + offset2;
             box.y2 = box.y1 + offset2;
             TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
-            if (BOX_NOT_EMPTY(box))
-                damageDamageBox(pDrawable, &box, pGC->subWindowMode);
+            DAMAGE_REGION_UNION_BOX(edgeRegion, box);
 
             pRectsTmp++;
         }
+
+        if (RegionNotEmpty(&edgeRegion))
+            damageRegionAppend(pDrawable, &edgeRegion, TRUE, pGC->subWindowMode);
+        RegionUninit(&edgeRegion);
     }
     (*pGC->ops->PolyRectangle) (pDrawable, pGC, nRects, pRects);
     damageRegionProcessPending(pDrawable);
