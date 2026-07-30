@@ -47,7 +47,7 @@
 static int
 __glXMakeBitmapFromGlyph(FontPtr font, CharInfoPtr pci)
 {
-    int i, j;
+    int j;
     int widthPadded;            /* width of glyph in bytes, as padded by X */
     int allocBytes;             /* bytes to allocate to store bitmap */
     int w;                      /* width of glyph in bits */
@@ -84,9 +84,7 @@ __glXMakeBitmapFromGlyph(FontPtr font, CharInfoPtr pci)
 
     pglyph = FONTGLYPHBITS(FONTGLYPHS(font), pci) + (h - 1) * widthPadded;
     for (j = 0; j < h; j++) {
-        for (i = 0; i < widthPadded; i++) {
-            p[i] = pglyph[i];
-        }
+        memcpy(p, pglyph, widthPadded);
         pglyph -= widthPadded;
         p += widthPadded;
     }
