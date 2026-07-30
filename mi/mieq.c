@@ -250,8 +250,6 @@ mieqEnqueue(DeviceIntPtr pDev, InternalEvent *e)
     }
 
     evlen = e->any.length;
-    evt = miEventQueue.events[oldtail].events;
-    memcpy(evt, e, evlen);
 
     time = e->any.time;
     /* Make sure that event times don't go backwards - this
@@ -260,6 +258,9 @@ mieqEnqueue(DeviceIntPtr pDev, InternalEvent *e)
         miEventQueue.lastEventTime - time < MAX_TIME_SKEW_MS)
         e->any.time = miEventQueue.lastEventTime;
 #undef MAX_TIME_SKEW_MS
+
+    evt = miEventQueue.events[oldtail].events;
+    memcpy(evt, e, evlen);
 
     miEventQueue.lastEventTime = evt->any.time;
     miEventQueue.events[oldtail].pScreen = pDev ? EnqueueScreen(pDev) : NULL;
