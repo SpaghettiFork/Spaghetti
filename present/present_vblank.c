@@ -110,11 +110,6 @@ present_vblank_init(present_vblank_ptr vblank,
 
     vblank->serial = serial;
 
-    if (valid) {
-        vblank->valid = RegionDuplicate(valid);
-        if (!vblank->valid)
-            goto no_mem;
-    }
     if (update) {
         vblank->update = RegionDuplicate(update);
         if (!vblank->update)
@@ -271,8 +266,6 @@ present_vblank_destroy(present_vblank_ptr vblank)
         dixDestroyPixmap(vblank->pixmap, vblank->pixmap->drawable.id);
 
     /* Free regions */
-    if (vblank->valid)
-        RegionDestroy(vblank->valid);
     if (vblank->update)
         RegionDestroy(vblank->update);
 

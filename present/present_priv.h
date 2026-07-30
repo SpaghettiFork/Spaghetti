@@ -69,7 +69,6 @@ struct present_vblank {
     ScreenPtr           screen;
     WindowPtr           window;
     PixmapPtr           pixmap;
-    RegionPtr           valid;
     RegionPtr           update;
     RRCrtcPtr           crtc;
     uint32_t            serial;
