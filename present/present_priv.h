@@ -445,11 +445,6 @@ sproc_present_dispatch(ClientPtr client);
 /*
  * present_scmd.c
  */
-void
-present_abort_vblank(ScreenPtr screen, RRCrtcPtr crtc, uint64_t event_id, uint64_t msc);
-
-void
-present_flip_destroy(ScreenPtr screen);
 
 void
 present_restore_screen_pixmap(ScreenPtr screen);
