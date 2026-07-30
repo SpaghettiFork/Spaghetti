@@ -458,6 +458,26 @@ damageDestroyClip(GCPtr pGC)
 #define BOX_NOT_EMPTY(box) \
     (((box.x2 - box.x1) > 0) && ((box.y2 - box.y1) > 0))
 
+static inline void
+damageAccumulateSpan(BoxPtr box, int x, int y, int w, int h)
+{
+    int x2 = x + w;
+    int y2 = y + h;
+    if (x < box->x1) box->x1 = x;
+    if (x2 > box->x2) box->x2 = x2;
+    if (y < box->y1) box->y1 = y;
+    if (y2 > box->y2) box->y2 = y2;
+}
+
+static inline void
+damageAccumulatePoint(BoxPtr box, int x, int y)
+{
+    if (x < box->x1) box->x1 = x;
+    else if (x > box->x2) box->x2 = x;
+    if (y < box->y1) box->y1 = y;
+    else if (y > box->y2) box->y2 = y;
+}
+
 #define checkGCDamage(d,g)	(getDrawableDamage(d) && \
 				 (!g->pCompositeClip ||\
 				  RegionNotEmpty(g->pCompositeClip)))
@@ -645,22 +665,14 @@ damageFillSpans(DrawablePtr pDrawable,
 
         box.x1 = pptTmp->x;
         box.x2 = box.x1 + *pwidthTmp;
-        box.y2 = box.y1 = pptTmp->y;
+        box.y1 = pptTmp->y;
+        box.y2 = box.y1 + 1;
 
         while (--nptTmp) {
             pptTmp++;
             pwidthTmp++;
-            if (box.x1 > pptTmp->x)
-                box.x1 = pptTmp->x;
-            if (box.x2 < (pptTmp->x + *pwidthTmp))
-                box.x2 = pptTmp->x + *pwidthTmp;
-            if (box.y1 > pptTmp->y)
-                box.y1 = pptTmp->y;
-            else if (box.y2 < pptTmp->y)
-                box.y2 = pptTmp->y;
+            damageAccumulateSpan(&box, pptTmp->x, pptTmp->y, *pwidthTmp, 1);
         }
-
-        box.y2++;
 
         if (!pGC->miTranslate) {
             TRANSLATE_BOX(box, pDrawable);
@@ -693,22 +705,14 @@ damageSetSpans(DrawablePtr pDrawable,
 
         box.x1 = pptTmp->x;
         box.x2 = box.x1 + *pwidthTmp;
-        box.y2 = box.y1 = pptTmp->y;
+        box.y1 = pptTmp->y;
+        box.y2 = box.y1 + 1;
 
         while (--nptTmp) {
             pptTmp++;
             pwidthTmp++;
-            if (box.x1 > pptTmp->x)
-                box.x1 = pptTmp->x;
-            if (box.x2 < (pptTmp->x + *pwidthTmp))
-                box.x2 = pptTmp->x + *pwidthTmp;
-            if (box.y1 > pptTmp->y)
-                box.y1 = pptTmp->y;
-            else if (box.y2 < pptTmp->y)
-                box.y2 = pptTmp->y;
+            damageAccumulateSpan(&box, pptTmp->x, pptTmp->y, *pwidthTmp, 1);
         }
-
-        box.y2++;
 
         if (!pGC->miTranslate) {
             TRANSLATE_BOX(box, pDrawable);
@@ -837,27 +841,13 @@ damagePolyPoint(DrawablePtr pDrawable,
                 pptTmp++;
                 x += pptTmp->x;
                 y += pptTmp->y;
-                if (box.x1 > x)
-                    box.x1 = x;
-                else if (box.x2 < x)
-                    box.x2 = x;
-                if (box.y1 > y)
-                    box.y1 = y;
-                else if (box.y2 < y)
-                    box.y2 = y;
+                damageAccumulatePoint(&box, x, y);
             }
         }
         else {
             while (--nptTmp) {
                 pptTmp++;
-                if (box.x1 > pptTmp->x)
-                    box.x1 = pptTmp->x;
-                else if (box.x2 < pptTmp->x)
-                    box.x2 = pptTmp->x;
-                if (box.y1 > pptTmp->y)
-                    box.y1 = pptTmp->y;
-                else if (box.y2 < pptTmp->y)
-                    box.y2 = pptTmp->y;
+                damageAccumulatePoint(&box, pptTmp->x, pptTmp->y);
             }
         }
 
@@ -903,27 +893,13 @@ damagePolylines(DrawablePtr pDrawable,
                 pptTmp++;
                 x += pptTmp->x;
                 y += pptTmp->y;
-                if (box.x1 > x)
-                    box.x1 = x;
-                else if (box.x2 < x)
-                    box.x2 = x;
-                if (box.y1 > y)
-                    box.y1 = y;
-                else if (box.y2 < y)
-                    box.y2 = y;
+                damageAccumulatePoint(&box, x, y);
             }
         }
         else {
             while (--nptTmp) {
                 pptTmp++;
-                if (box.x1 > pptTmp->x)
-                    box.x1 = pptTmp->x;
-                else if (box.x2 < pptTmp->x)
-                    box.x2 = pptTmp->x;
-                if (box.y1 > pptTmp->y)
-                    box.y1 = pptTmp->y;
-                else if (box.y2 < pptTmp->y)
-                    box.y2 = pptTmp->y;
+                damageAccumulatePoint(&box, pptTmp->x, pptTmp->y);
             }
         }
 
@@ -1102,14 +1078,8 @@ damagePolyArc(DrawablePtr pDrawable, GCPtr pGC, int nArcs, xArc * pArcs)
 
         while (--nArcsTmp) {
             pArcsTmp++;
-            if (box.x1 > pArcsTmp->x)
-                box.x1 = pArcsTmp->x;
-            if (box.x2 < (pArcsTmp->x + pArcsTmp->width))
-                box.x2 = pArcsTmp->x + pArcsTmp->width;
-            if (box.y1 > pArcsTmp->y)
-                box.y1 = pArcsTmp->y;
-            if (box.y2 < (pArcsTmp->y + pArcsTmp->height))
-                box.y2 = pArcsTmp->y + pArcsTmp->height;
+            damageAccumulateSpan(&box, pArcsTmp->x, pArcsTmp->y,
+                                 pArcsTmp->width, pArcsTmp->height);
         }
 
         if (extra) {
@@ -1153,27 +1123,13 @@ damageFillPolygon(DrawablePtr pDrawable,
                 pptTmp++;
                 x += pptTmp->x;
                 y += pptTmp->y;
-                if (box.x1 > x)
-                    box.x1 = x;
-                else if (box.x2 < x)
-                    box.x2 = x;
-                if (box.y1 > y)
-                    box.y1 = y;
-                else if (box.y2 < y)
-                    box.y2 = y;
+                damageAccumulatePoint(&box, x, y);
             }
         }
         else {
             while (--nptTmp) {
                 pptTmp++;
-                if (box.x1 > pptTmp->x)
-                    box.x1 = pptTmp->x;
-                else if (box.x2 < pptTmp->x)
-                    box.x2 = pptTmp->x;
-                if (box.y1 > pptTmp->y)
-                    box.y1 = pptTmp->y;
-                else if (box.y2 < pptTmp->y)
-                    box.y2 = pptTmp->y;
+                damageAccumulatePoint(&box, pptTmp->x, pptTmp->y);
             }
         }
 
@@ -1207,14 +1163,8 @@ damagePolyFillRect(DrawablePtr pDrawable,
 
         while (--nRectsTmp) {
             pRectsTmp++;
-            if (box.x1 > pRectsTmp->x)
-                box.x1 = pRectsTmp->x;
-            if (box.x2 < (pRectsTmp->x + pRectsTmp->width))
-                box.x2 = pRectsTmp->x + pRectsTmp->width;
-            if (box.y1 > pRectsTmp->y)
-                box.y1 = pRectsTmp->y;
-            if (box.y2 < (pRectsTmp->y + pRectsTmp->height))
-                box.y2 = pRectsTmp->y + pRectsTmp->height;
+            damageAccumulateSpan(&box, pRectsTmp->x, pRectsTmp->y,
+                                 pRectsTmp->width, pRectsTmp->height);
         }
 
         TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
@@ -1243,14 +1193,8 @@ damagePolyFillArc(DrawablePtr pDrawable, GCPtr pGC, int nArcs, xArc * pArcs)
 
         while (--nArcsTmp) {
             pArcsTmp++;
-            if (box.x1 > pArcsTmp->x)
-                box.x1 = pArcsTmp->x;
-            if (box.x2 < (pArcsTmp->x + pArcsTmp->width))
-                box.x2 = pArcsTmp->x + pArcsTmp->width;
-            if (box.y1 > pArcsTmp->y)
-                box.y1 = pArcsTmp->y;
-            if (box.y2 < (pArcsTmp->y + pArcsTmp->height))
-                box.y2 = pArcsTmp->y + pArcsTmp->height;
+            damageAccumulateSpan(&box, pArcsTmp->x, pArcsTmp->y,
+                                 pArcsTmp->width, pArcsTmp->height);
         }
 
         TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
