@@ -143,7 +143,7 @@ mieqGrowQueue(EventQueuePtr eventQueue, size_t new_nevents)
         if (!evlist) {
             size_t j;
 
-            for (j = 0; j < i; j++)
+            for (j = eventQueue->nevents; j < i; j++)
                 FreeEventList(new_events[j].events, 1);
             free(new_events);
             return FALSE;
