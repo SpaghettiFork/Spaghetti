@@ -83,7 +83,8 @@ present_execute_wait(present_vblank_ptr vblank, uint64_t crtc_msc)
     /* Defer execution of explicitly synchronized copies.
      * Flip synchronization is managed by the driver.
      */
-    if (!vblank->flip && vblank->acquire_syncobj &&
+    if (vblank->mode != PresentCompleteModeFlip &&
+        vblank->acquire_syncobj &&
         !vblank->acquire_syncobj->is_signaled(vblank->acquire_syncobj,
                                               vblank->acquire_point)) {
         vblank->efd = eventfd(0, EFD_CLOEXEC);
@@ -138,21 +139,9 @@ void
 present_execute_post(present_vblank_ptr vblank, PixmapPtr pixmap,
                      WindowPtr window, uint64_t ust, uint64_t crtc_msc)
 {
-    uint8_t mode = PresentCompleteModeCopy;
+    if (vblank->has_suboptimal && vblank->reason == PRESENT_FLIP_REASON_BUFFER_FORMAT)
+        vblank->mode = PresentCompleteModeSuboptimalCopy;
 
-    /* Compute correct CompleteMode
-     */
-    if (vblank->kind == PresentCompleteKindPixmap) {
-        if (pixmap && window) {
-            if (vblank->has_suboptimal && vblank->reason == PRESENT_FLIP_REASON_BUFFER_FORMAT)
-                mode = PresentCompleteModeSuboptimalCopy;
-            else
-                mode = PresentCompleteModeCopy;
-        } else {
-            mode = PresentCompleteModeSkip;
-        }
-    }
-
-    present_vblank_notify(vblank, vblank->kind, mode, ust, crtc_msc);
+    present_vblank_notify(vblank, ust, crtc_msc);
     present_vblank_destroy(vblank);
 }

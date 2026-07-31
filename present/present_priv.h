@@ -74,7 +74,9 @@ struct present_vblank {
     uint32_t            serial;
     int16_t             x_off;
     int16_t             y_off;
-    Bool                kind;
+    CARD16              kind;
+    CARD16              mode;
+    Bool                queued;         /* on present_exec_queue */
     uint64_t            event_id;
     uint64_t            target_msc;     /* target MSC when present should complete */
     uint64_t            exec_msc;       /* MSC at which present can be executed */
@@ -83,8 +85,6 @@ struct present_vblank {
     present_fence_ptr   wait_fence;
     present_notify_ptr  notifies;
     int                 num_notifies;
-    Bool                queued;         /* on present_exec_queue */
-    Bool                flip;           /* planning on using flip */
     Bool                flip_ready;     /* wants to flip, but waiting for previous flip or unflip */
     present_flip_type   flip_type;      /* type of flip to perform */
     Bool                abort_flip;     /* aborting this flip */
@@ -474,7 +474,7 @@ present_screen_priv_init(ScreenPtr screen);
  * present_vblank.c
  */
 void
-present_vblank_notify(present_vblank_ptr vblank, CARD8 kind, CARD8 mode, uint64_t ust, uint64_t crtc_msc);
+present_vblank_notify(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
 
 Bool
 present_vblank_init(present_vblank_ptr vblank,
