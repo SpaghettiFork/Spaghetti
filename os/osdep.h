@@ -120,12 +120,12 @@ typedef int (*OsFlushFunc) (ClientPtr who, struct _osComm * oc, char *extraBuf,
 
 typedef struct _osComm {
     int fd;
+    int flags;
     ConnectionInputPtr input;
     ConnectionOutputPtr output;
     XID auth_id;                /* authorization id */
     CARD32 conn_time;           /* timestamp if not established, else 0  */
     struct _XtransConnInfo *trans_conn; /* transport connection object */
-    int flags;
 } OsCommRec, *OsCommPtr;
 
 #define OS_COMM_GRAB_IMPERVIOUS 1
