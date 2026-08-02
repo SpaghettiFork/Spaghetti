@@ -1006,10 +1006,10 @@ DDCModesFromCEAExtension(int scrnIndex, xf86MonPtr mon_ptr)
 struct det_modes_parameter {
     xf86MonPtr DDC;
     ddc_quirk_t quirks;
+    int timing_level;
     DisplayModePtr Modes;
     Bool rb;
     Bool preferred;
-    int timing_level;
 };
 
 static void
