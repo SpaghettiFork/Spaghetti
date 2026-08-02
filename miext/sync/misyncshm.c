@@ -26,10 +26,12 @@
 
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/shm.h>
 #include <unistd.h>
 #include <X11/xshmfence.h>
 
 #include "os/osdep.h"
+#include "os/busfault.h"
 
 #include "scrnintstr.h"
 #include "misync.h"
@@ -42,11 +44,52 @@ static DevPrivateKeyRec syncShmFencePrivateKey;
 
 typedef struct _SyncShmFencePrivate {
     struct xshmfence    *fence;
+#ifdef BUSFAULT
+    struct busfault     *busfault;
+#endif
     int                 fd;
 } SyncShmFencePrivateRec, *SyncShmFencePrivatePtr;
 
 #define SYNC_FENCE_PRIV(pFence) \
     (SyncShmFencePrivatePtr) dixLookupPrivate(&pFence->devPrivates, &syncShmFencePrivateKey)
+
+#ifdef BUSFAULT
+static inline size_t
+syncShmFencePageSize(void)
+{
+#if !defined(CSRG_BASED) && !defined(__CYGWIN__)
+    return SHMLBA;
+#else
+#ifdef _SC_PAGESIZE
+    return sysconf(_SC_PAGESIZE);
+#else
+    return getpagesize();
+#endif
+#endif
+}
+
+static void
+miSyncShmFenceBusfaultNotify(void *context)
+{
+    SyncFence *pFence = context;
+    SyncShmFencePrivatePtr pPriv = SYNC_FENCE_PRIV(pFence);
+
+    ErrorF("shm fence 0x%lx truncated by client\n",
+           (unsigned long) pFence->sync.id);
+
+    busfault_unregister(pPriv->busfault);
+    pPriv->busfault = NULL;
+
+    if (pPriv->fence) {
+        xshmfence_unmap_shm(pPriv->fence);
+        pPriv->fence = NULL;
+    }
+    if (pPriv->fd >= 0) {
+        close(pPriv->fd);
+        pPriv->fd = -1;
+    }
+}
+#endif
 
 static void
 miSyncShmFenceSetTriggered(SyncFence * pFence)
@@ -115,6 +158,12 @@ miSyncShmScreenDestroyFence(ScreenPtr pScreen, SyncFence * pFence)
 {
     SyncShmFencePrivatePtr      pPriv = SYNC_FENCE_PRIV(pFence);
 
+#ifdef BUSFAULT
+    if (pPriv->busfault) {
+        busfault_unregister(pPriv->busfault);
+        pPriv->busfault = NULL;
+    }
+#endif
     if (pPriv->fence) {
         xshmfence_trigger(pPriv->fence);
         xshmfence_unmap_shm(pPriv->fence);
@@ -134,6 +183,15 @@ miSyncShmCreateFenceFromFd(ScreenPtr pScreen, SyncFence *pFence, int fd, Bool in
     pPriv->fence = xshmfence_map_shm(fd);
     if (pPriv->fence) {
         pPriv->fd = fd;
+#ifdef BUSFAULT
+        pPriv->busfault = busfault_register_mmap(pPriv->fence,
+                                                 syncShmFencePageSize(),
+                                                 miSyncShmFenceBusfaultNotify,
+                                                 pFence);
+        if (!pPriv->busfault)
+            ErrorF("shm fence 0x%lx: failed to register busfault handler\n",
+                   (unsigned long) pFence->sync.id);
+#endif
         return Success;
     }
     else
@@ -156,6 +214,15 @@ miSyncShmGetFenceFd(ScreenPtr pScreen, SyncFence *pFence)
             close (pPriv->fd);
             return -1;
         }
+#ifdef BUSFAULT
+        pPriv->busfault = busfault_register_mmap(pPriv->fence,
+                                                 syncShmFencePageSize(),
+                                                 miSyncShmFenceBusfaultNotify,
+                                                 pFence);
+        if (!pPriv->busfault)
+            ErrorF("shm fence 0x%lx: failed to register busfault handler\n",
+                   (unsigned long) pFence->sync.id);
+#endif
     }
     return pPriv->fd;
 }
