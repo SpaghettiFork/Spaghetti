@@ -210,9 +210,9 @@ static Bool NewHost(int /*family */ ,
 typedef struct _host {
     short family;
     short len;
+    Bool requested;
     unsigned char *addr;
     struct _host *next;
-    int requested;
 } HOST;
 
 #define MakeHost(h,l)	(h)=malloc(sizeof *(h)+(l));\
