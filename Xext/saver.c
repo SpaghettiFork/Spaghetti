@@ -145,10 +145,10 @@ typedef struct _ScreenSaverAttr {
     unsigned char class;
     unsigned char depth;
     VisualID visual;
+    Colormap colormap;
     CursorPtr pCursor;
     PixmapPtr pBackgroundPixmap;
     PixmapPtr pBorderPixmap;
-    Colormap colormap;
     unsigned long mask;         /* no pixmaps or cursors */
     unsigned long *values;
 } ScreenSaverAttrRec, *ScreenSaverAttrPtr;
