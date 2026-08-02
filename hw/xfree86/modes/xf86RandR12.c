@@ -52,6 +52,8 @@ typedef struct _xf86RandR12Info {
     Rotation rotation;          /* current mode */
     Rotation supported_rotations;       /* driver supported */
 
+    Bool     panning;
+
     /* Compatibility with colormaps and XF86VidMode's gamma */
     int palette_red_size;
     int palette_green_size;
@@ -66,7 +68,6 @@ typedef struct _xf86RandR12Info {
      */
     xf86EnterVTProc *orig_EnterVT;
 
-    Bool                         panning;
     ConstrainCursorHarderProcPtr orig_ConstrainCursorHarder;
 } XF86RandRInfoRec, *XF86RandRInfoPtr;
 
