@@ -158,8 +158,8 @@ struct _rrOutput {
 
 struct _rrProvider {
     RRProvider id;
-    ScreenPtr pScreen;
     uint32_t capabilities;
+    ScreenPtr pScreen;
     char *name;
     int nameLength;
     RRPropertyPtr properties;
