@@ -51,19 +51,22 @@
 static struct xorg_list ms_drm_queue;
 static uint32_t ms_drm_seq;
 
-static void box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
+static void
+box_intersect(BoxPtr dest, BoxPtr a, BoxPtr b)
 {
-    dest->x1 = a->x1 > b->x1 ? a->x1 : b->x1;
-    dest->x2 = a->x2 < b->x2 ? a->x2 : b->x2;
+    dest->x1 = max(a->x1, b->x1);
+    dest->x2 = min(a->x2, b->x2);
+
     if (dest->x1 >= dest->x2) {
-        dest->x1 = dest->x2 = dest->y1 = dest->y2 = 0;
+        memset(dest, 0, sizeof(BoxRec));
         return;
     }
 
-    dest->y1 = a->y1 > b->y1 ? a->y1 : b->y1;
-    dest->y2 = a->y2 < b->y2 ? a->y2 : b->y2;
+    dest->y1 = max(a->y1, b->y1);
+    dest->y2 = min(a->y2, b->y2);
+
     if (dest->y1 >= dest->y2)
-        dest->x1 = dest->x2 = dest->y1 = dest->y2 = 0;
+        memset(dest, 0, sizeof(BoxRec));
 }
 
 static void rr_crtc_box(RRCrtcPtr crtc, BoxPtr crtc_box)
