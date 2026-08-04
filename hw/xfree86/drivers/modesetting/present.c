@@ -44,6 +44,7 @@
 
 #include "driver.h"
 #include "drmmode_display.h"
+#include "vrr_priv.h"
 
 #if 0
 #define DebugPresent(x) ErrorF x
@@ -422,7 +423,7 @@ ms_present_flip(RRCrtcPtr crtc,
      * variable refresh supported can be enabled on every CRTC.
      */
     if (ms->vrr_support && ms->is_connector_vrr_capable &&
-          ms_window_has_variable_refresh(ms, ms->flip_window)) {
+          vrr_window_has_variable_refresh(ms->flip_window)) {
         ms_present_set_screen_vrr(scrn, TRUE);
     }
 

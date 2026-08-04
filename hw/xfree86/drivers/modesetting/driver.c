@@ -65,6 +65,7 @@
 #include <pciaccess.h>
 #endif
 #include "driver.h"
+#include "vrr_priv.h"
 
 static void AdjustFrame(ScrnInfoPtr pScrn, int x, int y);
 static Bool CloseScreen(ScreenPtr pScreen);
@@ -86,14 +87,6 @@ static Bool ms_pci_probe(DriverPtr driver,
                          intptr_t match_data);
 #endif
 static Bool ms_driver_func(ScrnInfoPtr scrn, xorgDriverFuncOp op, void *data);
-
-/* window wrapper functions used to get the notification when
- * the window property changes */
-static Atom vrr_atom;
-static Bool property_vectors_wrapped;
-static Bool restore_property_vector;
-static int (*saved_change_property) (ClientPtr client);
-static int (*saved_delete_property) (ClientPtr client);
 
 #ifdef XSERVER_LIBPCIACCESS
 static const struct pci_id_match ms_device_match[] = {
@@ -928,134 +921,6 @@ msBlockHandler_oneshot(ScreenPtr pScreen, void *pTimeout)
 }
 
 Bool
-ms_window_has_variable_refresh(modesettingPtr ms, WindowPtr win) {
-	struct ms_vrr_priv *priv = dixLookupPrivate(&win->devPrivates, &ms->drmmode.vrrPrivateKeyRec);
-
-	return priv->variable_refresh;
-}
-
-static void
-ms_vrr_property_update(WindowPtr window, Bool variable_refresh)
-{
-    ScrnInfoPtr scrn = xf86ScreenToScrn(window->drawable.pScreen);
-    modesettingPtr ms = modesettingPTR(scrn);
-
-    struct ms_vrr_priv *priv = dixLookupPrivate(&window->devPrivates,
-                                                &ms->drmmode.vrrPrivateKeyRec);
-    priv->variable_refresh = variable_refresh;
-
-    if (ms->flip_window == window && ms->drmmode.present_flipping)
-        ms_present_set_screen_vrr(scrn, variable_refresh);
-}
-
-/* Wrapper for xserver/dix/property.c:ProcChangeProperty */
-static int
-ms_change_property(ClientPtr client)
-{
-    WindowPtr window = NULL;
-    int ret = 0;
-
-    REQUEST(xChangePropertyReq);
-
-    client->requestVector[X_ChangeProperty] = saved_change_property;
-    ret = saved_change_property(client);
-
-    if (restore_property_vector)
-        return ret;
-
-    client->requestVector[X_ChangeProperty] = ms_change_property;
-
-    if (ret != Success)
-        return ret;
-
-    ret = dixLookupWindow(&window, stuff->window, client, DixSetPropAccess);
-    if (ret != Success)
-        return ret;
-
-    // Checking for the VRR property change on the window
-    if (stuff->property == vrr_atom &&
-        xf86ScreenToScrn(window->drawable.pScreen)->PreInit == PreInit &&
-        stuff->format == 32 && stuff->nUnits == 1) {
-        uint32_t *value = (uint32_t *)(stuff + 1);
-        ms_vrr_property_update(window, *value != 0);
-    }
-
-    return ret;
-}
-
-/* Wrapper for xserver/dix/property.c:ProcDeleteProperty */
-static int
-ms_delete_property(ClientPtr client)
-{
-    WindowPtr window;
-    int ret;
-
-    REQUEST(xDeletePropertyReq);
-
-    client->requestVector[X_DeleteProperty] = saved_delete_property;
-    ret = saved_delete_property(client);
-
-    if (restore_property_vector)
-        return ret;
-
-    client->requestVector[X_DeleteProperty] = ms_delete_property;
-
-    if (ret != Success)
-        return ret;
-
-    ret = dixLookupWindow(&window, stuff->window, client, DixSetPropAccess);
-    if (ret != Success)
-        return ret;
-
-    if (stuff->property == vrr_atom &&
-        xf86ScreenToScrn(window->drawable.pScreen)->PreInit == PreInit)
-        ms_vrr_property_update(window, FALSE);
-
-    return ret;
-}
-
-static void
-ms_unwrap_property_requests(ScrnInfoPtr scrn)
-{
-    int i;
-
-    if (!property_vectors_wrapped)
-        return;
-
-    if (ProcVector[X_ChangeProperty] == ms_change_property)
-        ProcVector[X_ChangeProperty] = saved_change_property;
-    else
-        restore_property_vector = TRUE;
-
-    if (ProcVector[X_DeleteProperty] == ms_delete_property)
-        ProcVector[X_DeleteProperty] = saved_delete_property;
-    else
-        restore_property_vector = TRUE;
-
-    for (i = 0; i < currentMaxClients; i++) {
-        if (clients[i]->requestVector[X_ChangeProperty] == ms_change_property) {
-            clients[i]->requestVector[X_ChangeProperty] = saved_change_property;
-        } else {
-            restore_property_vector = TRUE;
-        }
-
-        if (clients[i]->requestVector[X_DeleteProperty] == ms_delete_property) {
-            clients[i]->requestVector[X_DeleteProperty] = saved_delete_property;
-        } else {
-            restore_property_vector = TRUE;
-        }
-    }
-
-    if (restore_property_vector) {
-        xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-                   "Couldn't unwrap some window property request vectors\n");
-    }
-
-    property_vectors_wrapped = FALSE;
-}
-
-
-Bool
 ms_window_has_async_flip(WindowPtr win)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(win->drawable.pScreen);
@@ -1099,6 +964,23 @@ ms_window_update_async_flip_modifiers(WindowPtr win, Bool async_flip)
     priv->async_flip_modifiers = async_flip;
 }
 
+static Bool
+ms_vrr_check_capable(ScreenPtr screen)
+{
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
+    modesettingPtr ms = modesettingPTR(pScrn);
+
+    return ms->is_connector_vrr_capable;
+}
+
+static void
+ms_vrr_set_screen(ScreenPtr screen, Bool enabled)
+{
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(screen);
+
+    ms_present_set_screen_vrr(pScrn, enabled);
+}
+
 static void
 FreeScreen(ScrnInfoPtr pScrn)
 {
@@ -1118,7 +1000,6 @@ FreeScreen(ScrnInfoPtr pScrn)
         ms_ent = ms_ent_priv(pScrn);
         ms_ent->fd_ref--;
         if (!ms_ent->fd_ref) {
-            ms_unwrap_property_requests(pScrn);
             if (ms->pEnt->location.type == BUS_PCI)
                 ret = drmClose(ms->fd);
             else
@@ -1881,12 +1762,6 @@ CreateScreenResources(ScreenPtr pScreen)
         pScrPriv->rrStartFlippingPixmapTracking = msStartFlippingPixmapTracking;
     }
 
-    if (ms->vrr_support &&
-        !dixRegisterPrivateKey(&ms->drmmode.vrrPrivateKeyRec,
-                               PRIVATE_WINDOW,
-                               sizeof(struct ms_vrr_priv)))
-            return FALSE;
-
     if (!dixRegisterPrivateKey(&ms->drmmode.asyncFlipPrivateKeyRec,
                                PRIVATE_WINDOW,
                                sizeof(struct ms_async_flip_priv)))
@@ -2259,15 +2134,12 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     pScrn->vtSema = TRUE;
 
     if (ms->vrr_support) {
-        if (!property_vectors_wrapped) {
-            saved_change_property = ProcVector[X_ChangeProperty];
-            ProcVector[X_ChangeProperty] = ms_change_property;
-            saved_delete_property = ProcVector[X_DeleteProperty];
-            ProcVector[X_DeleteProperty] = ms_delete_property;
-            property_vectors_wrapped = TRUE;
-        }
-        vrr_atom = MakeAtom("_VARIABLE_REFRESH",
-                             strlen("_VARIABLE_REFRESH"), TRUE);
+        vrr_screen_info_rec vrr_info = {
+            .version = 1,
+            .check_vrr_capable = ms_vrr_check_capable,
+            .set_screen_vrr = ms_vrr_set_screen,
+        };
+        vrr_screen_init(pScreen, &vrr_info);
     }
 
     return TRUE;
