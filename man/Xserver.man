@@ -308,6 +308,9 @@ connected, the server terminates immediately.
 .B \-tst
 disables all testing extensions (e.g., XTEST, XTrap, XTestExtension1, RECORD).
 .TP 8
+.B \+tst
+enables all testing extensions (e.g., XTEST, XTrap, XTestExtension1, RECORD).
+.TP 8
 .B tty\fIxx\fP
 ignored, for servers started the ancient way (from init).
 .TP 8

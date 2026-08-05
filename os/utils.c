@@ -116,7 +116,7 @@ __stdcall unsigned long GetTickCount(void);
 #include "present.h"
 #endif
 
-Bool noTestExtensions;
+Bool noTestExtensions = TRUE;
 
 #ifdef COMPOSITE
 Bool noCompositeExtension = FALSE;
@@ -978,6 +978,9 @@ ProcessCommandLine(int argc, char *argv[])
         }
         else if (strcmp(argv[i], "-tst") == 0) {
             noTestExtensions = TRUE;
+        }
+        else if (strcmp(argv[i], "+tst") == 0) {
+            noTestExtensions = FALSE;
         }
         else if (strcmp(argv[i], "v") == 0)
             defaultScreenSaverBlanking = PreferBlanking;
