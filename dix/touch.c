@@ -41,6 +41,7 @@
 #include "mi.h"
 
 #define TOUCH_HISTORY_SIZE 100
+#define TOUCH_HISTORY_MAX  10000
 
 Bool touchEmulatePointer = TRUE;
 
@@ -432,11 +433,26 @@ TouchEventHistoryPush(TouchPointInfoPtr ti, const DeviceEvent *ev)
     if (ev->flags & (TOUCH_CLIENT_ID | TOUCH_REPLAYING))
         return;
 
-    ti->history[ti->history_elements++] = *ev;
-    /* FIXME: proper overflow fixes */
-    if (ti->history_elements > ti->history_size - 1) {
-        ti->history_elements = ti->history_size - 1;
-        DebugF("source device %d: history size %zu overflowing for touch %u\n",
+    if (ti->history_elements == ti->history_size) {
+        size_t sz = ti->history_size * 2;
+        DeviceEvent *hist;
+
+        if (sz < TOUCH_HISTORY_MAX) {
+            hist = reallocarray(ti->history, sz, sizeof(*hist));
+
+            if (hist) {
+                ti->history = hist;
+                ti->history_size = sz;
+                memset(&hist[ti->history_elements], 0,
+                       sizeof(*hist) * (sz - ti->history_elements));
+            }
+        }
+    }
+
+    if (ti->history_elements < ti->history_size) {
+        ti->history[ti->history_elements++] = *ev;
+    } else {
+        ErrorF("source device %d: history size %zu overflowing for touch %u\n",
                ti->sourceid, ti->history_size, ti->client_id);
     }
 }
