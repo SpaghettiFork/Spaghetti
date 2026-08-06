@@ -657,15 +657,17 @@ CreateRootWindow(ScreenPtr pScreen)
     return TRUE;
 }
 
-void
+Bool
 InitRootWindow(WindowPtr pWin)
 {
     ScreenPtr pScreen = pWin->drawable.pScreen;
     int backFlag = CWBorderPixel | CWCursor | CWBackingStore;
 
     if (!(*pScreen->CreateWindow) (pWin))
-        return;                 /* XXX */
-    (*pScreen->PositionWindow) (pWin, 0, 0);
+        return FALSE;
+
+    if (!(*pScreen->PositionWindow) (pWin, 0, 0))
+        return FALSE;
 
     pWin->cursorIsNone = FALSE;
     pWin->optional->cursor = RefCursor(rootCursor);
@@ -689,10 +691,14 @@ InitRootWindow(WindowPtr pWin)
     }
 
     pWin->backingStore = NotUseful;
-    /* We SHOULD check for an error value here XXX */
-    (*pScreen->ChangeWindowAttributes) (pWin, backFlag);
 
-    MapWindow(pWin, serverClient);
+    if (!(*pScreen->ChangeWindowAttributes) (pWin, backFlag))
+        return FALSE;
+
+    if (MapWindow(pWin, serverClient) != Success)
+        return FALSE;
+
+    return TRUE;
 }
 
 /* Set the region to the intersection of the rectangle and the

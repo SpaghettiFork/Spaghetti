@@ -91,7 +91,7 @@ extern _X_EXPORT int WalkTree(ScreenPtr pScreen,
 
 extern _X_EXPORT Bool CreateRootWindow(ScreenPtr /*pScreen */ );
 
-extern _X_EXPORT void InitRootWindow(WindowPtr /*pWin */ );
+extern _X_EXPORT Bool InitRootWindow(WindowPtr /*pWin */ );
 
 typedef WindowPtr (*RealChildHeadProc) (WindowPtr pWin);
 

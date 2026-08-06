@@ -251,7 +251,8 @@ dix_main(int argc, char *argv[], char *envp[])
 #endif
 
         for (i = 0; i < screenInfo.numScreens; i++)
-            InitRootWindow(screenInfo.screens[i]->root);
+            if (!InitRootWindow(screenInfo.screens[i]->root))
+                FatalError("could not init root window for screen %d", i);
 
         InitCoreDevices();
         InitInput(argc, argv);
