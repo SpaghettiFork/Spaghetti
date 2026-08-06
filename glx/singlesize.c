@@ -53,7 +53,7 @@ __glReadPixels_size(GLenum format, GLenum type, GLint w, GLint h)
 GLint
 __glGetMap_size(GLenum target, GLenum query)
 {
-    GLint k, order = 0, majorMinor[2];
+    GLint k, order = 0, majorMinor[2] = { 0, 0 };
 
     /*
      ** Assume target and query are both valid.
@@ -94,7 +94,6 @@ __glGetMap_size(GLenum target, GLenum query)
         switch (query) {
         case GL_COEFF:
             k = __glMap2d_size(target);
-            majorMinor[0] = majorMinor[1] = 0;
             glGetMapiv(target, GL_ORDER, majorMinor);
             /*
              ** The query above might fail, but then majorMinor will be zeroes
