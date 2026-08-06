@@ -26,41 +26,9 @@
 #include <dix-config.h>
 #endif
 
+#include <unistd.h>
+
 #include "ftrace.h"
-
-static void
-ftrace_dont_print(const char *f, ...)
-_X_ATTRIBUTE_PRINTF(1, 2);
-void
-ftrace_dont_print(const char *f, ...)
-{
-    /* do nothing */
-    return;
-}
-
-static void
-ftrace_dont_print_begin(unsigned long ctx, const char *f, ...)
-_X_ATTRIBUTE_PRINTF(2, 3);
-void
-ftrace_dont_print_begin(unsigned long ctx, const char *f, ...)
-{
-    /* do nothing */
-    return;
-}
-
-static void
-ftrace_dont_print_end(unsigned long ctx, const char *f, ...)
-_X_ATTRIBUTE_PRINTF(2, 3);
-void
-ftrace_dont_print_end(unsigned long ctx, const char *f, ...)
-{
-    /* do nothing */
-    return;
-}
-
-FtracePrintProcPtr ftrace_print = ftrace_dont_print;
-FtracePrintCtxBeginProcPtr ftrace_print_begin = ftrace_dont_print_begin;
-FtracePrintCtxEndProcPtr ftrace_print_end = ftrace_dont_print_end;
 
 #if FTRACE
 
@@ -74,10 +42,8 @@ ftrace_ready(void)
     return trace_marker_file != NULL;
 }
 
-static void
-ftrace_write(const char *f, va_list args)
 _X_ATTRIBUTE_PRINTF(1, 0);
-void
+static void
 ftrace_write(const char *f, va_list args)
 {
     char buf[1024];
@@ -90,11 +56,9 @@ ftrace_write(const char *f, va_list args)
 
 }
 
-static void
-ftrace_do_print(const char *f, ...)
 _X_ATTRIBUTE_PRINTF(1, 2);
 void
-ftrace_do_print(const char *f, ...)
+ftrace_print(const char *f, ...)
 {
     va_list args;
 
@@ -103,11 +67,9 @@ ftrace_do_print(const char *f, ...)
     va_end(args);
 }
 
-static void
-ftrace_do_print_begin(unsigned long ctx, const char *f, ...)
 _X_ATTRIBUTE_PRINTF(2, 3);
 void
-ftrace_do_print_begin(unsigned long ctx, const char *f, ...)
+ftrace_print_begin(unsigned long ctx, const char *f, ...)
 {
     va_list args;
     char *f_ctx;
@@ -122,11 +84,9 @@ ftrace_do_print_begin(unsigned long ctx, const char *f, ...)
     free(f_ctx);
 }
 
-static void
-ftrace_do_print_end(unsigned long ctx, const char *f, ...)
 _X_ATTRIBUTE_PRINTF(2, 3);
 void
-ftrace_do_print_end(unsigned long ctx, const char *f, ...)
+ftrace_print_end(unsigned long ctx, const char *f, ...)
 {
     va_list args;
     char *f_ctx;
@@ -249,18 +209,8 @@ ftrace_enable(Bool enable)
 
     if (enable) {
         ftrace_find_trace_marker_file();
-        if (ftrace_ready()) {
-            ftrace_print = ftrace_do_print;
-            ftrace_print_begin = ftrace_do_print_begin;
-            ftrace_print_end = ftrace_do_print_end;
-            return TRUE;
-        }
-        return FALSE;
+        return ftrace_ready();
     }
-
-    ftrace_print = ftrace_dont_print;
-    ftrace_print_begin = ftrace_dont_print_begin;
-    ftrace_print_end = ftrace_dont_print_end;
 
     if (trace_marker_file) {
         fclose(trace_marker_file);
