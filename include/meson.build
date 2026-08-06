@@ -290,6 +290,8 @@ if build_rootless
     conf_data.set('ROOTLESS_SAFEALPHA', 1)
 endif
 
+conf_data.set('FTRACE', ftrace_supported ? '1' : false)
+
 #
 # for xorg-server.h only
 #

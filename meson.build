@@ -195,6 +195,11 @@ if ['windows', 'darwin', 'cygwin'].contains(host_machine.system())
     hal_option = 'false'
 endif
 
+ftrace_supported = get_option('ftrace')
+if ftrace_supported and host_machine.system() != 'linux'
+    error('Cannot use FTRACE on a non-Linux environment')
+endif
+
 build_udev = get_option('udev')
 build_udev_kms = get_option('udev_kms')
 if ['windows', 'darwin', 'cygwin', 'freebsd', 'netbsd', 'openbsd', 'sunos'].contains(host_machine.system())
