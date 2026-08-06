@@ -29,20 +29,20 @@
 
 extern _X_EXPORT Bool
 ftrace_enable(Bool enable);
-typedef void (*FtracePrintProcPtr)(const char *f, ...);
 
-extern _X_EXPORT FtracePrintProcPtr
-ftrace_print
-_X_ATTRIBUTE_PRINTF(1, 2);
-typedef void (*FtracePrintCtxBeginProcPtr)(unsigned long ctx, const char *f, ...);
+#if FTRACE
+extern _X_EXPORT _X_ATTRIBUTE_PRINTF(1, 2)
+ftrace_print(const char* f, unsigned long ctx, ...);
 
-extern _X_EXPORT FtracePrintCtxBeginProcPtr
-ftrace_print_begin
-_X_ATTRIBUTE_PRINTF(2, 3);
-typedef void (*FtracePrintCtxEndProcPtr)(unsigned long ctx, const char *f, ...);
+extern _X_EXPORT _X_ATTRIBUTE_PRINTF(2, 3)
+ftrace_print_begin (unsigned long ctx, const char *f, ...);
 
-extern _X_EXPORT FtracePrintCtxEndProcPtr
-ftrace_print_end
-_X_ATTRIBUTE_PRINTF(2, 3);
+extern _X_EXPORT _X_ATTRIBUTE_PRINTF(2, 3)
+ftrace_print_end (unsigned long ctx, const char *f, ...);
+#else
+#define ftrace_print(...)       ((void)0)
+#define ftrace_print_begin(...) ((void)0)
+#define ftrace_print_end(...)   ((void)0)
+#endif
 
 #endif // _FTRACE_H_
