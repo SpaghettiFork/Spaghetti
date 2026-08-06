@@ -1192,7 +1192,7 @@ miFillSppPoly(DrawablePtr dst, GCPtr pgc, int count,    /* number of points */
         return;
     ptsOut = FirstPoint = xallocarray(y, sizeof(DDXPointRec));
     width = FirstWidth = xallocarray(y, sizeof(int));
-    Marked = xallocarray(count, sizeof(int));
+    Marked = calloc(count, sizeof(int));
 
     if (!ptsOut || !width || !Marked) {
         free(Marked);
@@ -1201,8 +1201,6 @@ miFillSppPoly(DrawablePtr dst, GCPtr pgc, int count,    /* number of points */
         return;
     }
 
-    for (j = 0; j < count; j++)
-        Marked[j] = 0;
     nextleft = nextright = imin;
     Marked[imin] = -1;
     y = ICEIL(ptsIn[nextleft].y + yFtrans);
