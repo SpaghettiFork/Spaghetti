@@ -64,6 +64,7 @@ SOFTWARE.
 #endif
 
 #include "os/busfault.h"
+#include "os/ftrace.h"
 
 #include "misc.h"
 
@@ -330,4 +331,5 @@ OsCleanup(Bool terminating)
     if (terminating) {
         UnlockServer();
     }
+    ftrace_enable(FALSE);
 }
