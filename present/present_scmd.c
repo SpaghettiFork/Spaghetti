@@ -25,6 +25,8 @@
 #include <misync.h>
 #include <misyncstr.h>
 
+#include "os/ftrace.h"
+
 /*
  * Screen flip mode
  *
@@ -285,6 +287,7 @@ present_set_abort_flip(ScreenPtr screen)
     present_screen_priv_ptr screen_priv = present_screen_priv(screen);
 
     if (!screen_priv->flip_pending->abort_flip) {
+        ftrace_print_end(screen_priv->flip_pending->event_id, "flip-ABORT");
         present_restore_screen_pixmap(screen);
         screen_priv->flip_pending->abort_flip = TRUE;
     }
@@ -321,6 +324,7 @@ present_flip_notify(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
                   vblank->pixmap ? vblank->pixmap->drawable.id : 0,
                   vblank->window ? vblank->window->drawable.id : 0));
 
+    ftrace_print_end(vblank->event_id, "flip");
     assert (vblank == screen_priv->flip_pending);
 
     present_flip_idle(screen);
@@ -836,6 +840,8 @@ present_scmd_pixmap(WindowPtr window,
     vblank->event_id = ++present_scmd_event_id;
 
     present_adjust_exec_msc(vblank, crtc_msc);
+
+    ftrace_print("present %08" PRIx32 " [%lu]", window->drawable.id, vblank->event_id);
 
     xorg_list_append(&vblank->event_queue, &present_exec_queue);
     vblank->queued = TRUE;
