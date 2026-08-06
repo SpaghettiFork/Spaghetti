@@ -3205,7 +3205,6 @@ SaveScreens(int on, int mode)
 static Bool
 TileScreenSaver(ScreenPtr pScreen, int kind)
 {
-    int j;
     int result;
     XID attributes[3];
     Mask mask;
@@ -3249,16 +3248,14 @@ TileScreenSaver(ScreenPtr pScreen, int kind)
     cm.height = 16;
     cm.xhot = 8;
     cm.yhot = 8;
-    srcbits = malloc(BitmapBytePad(32) * 16);
-    mskbits = malloc(BitmapBytePad(32) * 16);
+    srcbits = calloc(1, BitmapBytePad(32) * 16);
+    mskbits = calloc(1, BitmapBytePad(32) * 16);
     if (!srcbits || !mskbits) {
         free(srcbits);
         free(mskbits);
         cursor = 0;
     }
     else {
-        for (j = 0; j < BitmapBytePad(32) * 16; j++)
-            srcbits[j] = mskbits[j] = 0x0;
         result = AllocARGBCursor(srcbits, mskbits, NULL, &cm, 0, 0, 0, 0, 0, 0,
                                  &cursor, serverClient, (XID) 0);
         if (cursor) {
