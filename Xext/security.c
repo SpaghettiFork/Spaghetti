@@ -62,9 +62,9 @@ static DevPrivateKeyRec stateKeyRec;
 
 /* This is what we store as client security state */
 typedef struct {
-    unsigned int haveState  :1;
-    unsigned int live       :1;
-    unsigned int trustLevel :2;
+    unsigned char haveState;
+    unsigned char live;
+    unsigned char trustLevel;
     XID authId;
 } SecurityStateRec;
 
