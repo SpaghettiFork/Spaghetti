@@ -922,14 +922,17 @@ CreateWindow(Window wid, WindowPtr pParent, int x, int y, unsigned w,
     SetWinSize(pWin);
     SetBorderSize(pWin);
 
-    /* We SHOULD check for an error value here XXX */
     if (!(*pScreen->CreateWindow) (pWin)) {
         *error = BadAlloc;
         DeleteWindow(pWin, None);
         return NullWindow;
     }
-    /* We SHOULD check for an error value here XXX */
-    (*pScreen->PositionWindow) (pWin, pWin->drawable.x, pWin->drawable.y);
+
+    if (!(*pScreen->PositionWindow) (pWin, pWin->drawable.x, pWin->drawable.y)) {
+        *error = BadImplementation;
+        DeleteWindow(pWin, None);
+        return NullWindow;
+    }
 
     if (!(vmask & CWEventMask))
         RecalculateDeliverableEvents(pWin);
@@ -996,10 +999,11 @@ DisposeWindowOptional(WindowPtr pWin)
     pWin->optional = NULL;
 }
 
-static void
+static Bool
 FreeWindowResources(WindowPtr pWin)
 {
     ScreenPtr pScreen = pWin->drawable.pScreen;
+    Bool ok;
 
     DeleteWindowFromAnySaveSet(pWin);
     DeleteWindowFromAnySelections(pWin);
@@ -1020,19 +1024,21 @@ FreeWindowResources(WindowPtr pWin)
         (*pScreen->DestroyPixmap) (pWin->background.pixmap);
 
     DeleteAllWindowProperties(pWin);
-    /* We SHOULD check for an error value here XXX */
-    (*pScreen->DestroyWindow) (pWin);
+    ok = (*pScreen->DestroyWindow) (pWin);
     DisposeWindowOptional(pWin);
+    return ok;
 }
 
-static void
+static Bool
 CrushTree(WindowPtr pWin)
 {
     WindowPtr pChild, pSib, pParent;
     UnrealizeWindowProcPtr UnrealizeWindow;
+    Bool ok = TRUE;
 
     if (!(pChild = pWin->firstChild))
-        return;
+        return ok;
+
     UnrealizeWindow = pWin->drawable.pScreen->UnrealizeWindow;
     while (1) {
         if (pChild->firstChild) {
@@ -1053,7 +1059,8 @@ CrushTree(WindowPtr pWin)
                 pChild->realized = FALSE;
                 (*UnrealizeWindow) (pChild);
             }
-            FreeWindowResources(pChild);
+            if (!FreeWindowResources(pChild))
+                ok = FALSE;
             dixFreeObjectWithPrivates(pChild, PRIVATE_WINDOW);
             if ((pChild = pSib))
                 break;
@@ -1061,7 +1068,7 @@ CrushTree(WindowPtr pWin)
             pChild->firstChild = NullWindow;
             pChild->lastChild = NullWindow;
             if (pChild == pWin)
-                return;
+                return ok;
         }
     }
 }
@@ -1077,10 +1084,12 @@ DeleteWindow(void *value, XID wid)
 {
     WindowPtr pParent;
     WindowPtr pWin = (WindowPtr) value;
+    Bool ok = TRUE;
 
     UnmapWindow(pWin, FALSE);
 
-    CrushTree(pWin);
+    if (!CrushTree(pWin))
+        ok = FALSE;
 
     pParent = pWin->parent;
     if (wid && pParent && SubStrSend(pWin, pParent)) {
@@ -1089,7 +1098,8 @@ DeleteWindow(void *value, XID wid)
         DeliverEvents(pWin, &event, 1, NullWindow);
     }
 
-    FreeWindowResources(pWin);
+    if (!FreeWindowResources(pWin))
+        ok = FALSE;
     if (pParent) {
         if (pParent->firstChild == pWin)
             pParent->firstChild = pWin->nextSib;
@@ -1103,7 +1113,7 @@ DeleteWindow(void *value, XID wid)
     else
         pWin->drawable.pScreen->root = NULL;
     dixFreeObjectWithPrivates(pWin, PRIVATE_WINDOW);
-    return Success;
+    return ok ? Success : BadImplementation;
 }
 
 int
@@ -1171,7 +1181,7 @@ ChangeWindowAttributes(WindowPtr pWin, Mask vmask, XID *vlist, ClientPtr client)
     Colormap cmap;
     ColormapPtr pCmap;
     xEvent xE;
-    int error, rc;
+    int error = Success, rc;
     ScreenPtr pScreen;
     Mask index2, tmask, vmaskCopy = 0;
     unsigned int val;
@@ -1181,7 +1191,6 @@ ChangeWindowAttributes(WindowPtr pWin, Mask vmask, XID *vlist, ClientPtr client)
         (vmask & (~INPUTONLY_LEGAL_MASK)))
         return BadMatch;
 
-    error = Success;
     pScreen = pWin->drawable.pScreen;
     pVlist = vlist;
     tmask = vmask;
@@ -1576,8 +1585,8 @@ ChangeWindowAttributes(WindowPtr pWin, Mask vmask, XID *vlist, ClientPtr client)
     if (checkOptional)
         CheckWindowOptionalNeed(pWin);
 
-    /* We SHOULD check for an error value here XXX */
-    (*pScreen->ChangeWindowAttributes) (pWin, vmaskCopy);
+    if (error == Success && !(*pScreen->ChangeWindowAttributes) (pWin, vmaskCopy))
+        error = BadImplementation;
 
     /*
        If the border contents have changed, redraw the border.
@@ -2706,8 +2715,12 @@ MapWindow(WindowPtr pWin, ClientPtr client)
         pWin->mapped = TRUE;
         pWin->realized = TRUE;  /* for roots */
         pWin->viewable = pWin->drawable.class == InputOutput;
-        /* We SHOULD check for an error value here XXX */
-        (*pScreen->RealizeWindow) (pWin);
+        if (!(*pScreen->RealizeWindow) (pWin)) {
+            pWin->mapped = FALSE;
+            pWin->realized = FALSE;
+            pWin->viewable = FALSE;
+            return BadImplementation;
+        }
         if (pScreen->ClipNotify)
             (*pScreen->ClipNotify) (pWin, 0, 0);
         if (pScreen->PostValidateTree)
@@ -3529,9 +3542,8 @@ ChangeWindowDeviceCursor(WindowPtr pWin, DeviceIntPtr pDev, CursorPtr pCursor)
     if (pOldCursor)
         FreeCursor(pOldCursor, (Cursor) 0);
 
-    /* FIXME: We SHOULD check for an error value here XXX
-       (comment taken from ChangeWindowAttributes) */
-    (*pScreen->ChangeWindowAttributes) (pWin, CWCursor);
+    if (!(*pScreen->ChangeWindowAttributes) (pWin, CWCursor))
+        return BadImplementation;
 
     return Success;
 }
