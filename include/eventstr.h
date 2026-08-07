@@ -149,13 +149,13 @@ struct _DeviceEvent {
  */
 struct _TouchOwnershipEvent {
     unsigned char header; /**< Always ET_Internal */
+    uint8_t reason;       /**< ::XIAcceptTouch, ::XIRejectTouch */
     enum EventType type;  /**< ET_TouchOwnership */
     int length;           /**< Length in bytes */
     Time time;            /**< Time in ms */
     int deviceid;         /**< Device to post this event for */
     int sourceid;         /**< The physical source device */
     uint32_t touchid;     /**< Touch ID (client_id) */
-    uint8_t reason;       /**< ::XIAcceptTouch, ::XIRejectTouch */
     uint32_t resource;    /**< Provoking grab or event selection */
     uint32_t flags;       /**< Flags to be copied into the generated event */
 };
