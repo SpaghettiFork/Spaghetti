@@ -92,7 +92,7 @@ DeletePredictableAccelerationProperties(DeviceIntPtr,
 /**
  * Init DeviceVelocity struct so it should match the average case
  */
-void
+Bool
 InitVelocityData(DeviceVelocityPtr vel)
 {
     memset(vel, 0, sizeof(DeviceVelocityRec));
@@ -106,8 +106,8 @@ InitVelocityData(DeviceVelocityPtr vel)
     vel->max_diff = 1.0;
     vel->initial_range = 2;
     vel->average_accel = TRUE;
-    SetAccelerationProfile(vel, AccelProfileClassic);
-    InitTrackers(vel, 16);
+
+    return SetAccelerationProfile(vel, AccelProfileClassic) && InitTrackers(vel, 16);
 }
 
 /**
@@ -139,7 +139,13 @@ InitPredictableAccelerationScheme(DeviceIntPtr dev,
         free(schemeData);
         return FALSE;
     }
-    InitVelocityData(vel);
+    
+    if (!InitVelocityData(vel)) {
+        free(vel);
+        free(schemeData);
+        return FALSE;
+    }
+
     schemeData->vel = vel;
     scheme.accelData = schemeData;
     if (!InitializePredictableAccelerationProperties(dev, vel, schemeData)) {
@@ -423,16 +429,19 @@ DeletePredictableAccelerationProperties(DeviceIntPtr dev,
  * Tracking logic
  ********************/
 
-void
+Bool
 InitTrackers(DeviceVelocityPtr vel, int ntracker)
 {
     if (ntracker < 1) {
         ErrorF("invalid number of trackers\n");
-        return;
+        return FALSE;
     }
     free(vel->tracker);
     vel->tracker = (MotionTrackerPtr) calloc(ntracker, sizeof(MotionTracker));
+    if (!vel->tracker)
+        return FALSE;
     vel->num_tracker = ntracker;
+    return TRUE;
 }
 
 enum directions {
