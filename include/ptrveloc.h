@@ -101,10 +101,10 @@ typedef struct _PredictableAccelSchemeRec {
     int num_prop_handlers;
 } PredictableAccelSchemeRec, *PredictableAccelSchemePtr;
 
-extern _X_EXPORT void
+extern _X_EXPORT Bool
 InitVelocityData(DeviceVelocityPtr vel);
 
-extern _X_EXPORT void
+extern _X_EXPORT Bool
 InitTrackers(DeviceVelocityPtr vel, int ntracker);
 
 extern _X_EXPORT BOOL

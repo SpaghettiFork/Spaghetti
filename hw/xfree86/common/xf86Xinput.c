@@ -189,8 +189,10 @@ ProcessVelocityConfiguration(DeviceIntPtr pDev, const char *devname, void *list,
     }
 
     tempi = xf86SetIntOption(list, "VelocityTrackerCount", -1);
-    if (tempi > 1)
-        InitTrackers(s, tempi);
+    if (tempi > 1) {
+        if (!InitTrackers(s, tempi))
+            xf86Msg(X_WARNING, "Unable to set VelocityTrackerCount, no free memory\n");
+    }
 
     s->initial_range = xf86SetIntOption(list, "VelocityInitialRange",
                                         s->initial_range);
