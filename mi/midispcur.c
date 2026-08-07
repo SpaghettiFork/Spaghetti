@@ -102,16 +102,17 @@ miDCInitialize(ScreenPtr pScreen, miPointerScreenFuncPtr screenFuncs)
     if (!pScreenPriv)
         return FALSE;
 
-    pScreenPriv->CloseScreen = pScreen->CloseScreen;
-    pScreen->CloseScreen = miDCCloseScreen;
-
-    dixSetPrivate(&pScreen->devPrivates, miDCScreenKey, pScreenPriv);
-
     if (!miSpriteInitialize(pScreen, screenFuncs)) {
         free((void *) pScreenPriv);
         return FALSE;
+    } else {
+        pScreenPriv->CloseScreen = pScreen->CloseScreen;
+        pScreen->CloseScreen = miDCCloseScreen;
+
+        dixSetPrivate(&pScreen->devPrivates, miDCScreenKey, pScreenPriv);
+
+        return TRUE;
     }
-    return TRUE;
 }
 
 static void
