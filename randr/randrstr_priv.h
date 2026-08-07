@@ -107,8 +107,27 @@ void RRTerminateLease(RRLeasePtr lease);
 
 Bool RRLeaseInit(void);
 
+/* rrcrtc.c */
+Bool rrGetPixmapSharingSyncProp(int numOutputs, RROutputPtr *outputs);
+
 /* rrprovider.c */
 #define PRIME_SYNC_PROP         "PRIME Synchronization"
+
+/*
+ * Data passed to listeners of RRPropertyChangeCallback
+ */
+typedef struct {
+    RROutputPtr output;
+    int state;                  /* PropertyNewValue or PropertyDelete */
+    Bool pending;               /* TRUE if the change is still a pending value */
+    RRPropertyValuePtr value;
+    Atom property;
+} RRPropertyChangeRec;
+
+extern CallbackListPtr RRPropertyChangeCallback;
+
+/* rrproperty.c */
+Bool RRPropertyInit(void);
 
 void RRMonitorInit(ScreenPtr screen);
 

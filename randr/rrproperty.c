@@ -64,6 +64,60 @@ RRDestroyOutputProperty(RRPropertyPtr prop)
 }
 
 static void
+RRPropertyChangeNotify(RROutputPtr output, Atom property,
+                       RRPropertyValuePtr value, Bool pending, int state)
+{
+    RRPropertyChangeRec rec = {
+        .output = output,
+        .property = property,
+        .value = value,
+        .state = state,
+        .pending = pending
+    };
+
+    CallCallbacks(&RRPropertyChangeCallback, &rec);
+}
+
+static void
+RRNonDesktopChangeCallback(CallbackListPtr *list, void *closure, void *data)
+{
+    RRPropertyChangeRec *rec = data;
+    const char *non_desktop_str = RR_PROPERTY_NON_DESKTOP;
+    Atom non_desktop_prop = MakeAtom(non_desktop_str, strlen(non_desktop_str), FALSE);
+    RRPropertyValuePtr value;
+    uint32_t nonDesktopData;
+    Bool nonDesktop;
+
+    if (rec->pending || rec->state != PropertyNewValue)
+        return;
+
+    if (rec->property != non_desktop_prop)
+        return;
+
+    value = rec->value;
+    if (value->type != XA_INTEGER || value->format != 32 || value->size < 1)
+        return;
+
+    memcpy(&nonDesktopData, value->data, sizeof (nonDesktopData));
+    nonDesktop = nonDesktopData != 0;
+
+    if (nonDesktop != rec->output->nonDesktop) {
+        rec->output->nonDesktop = nonDesktop;
+        RROutputChanged(rec->output, 0);
+        RRTellChanged(rec->output->pScreen);
+    }
+}
+
+CallbackListPtr RRPropertyChangeCallback;
+
+Bool
+RRPropertyInit(void)
+{
+    DeleteCallback(&RRPropertyChangeCallback, RRNonDesktopChangeCallback, 0);
+    return AddCallback(&RRPropertyChangeCallback, RRNonDesktopChangeCallback, 0);
+}
+
+static void
 RRDeleteProperty(RROutputRec * output, RRPropertyRec * prop)
 {
     xRROutputPropertyNotifyEvent event = {
@@ -76,6 +130,9 @@ RRDeleteProperty(RROutputRec * output, RRPropertyRec * prop)
     };
 
     RRDeliverPropertyEvent(output->pScreen, (xEvent *) &event);
+
+    RRPropertyChangeNotify(output, prop->propertyName, &prop->current,
+                           FALSE, PropertyDelete);
 
     RRDestroyOutputProperty(prop);
 }
@@ -131,29 +188,6 @@ RRDeleteOutputProperty(RROutputPtr output, Atom property)
             RRDeleteProperty(output, prop);
             return;
         }
-}
-
-static void
-RRNoticePropertyChange(RROutputPtr output, Atom property, RRPropertyValuePtr value)
-{
-    const char *non_desktop_str = RR_PROPERTY_NON_DESKTOP;
-    Atom non_desktop_prop = MakeAtom(non_desktop_str, strlen(non_desktop_str), FALSE);
-
-    if (property == non_desktop_prop) {
-        if (value->type == XA_INTEGER && value->format == 32 && value->size >= 1) {
-            uint32_t     nonDesktopData;
-            Bool        nonDesktop;
-
-            memcpy(&nonDesktopData, value->data, sizeof (nonDesktopData));
-            nonDesktop = nonDesktopData != 0;
-
-            if (nonDesktop != output->nonDesktop) {
-                output->nonDesktop = nonDesktop;
-                RROutputChanged(output, 0);
-                RRTellChanged(output->pScreen);
-            }
-        }
-    }
 }
 
 int
@@ -256,11 +290,15 @@ RRChangeOutputProperty(RROutputPtr output, Atom property, Atom type,
         output->properties = prop;
     }
 
-    if (pending && prop->is_pending)
+    if (pending && prop->is_pending) {
         output->pendingProperties = TRUE;
-
-    if (!(pending && prop->is_pending))
-        RRNoticePropertyChange(output, prop->propertyName, prop_value);
+        if (sendevent)
+            RRPropertyChangeNotify(output, prop->propertyName, &prop->pending,
+                                   TRUE, PropertyNewValue);
+    }
+    else if (sendevent)
+        RRPropertyChangeNotify(output, prop->propertyName, prop_value,
+                               FALSE, PropertyNewValue);
 
     if (sendevent) {
         xRROutputPropertyNotifyEvent event = {
@@ -760,6 +798,8 @@ ProcRRGetOutputProperty(ClientPtr client)
 
     if (stuff->delete && (reply.bytesAfter == 0)) {     /* delete the Property */
         *prev = prop->next;
+        RRPropertyChangeNotify(output, prop->propertyName, &prop->current,
+                               FALSE, PropertyDelete);
         RRDestroyOutputProperty(prop);
     }
     return Success;
