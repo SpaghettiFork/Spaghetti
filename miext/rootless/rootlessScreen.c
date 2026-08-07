@@ -111,12 +111,12 @@ RootlessUpdateScreenPixmap(ScreenPtr pScreen)
     rowbytes = PixmapBytePad(pScreen->width, pScreen->rootDepth);
 
     if (s->pixmap_data_size < rowbytes) {
-        free(s->pixmap_data);
-
-        s->pixmap_data_size = rowbytes;
-        s->pixmap_data = malloc(s->pixmap_data_size);
-        if (s->pixmap_data == NULL)
+        void *data = malloc(rowbytes);
+        if (data == NULL)
             return;
+
+        XORG_EXCHANGE(s->pixmap_data, data);
+        s->pixmap_data_size = rowbytes;
 
         memset(s->pixmap_data, 0xFF, s->pixmap_data_size);
 
@@ -127,6 +127,8 @@ RootlessUpdateScreenPixmap(ScreenPtr pScreen)
         /* ModifyPixmapHeader ignores zero arguments, so install rowbytes
            by hand. */
         pPix->devKind = 0;
+
+        free(data);
     }
 }
 
