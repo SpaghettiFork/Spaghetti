@@ -1116,7 +1116,7 @@ ProcRRSetScreenConfig(ClientPtr client)
         .newTimestamp = pScrPriv->lastSetTime.milliseconds,
         .newConfigTimestamp = pScrPriv->lastConfigTime.milliseconds,
         .root = pDraw->pScreen->root->drawable.id,
-        /* .subpixelOrder = ?? */
+        .subpixelOrder = SubPixelUnknown /* XXX */
     };
 
     if (client->swapped) {
