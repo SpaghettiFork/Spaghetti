@@ -671,10 +671,10 @@ DeepCopyPointerClasses(DeviceIntPtr from, DeviceIntPtr to)
                 to->touch->num_touches = from->touch->num_touches;
                 to->touch->touches = calloc(to->touch->num_touches,
                                             sizeof(TouchPointInfoRec));
+                if (!to->touch->touches)
+                    FatalError("[Xi] no memory for class shift.\n");
                 for (i = 0; i < to->touch->num_touches; i++)
                     TouchInitTouchPoint(to->touch, to->valuator, i);
-                if (!to->touch)
-                    FatalError("[Xi] no memory for class shift.\n");
             }
             else
                 classes->touch = NULL;
