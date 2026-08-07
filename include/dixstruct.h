@@ -89,11 +89,11 @@ typedef struct _Client {
     unsigned int clientState:2;
     _X_UNUSED char unused;
     short noClientException;      /* this client died or needs to be killed */
-    int priority;
+    int ignoreCount;              /* count for Attend/IgnoreClient */
     ReplySwapPtr pSwapReplyFunc;
     XID errorValue;
     int sequence;
-    int ignoreCount;            /* count for Attend/IgnoreClient */
+    int priority;
     int numSaved;
     SaveSetElt *saveSet;
     int (**requestVector) (ClientPtr /* pClient */ );
