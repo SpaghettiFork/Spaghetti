@@ -87,6 +87,7 @@ RRCrtcCreate(ScreenPtr pScreen, void *devPrivate)
     crtc->gammaSize = 0;
     crtc->gammaRed = crtc->gammaBlue = crtc->gammaGreen = NULL;
     crtc->changed = FALSE;
+    crtc->primeSyncEnabled = TRUE;
     crtc->devPrivate = devPrivate;
     RRTransformInit(&crtc->client_pending_transform);
     RRTransformInit(&crtc->client_current_transform);
@@ -447,10 +448,27 @@ rrCreateSharedPixmap(RRCrtcPtr crtc, ScreenPtr primary,
     return spix;
 }
 
-static Bool
+static void
+rrSetPixmapSharingSyncProp(char val, int numOutputs, RROutputPtr * outputs)
+{
+    int o;
+    const char *syncStr = PRIME_SYNC_PROP;
+    Atom syncProp = MakeAtom(syncStr, strlen(syncStr), FALSE);
+    if (syncProp == None)
+        return;
+
+    for (o = 0; o < numOutputs; o++) {
+        RRPropertyPtr prop = RRQueryOutputProperty(outputs[o], syncProp);
+        if (prop)
+            RRChangeOutputProperty(outputs[o], syncProp, XA_INTEGER,
+                                   8, PropModeReplace, 1, &val, FALSE, TRUE);
+    }
+}
+
+Bool
 rrGetPixmapSharingSyncProp(int numOutputs, RROutputPtr * outputs)
 {
-    /* Determine if the user wants prime syncing */
+    /* Determine if the user wants PRIME sync */
     int o;
     const char *syncStr = PRIME_SYNC_PROP;
     Atom syncProp = MakeAtom(syncStr, strlen(syncStr), FALSE);
@@ -470,23 +488,6 @@ rrGetPixmapSharingSyncProp(int numOutputs, RROutputPtr * outputs)
     }
 
     return TRUE;
-}
-
-static void
-rrSetPixmapSharingSyncProp(char val, int numOutputs, RROutputPtr * outputs)
-{
-    int o;
-    const char *syncStr = PRIME_SYNC_PROP;
-    Atom syncProp = MakeAtom(syncStr, strlen(syncStr), FALSE);
-    if (syncProp == None)
-        return;
-
-    for (o = 0; o < numOutputs; o++) {
-        RRPropertyPtr prop = RRQueryOutputProperty(outputs[o], syncProp);
-        if (prop)
-            RRChangeOutputProperty(outputs[o], syncProp, XA_INTEGER,
-                                   8, PropModeReplace, 1, &val, FALSE, TRUE);
-    }
 }
 
 static Bool
@@ -583,6 +584,7 @@ fail: /* If flipping funcs fail, just fall back to unsynchronized */
 
         /* Set output property to 0 to indicate to user */
         rrSetPixmapSharingSyncProp(0, numOutputs, outputs);
+        crtc->primeSyncEnabled = FALSE;
     }
 
     if (!pSecondaryScrPriv->rrCrtcSetScanoutPixmap(crtc, spix_front)) {
@@ -741,6 +743,10 @@ RRCrtcSet(RRCrtcPtr crtc,
     Bool ret = FALSE;
     Bool recompute = TRUE;
     Bool crtcChanged;
+    Bool sameOutputs = (crtc->numOutputs == numOutputs &&
+                        (numOutputs == 0 ||
+                         !memcmp(crtc->outputs, outputs,
+                                 numOutputs * sizeof(RROutputPtr))));
     int  o;
 
     rrScrPriv(pScreen);
@@ -760,8 +766,7 @@ RRCrtcSet(RRCrtcPtr crtc,
         crtc->x == x &&
         crtc->y == y &&
         crtc->rotation == rotation &&
-        crtc->numOutputs == numOutputs &&
-        !memcmp(crtc->outputs, outputs, numOutputs * sizeof(RROutputPtr)) &&
+        sameOutputs &&
         !RRCrtcPendingProperties(crtc) && !RRCrtcPendingTransform(crtc) &&
         !crtcChanged) {
         recompute = FALSE;
@@ -782,7 +787,12 @@ RRCrtcSet(RRCrtcPtr crtc,
                 return FALSE;
 
             if (pScreen->current_primary) {
-                Bool sync = rrGetPixmapSharingSyncProp(numOutputs, outputs);
+                Bool sync = crtc->primeSyncEnabled;
+
+                if (!sameOutputs)
+                    sync = crtc->primeSyncEnabled =
+                        rrGetPixmapSharingSyncProp(numOutputs, outputs);
+
                 ret = rrSetupPixmapSharing(crtc, width, height,
                                            x, y, rotation, sync,
                                            numOutputs, outputs);

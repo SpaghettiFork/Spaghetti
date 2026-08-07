@@ -285,6 +285,8 @@ RRInit(void)
     if (RRGeneration != serverGeneration) {
         if (!RRModeInit())
             return FALSE;
+        if (!RRPropertyInit())
+            return FALSE;
         if (!RRCrtcInit())
             return FALSE;
         if (!RROutputInit())
