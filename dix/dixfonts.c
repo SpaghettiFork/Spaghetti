@@ -590,6 +590,8 @@ doListFontsAndAliases(ClientPtr client, LFclosurePtr c)
                  c->names);
 
             if (err == Suspended) {
+                free(resolved);
+                resolved = NULL;
                 if (!ClientIsAsleep(client))
                     ClientSleep(client,
                                 (ClientSleepProcPtr) doListFontsAndAliases, c);
@@ -614,6 +616,8 @@ doListFontsAndAliases(ClientPtr client, LFclosurePtr c)
                      c->current.patlen, c->current.max_names - c->names->nnames,
                      &c->current.private);
                 if (err == Suspended) {
+                    free(resolved);
+                    resolved = NULL;
                     if (!ClientIsAsleep(client))
                         ClientSleep(client,
                                     (ClientSleepProcPtr) doListFontsAndAliases,
@@ -631,6 +635,8 @@ doListFontsAndAliases(ClientPtr client, LFclosurePtr c)
                     ((void *) c->client, fpe, &name, &namelen, &tmpname,
                      &resolvedlen, c->current.private);
                 if (err == Suspended) {
+                    free(resolved);
+                    resolved = NULL;
                     if (!ClientIsAsleep(client))
                         ClientSleep(client,
                                     (ClientSleepProcPtr) doListFontsAndAliases,
