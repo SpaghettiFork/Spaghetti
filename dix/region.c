@@ -797,6 +797,67 @@ RegionOp(RegionPtr newReg,      /* Place to store result         */
 
 /*-
  *-----------------------------------------------------------------------
+ * RegionSetExtentsVector --
+ *  SIMD helper for RegionSetExtents.  Accumulates the minimum x1 and
+ *  maximum x2 over the region's rectangles two at a time, using a
+ *  vector of eight 16-bit lanes which holds exactly two BoxRecs.
+ *-----------------------------------------------------------------------
+ */
+#if __has_attribute(vector_size)
+typedef short v8hi __attribute__((vector_size(16)));
+
+static inline void
+RegionSetExtentsVector(RegionPtr pReg, BoxPtr pBox, BoxPtr pBoxEnd)
+{
+    short *r = (short *) pBox;
+    short *rEnd = (short *) pBoxEnd + 4;
+    v8hi accMin = {
+        SHRT_MAX, SHRT_MAX, SHRT_MAX, SHRT_MAX,
+        SHRT_MAX, SHRT_MAX, SHRT_MAX, SHRT_MAX
+    };
+    v8hi accMax = {
+        SHRT_MIN, SHRT_MIN, SHRT_MIN, SHRT_MIN,
+        SHRT_MIN, SHRT_MIN, SHRT_MIN, SHRT_MIN
+    };
+
+    /* each 16-byte vector holds two boxes: [x1,y1,x2,y2, x1,y1,x2,y2] */
+    while (r + 8 <= rEnd) {
+        v8hi v;
+
+        /* region rects are only 8-byte aligned, so load via memcpy */
+        __builtin_memcpy(&v, r, sizeof(v));
+        v8hi minMask = v < accMin;
+        v8hi maxMask = v > accMax;
+
+        accMin = (v & minMask) | (accMin & ~minMask);
+        accMax = (v & maxMask) | (accMax & ~maxMask);
+        r += 8;
+    }
+
+    /* x1 lives in lanes 0 and 4, x2 in lanes 2 and 6 */
+    if (accMin[0] < pReg->extents.x1)
+        pReg->extents.x1 = accMin[0];
+    if (accMin[4] < pReg->extents.x1)
+        pReg->extents.x1 = accMin[4];
+    if (accMax[2] > pReg->extents.x2)
+        pReg->extents.x2 = accMax[2];
+    if (accMax[6] > pReg->extents.x2)
+        pReg->extents.x2 = accMax[6];
+
+    /* handle the leftover rectangle, if any */
+    for (; r < rEnd; r += 4) {
+        BoxPtr b = (BoxPtr) r;
+
+        if (b->x1 < pReg->extents.x1)
+            pReg->extents.x1 = b->x1;
+        if (b->x2 > pReg->extents.x2)
+            pReg->extents.x2 = b->x2;
+    }
+}
+#endif
+
+/*-
+ *-----------------------------------------------------------------------
  * RegionSetExtents --
  *	Reset the extents of a region to what they should be. Called by
  *	Subtract and Intersect as they can't figure it out along the
@@ -839,6 +900,9 @@ RegionSetExtents(RegionPtr pReg)
     pReg->extents.y2 = pBoxEnd->y2;
 
     assert(pReg->extents.y1 < pReg->extents.y2);
+#if __has_attribute(vector_size)
+    RegionSetExtentsVector(pReg, pBox, pBoxEnd);
+#else
     while (pBox <= pBoxEnd) {
         if (pBox->x1 < pReg->extents.x1)
             pReg->extents.x1 = pBox->x1;
@@ -846,6 +910,7 @@ RegionSetExtents(RegionPtr pReg)
             pReg->extents.x2 = pBox->x2;
         pBox++;
     };
+#endif
 
     assert(pReg->extents.x1 < pReg->extents.x2);
 }
