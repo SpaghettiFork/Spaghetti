@@ -212,6 +212,7 @@ struct _DeviceChangedEvent {
  */
 struct _DGAEvent {
     unsigned char header; /**<  Always ET_Internal */
+    uint16_t state;       /**<  Core modifier/button state */
     enum EventType type;  /**<  ET_DGAEvent */
     int length;           /**<  Length in bytes */
     Time time;            /**<  Time in ms */
@@ -221,7 +222,6 @@ struct _DGAEvent {
     int dx;               /**<  Relative x coordinate */
     int dy;               /**<  Relative y coordinate */
     int screen;           /**<  Screen number this event applies to */
-    uint16_t state;       /**<  Core modifier/button state */
 };
 #endif
 
