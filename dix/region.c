@@ -1320,7 +1320,13 @@ RegionValidate(RegionPtr badreg, Bool *pOverlap)
     for (i = 0; i < numRI; i++)
         xfreeData(&ri[i].reg);
     free(ri);
-    return RegionBreak(badreg);
+    /*
+     * ri[0].reg.data is aliased with badreg->data, so it has already been
+     * freed above.  Mark badreg as broken without freeing its data again.
+     */
+    badreg->extents = RegionEmptyBox;
+    badreg->data = &RegionBrokenData;
+    return FALSE;
 }
 
 RegionPtr
