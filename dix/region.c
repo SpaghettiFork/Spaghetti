@@ -638,7 +638,7 @@ RegionOp(RegionPtr newReg,      /* Place to store result         */
         newReg->data->numRects = 0;
     if (newSize > newReg->data->size)
         if (!RegionRectAlloc(newReg, newSize))
-            return FALSE;
+            goto bail;
 
     /*
      * Initialize ybot.
@@ -695,7 +695,8 @@ RegionOp(RegionPtr newReg,      /* Place to store result         */
                 bot = min(r1->y2, r2y1);
                 if (top != bot) {
                     curBand = newReg->data->numRects;
-                    RegionAppendNonO(newReg, r1, r1BandEnd, top, bot);
+                    if (!RegionAppendNonO(newReg, r1, r1BandEnd, top, bot))
+                        goto bail;
                     Coalesce(newReg, prevBand, curBand);
                 }
             }
@@ -707,7 +708,8 @@ RegionOp(RegionPtr newReg,      /* Place to store result         */
                 bot = min(r2->y2, r1y1);
                 if (top != bot) {
                     curBand = newReg->data->numRects;
-                    RegionAppendNonO(newReg, r2, r2BandEnd, top, bot);
+                    if (!RegionAppendNonO(newReg, r2, r2BandEnd, top, bot))
+                        goto bail;
                     Coalesce(newReg, prevBand, curBand);
                 }
             }
@@ -724,8 +726,9 @@ RegionOp(RegionPtr newReg,      /* Place to store result         */
         ybot = min(r1->y2, r2->y2);
         if (ybot > ytop) {
             curBand = newReg->data->numRects;
-            (*overlapFunc) (newReg, r1, r1BandEnd, r2, r2BandEnd, ytop, ybot,
-                            pOverlap);
+            if (!(*overlapFunc) (newReg, r1, r1BandEnd, r2, r2BandEnd, ytop,
+                                 ybot, pOverlap))
+                goto bail;
             Coalesce(newReg, prevBand, curBand);
         }
 
@@ -752,7 +755,8 @@ RegionOp(RegionPtr newReg,      /* Place to store result         */
         /* Do first nonOverlap1Func call, which may be able to coalesce */
         FindBand(r1, r1BandEnd, r1End, r1y1);
         curBand = newReg->data->numRects;
-        RegionAppendNonO(newReg, r1, r1BandEnd, max(r1y1, ybot), r1->y2);
+        if (!RegionAppendNonO(newReg, r1, r1BandEnd, max(r1y1, ybot), r1->y2))
+            goto bail;
         Coalesce(newReg, prevBand, curBand);
         /* Just append the rest of the boxes  */
         AppendRegions(newReg, r1BandEnd, r1End);
@@ -762,7 +766,8 @@ RegionOp(RegionPtr newReg,      /* Place to store result         */
         /* Do first nonOverlap2Func call, which may be able to coalesce */
         FindBand(r2, r2BandEnd, r2End, r2y1);
         curBand = newReg->data->numRects;
-        RegionAppendNonO(newReg, r2, r2BandEnd, max(r2y1, ybot), r2->y2);
+        if (!RegionAppendNonO(newReg, r2, r2BandEnd, max(r2y1, ybot), r2->y2))
+            goto bail;
         Coalesce(newReg, prevBand, curBand);
         /* Append rest of boxes */
         AppendRegions(newReg, r2BandEnd, r2End);
@@ -784,6 +789,10 @@ RegionOp(RegionPtr newReg,      /* Place to store result         */
     }
 
     return TRUE;
+
+ bail:
+    free(oldData);
+    return FALSE;
 }
 
 /*-
@@ -1303,8 +1312,10 @@ RegionValidate(RegionPtr badreg, Bool *pOverlap)
     }
     *badreg = ri[0].reg;
     free(ri);
+    if (!ret)
+        return RegionBreak(badreg);
     good(badreg);
-    return ret;
+    return TRUE;
  bail:
     for (i = 0; i < numRI; i++)
         xfreeData(&ri[i].reg);
