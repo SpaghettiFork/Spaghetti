@@ -98,7 +98,7 @@ typedef struct _Client {
     SaveSetElt *saveSet;
     int (**requestVector) (ClientPtr /* pClient */ );
     CARD32 req_len;             /* length of current request */
-    unsigned int replyBytesRemaining;
+    CARD32 replyBytesRemaining;
     PrivateRec *devPrivates;
     unsigned short mapNotifyMask;
     unsigned short newKeyboardNotifyMask;
