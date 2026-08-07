@@ -87,7 +87,7 @@ typedef struct _Client {
     unsigned int clientGone:1;
     unsigned int closeDownMode:2;
     unsigned int clientState:2;
-    signed char smart_priority;
+    _X_UNUSED char unused;
     short noClientException;      /* this client died or needs to be killed */
     int priority;
     ReplySwapPtr pSwapReplyFunc;
@@ -105,6 +105,7 @@ typedef struct _Client {
     unsigned char xkbClientFlags;
     KeyCode minKC, maxKC;
 
+    signed char smart_priority;
     int smart_start_tick;
     int smart_stop_tick;
 
