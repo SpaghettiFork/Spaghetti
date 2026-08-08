@@ -159,7 +159,7 @@ DamageExtDestroy(DamagePtr pDamage, void *closure)
 {
     DamageExtPtr pDamageExt = closure;
 
-    pDamageExt->pDamage = 0;
+    pDamageExt->pDamage = NULL;
     if (pDamageExt->id)
         FreeResource(pDamageExt->id, X11_RESTYPE_NONE);
 }
