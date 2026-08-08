@@ -158,6 +158,9 @@ WindowSeekDeviceCursor(WindowPtr pWin,
                        DeviceIntPtr pDev,
                        DevCursNodePtr * pNode, DevCursNodePtr * pPrev);
 
+static void UnrealizeTree(WindowPtr pWin, Bool fromConfigure);
+static void DeliverUnmapNotify(WindowPtr pWin, Bool fromConfigure);
+
 int screenIsSaved = SCREEN_SAVER_OFF;
 
 static Bool TileScreenSaver(ScreenPtr pScreen, int kind);
@@ -1073,6 +1076,44 @@ CrushTree(WindowPtr pWin)
     }
 }
 
+/* Shared batch validation of pWin's children, after some or all of them
+ * have been unmapped, used by UnmapSubwindows and DestroySubwindows. */
+static inline void
+UnmapSubwindowsValidate(WindowPtr pWin, WindowPtr pLayerWin,
+                        WindowPtr pHead, Bool anyMarked,
+                        Bool wasViewable, Bool wasRealized)
+{
+    ScreenPtr pScreen = pWin->drawable.pScreen;
+
+    if (wasViewable && anyMarked) {
+        if (pLayerWin->parent == pWin)
+            (*pScreen->MarkWindow) (pWin);
+        else {
+            WindowPtr ptmp;
+
+            (*pScreen->MarkOverlappedWindows) (pWin, pLayerWin, NULL);
+            (*pScreen->MarkWindow) (pLayerWin->parent);
+
+            /* Windows between pWin and pLayerWin may not have been marked */
+            ptmp = pWin;
+
+            while (ptmp != pLayerWin->parent) {
+                (*pScreen->MarkWindow) (ptmp);
+                ptmp = ptmp->parent;
+            }
+            pHead = pWin->firstChild;
+        }
+        (*pScreen->ValidateTree) (pLayerWin->parent, pHead, VTUnmap);
+        (*pScreen->HandleExposures) (pLayerWin->parent);
+        if (pScreen->PostValidateTree)
+            (*pScreen->PostValidateTree) (pLayerWin->parent, pHead, VTUnmap);
+    }
+    if (wasRealized) {
+        WindowsRestructured();
+        WindowGone(pWin);
+    }
+}
+
 /*****
  *  DeleteWindow
  *	 Deletes child of window then window itself
@@ -1119,23 +1160,53 @@ DeleteWindow(void *value, XID wid)
 int
 DestroySubwindows(WindowPtr pWin, ClientPtr client)
 {
-    /* XXX
-     * The protocol is quite clear that each window should be
-     * destroyed in turn, however, unmapping all of the first
-     * eliminates most of the calls to ValidateTree.  So,
-     * this implementation is incorrect in that all of the
-     * UnmapNotifies occur before all of the DestroyNotifies.
-     * If you care, simply delete the call to UnmapSubwindows.
-     */
-    UnmapSubwindows(pWin);
-    while (pWin->lastChild) {
-        int rc = XaceHookResourceAccess(client,
-                          pWin->lastChild->drawable.id, X11_RESTYPE_WINDOW,
-                          pWin->lastChild, X11_RESTYPE_NONE, NULL, DixDestroyAccess);
+    WindowPtr pChild, pHead, pLayerWin = NULL;
+    Bool anyMarked = FALSE;
+    Bool wasRealized = pWin->realized;
+    Bool wasViewable = pWin->viewable;
+    ScreenPtr pScreen = pWin->drawable.pScreen;
 
+    if (!pWin->firstChild)
+        return Success;
+
+    /* Unmap the mapped children in one pass,
+     * bottom-to-top, so the tree is validated only once. */
+    pHead = RealChildHead(pWin);
+    if (wasViewable)
+        pLayerWin = (*pScreen->GetLayerWindow) (pWin);
+
+    for (pChild = pWin->lastChild; pChild != pHead; pChild = pChild->prevSib) {
+        if (pChild->mapped) {
+            if (pChild->viewable) {
+                pChild->valdata = UnmapValData;
+                anyMarked = TRUE;
+            }
+            if (pChild->realized)
+                UnrealizeTree(pChild, FALSE);
+        }
+    }
+
+    UnmapSubwindowsValidate(pWin, pLayerWin, pHead, anyMarked,
+                            wasViewable, wasRealized);
+
+    /* Destroy the subwindows in bottom-to-top stacking order, sending the
+     * UnmapNotify for each child unmapped above immediately before its
+     * DestroyNotify and clearing ->mapped. */
+    while (pWin->lastChild) {
+        int rc;
+
+        pChild = pWin->lastChild;
+        rc = XaceHookResourceAccess(client,
+                          pChild->drawable.id, X11_RESTYPE_WINDOW,
+                          pChild, X11_RESTYPE_NONE, NULL, DixDestroyAccess);
         if (rc != Success)
             return rc;
-        FreeResource(pWin->lastChild->drawable.id, X11_RESTYPE_NONE);
+        if (pChild->mapped) {
+            if (SubStrSend(pChild, pWin))
+                DeliverUnmapNotify(pChild, FALSE);
+            pChild->mapped = FALSE;
+        }
+        FreeResource(pChild->drawable.id, X11_RESTYPE_NONE);
     }
     return Success;
 }
@@ -2931,33 +3002,8 @@ UnmapSubwindows(WindowPtr pWin)
                 UnrealizeTree(pChild, FALSE);
         }
     }
-    if (wasViewable && anyMarked) {
-        if (pLayerWin->parent == pWin)
-            (*pScreen->MarkWindow) (pWin);
-        else {
-            WindowPtr ptmp;
-
-            (*pScreen->MarkOverlappedWindows) (pWin, pLayerWin, NULL);
-            (*pScreen->MarkWindow) (pLayerWin->parent);
-
-            /* Windows between pWin and pLayerWin may not have been marked */
-            ptmp = pWin;
-
-            while (ptmp != pLayerWin->parent) {
-                (*pScreen->MarkWindow) (ptmp);
-                ptmp = ptmp->parent;
-            }
-            pHead = pWin->firstChild;
-        }
-        (*pScreen->ValidateTree) (pLayerWin->parent, pHead, VTUnmap);
-        (*pScreen->HandleExposures) (pLayerWin->parent);
-        if (pScreen->PostValidateTree)
-            (*pScreen->PostValidateTree) (pLayerWin->parent, pHead, VTUnmap);
-    }
-    if (wasRealized) {
-        WindowsRestructured();
-        WindowGone(pWin);
-    }
+    UnmapSubwindowsValidate(pWin, pLayerWin, pHead, anyMarked,
+                            wasViewable, wasRealized);
 }
 
 void
