@@ -109,8 +109,7 @@ ProcXQueryDeviceState(ClientPtr client)
         tk->num_keys = k->xkbInfo->desc->max_key_code -
             k->xkbInfo->desc->min_key_code + 1;
         if (rc != BadAccess)
-            for (i = 0; i < 32; i++)
-                tk->keys[i] = k->down[i];
+            memcpy(tk->keys, k->down, sizeof(k->down));
         buf += sizeof(xKeyState);
     }
 
