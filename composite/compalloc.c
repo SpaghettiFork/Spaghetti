@@ -190,7 +190,7 @@ compRedirectWindow(ClientPtr pClient, WindowPtr pWin, int update)
 
         RegionNull(&cw->borderClip);
         cw->update = CompositeRedirectAutomatic;
-        cw->clients = 0;
+        cw->clients = NULL;
         cw->oldx = COMP_ORIGIN_INVALID;
         cw->oldy = COMP_ORIGIN_INVALID;
         cw->damageRegistered = FALSE;
@@ -374,7 +374,7 @@ compRedirectSubwindows(ClientPtr pClient, WindowPtr pWin, int update)
             return BadAlloc;
         }
         csw->update = CompositeRedirectAutomatic;
-        csw->clients = 0;
+        csw->clients = NULL;
         dixSetPrivate(&pWin->devPrivates, CompSubwindowsPrivateKey, csw);
     }
     /*
@@ -704,7 +704,7 @@ compReallocPixmap(WindowPtr pWin, int draw_x, int draw_y,
     }
     else {
         pNew = pOld;
-        cw->pOldPixmap = 0;
+        cw->pOldPixmap = NULL;
     }
     pNew->screen_x = pix_x;
     pNew->screen_y = pix_y;
