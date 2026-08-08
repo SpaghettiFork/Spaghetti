@@ -70,7 +70,6 @@ SOFTWARE.
 static void
 CopySwapKbdFeedback(ClientPtr client, KbdFeedbackPtr k, char **buf)
 {
-    int i;
     xKbdFeedbackState *k2;
 
     k2 = (xKbdFeedbackState *) * buf;
@@ -84,8 +83,7 @@ CopySwapKbdFeedback(ClientPtr client, KbdFeedbackPtr k, char **buf)
     k2->led_mask = k->ctrl.leds;
     k2->led_values = k->ctrl.leds;
     k2->global_auto_repeat = k->ctrl.autoRepeat;
-    for (i = 0; i < 32; i++)
-        k2->auto_repeats[i] = k->ctrl.autoRepeats[i];
+    memcpy(k2->auto_repeats, k->ctrl.autoRepeats, sizeof(k->ctrl.autoRepeats));
     if (client->swapped) {
         swaps(&k2->length);
         swaps(&k2->pitch);
