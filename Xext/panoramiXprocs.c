@@ -1185,7 +1185,11 @@ PanoramiXCopyArea(ClientPtr client)
             RegionIntersect(&rgn, &rgn, pGC->pCompositeClip);
 
             /* and expose */
-            SendGraphicsExpose(client, &rgn, dst->info[0].id, X_CopyArea, 0);
+            if (!SendGraphicsExpose(client, &rgn, dst->info[0].id,
+                                    X_CopyArea, 0)) {
+                RegionUninit(&rgn);
+                return BadAlloc;
+            }
             RegionUninit(&rgn);
         }
     }
@@ -1250,9 +1254,11 @@ PanoramiXCopyArea(ClientPtr client)
             Bool overlap;
 
             RegionValidate(&totalReg, &overlap);
-            SendGraphicsExpose(client, &totalReg, stuff->dstDrawable,
-                               X_CopyArea, 0);
+            result = SendGraphicsExpose(client, &totalReg,
+                                        stuff->dstDrawable, X_CopyArea, 0);
             RegionUninit(&totalReg);
+            if (!result)
+                return BadAlloc;
         }
     }
 
@@ -1362,9 +1368,11 @@ PanoramiXCopyPlane(ClientPtr client)
         Bool overlap;
 
         RegionValidate(&totalReg, &overlap);
-        SendGraphicsExpose(client, &totalReg, stuff->dstDrawable,
-                           X_CopyPlane, 0);
+        rc = SendGraphicsExpose(client, &totalReg,
+                                stuff->dstDrawable, X_CopyPlane, 0);
         RegionUninit(&totalReg);
+        if (!rc)
+            return BadAlloc;
     }
 
     return Success;

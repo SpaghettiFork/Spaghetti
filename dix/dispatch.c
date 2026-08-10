@@ -1717,9 +1717,9 @@ ProcClearToBackground(ClientPtr client)
 }
 
 /* send GraphicsExpose events, or a NoExpose event, based on the region */
-void
+Bool
 SendGraphicsExpose(ClientPtr client, RegionPtr pRgn, XID drawable,
-                     int major, int minor)
+                   int major, int minor)
 {
     if (pRgn && !RegionNil(pRgn)) {
         xEvent *pEvent;
@@ -1731,7 +1731,7 @@ SendGraphicsExpose(ClientPtr client, RegionPtr pRgn, XID drawable,
         numRects = RegionNumRects(pRgn);
         pBox = RegionRects(pRgn);
         if (!(pEvent = calloc(numRects, sizeof(xEvent))))
-            return;
+            return FALSE;
         pe = pEvent;
 
         for (i = 1; i <= numRects; i++, pe++, pBox++) {
@@ -1750,6 +1750,7 @@ SendGraphicsExpose(ClientPtr client, RegionPtr pRgn, XID drawable,
         TryClientEvents(client, NULL, pEvent, numRects,
                         (Mask) 0, NoEventMask, NullGrab);
         free(pEvent);
+        return TRUE;
     }
     else {
         xEvent event = {
@@ -1759,6 +1760,7 @@ SendGraphicsExpose(ClientPtr client, RegionPtr pRgn, XID drawable,
         };
         event.u.u.type = NoExpose;
         WriteEventsToClient(client, 1, &event);
+        return TRUE;
     }
 }
 
@@ -1772,6 +1774,7 @@ ProcCopyArea(ClientPtr client)
     REQUEST(xCopyAreaReq);
     RegionPtr pRgn;
     int rc;
+    Bool result;
 
     REQUEST_SIZE_MATCH(xCopyAreaReq);
 
@@ -1793,9 +1796,12 @@ ProcCopyArea(ClientPtr client)
                                   stuff->width, stuff->height,
                                   stuff->dstX, stuff->dstY);
     if (pGC->graphicsExposures) {
-        SendGraphicsExpose(client, pRgn, stuff->dstDrawable, X_CopyArea, 0);
+        result = SendGraphicsExpose(client, pRgn,
+                                    stuff->dstDrawable, X_CopyArea, 0);
         if (pRgn)
             RegionDestroy(pRgn);
+        if (!result)
+            return BadAlloc;
     }
 
     return Success;
@@ -1810,6 +1816,7 @@ ProcCopyPlane(ClientPtr client)
     REQUEST(xCopyPlaneReq);
     RegionPtr pRgn;
     int rc;
+    Bool result;
 
     REQUEST_SIZE_MATCH(xCopyPlaneReq);
 
@@ -1840,9 +1847,12 @@ ProcCopyPlane(ClientPtr client)
                                 stuff->srcY, stuff->width, stuff->height,
                                 stuff->dstX, stuff->dstY, stuff->bitPlane);
     if (pGC->graphicsExposures) {
-        SendGraphicsExpose(client, pRgn, stuff->dstDrawable, X_CopyPlane, 0);
+        result = SendGraphicsExpose(client, pRgn,
+                                    stuff->dstDrawable, X_CopyPlane, 0);
         if (pRgn)
             RegionDestroy(pRgn);
+        if (!result)
+            return BadAlloc;
     }
     return Success;
 }

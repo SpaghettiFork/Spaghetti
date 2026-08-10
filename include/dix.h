@@ -293,7 +293,7 @@ extern _X_EXPORT void ClientWakeup(ClientPtr /*client */ );
 
 extern _X_EXPORT Bool ClientIsAsleep(ClientPtr /*client */ );
 
-extern _X_EXPORT void SendGraphicsExpose(ClientPtr /*client */ ,
+extern _X_EXPORT Bool SendGraphicsExpose(ClientPtr /*client */ ,
                                          RegionPtr /*pRgn */ ,
                                          XID /*drawable */ ,
                                          int /*major */ ,
