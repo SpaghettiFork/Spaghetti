@@ -32,8 +32,6 @@
 
 #define CGROUP_PATH "/sys/fs/cgroup/spaghetti"
 
-Bool disable_cgroup = FALSE;
-
 void
 xf86SetupCGroup(void)
 {
@@ -41,9 +39,6 @@ xf86SetupCGroup(void)
     char buf[32];
     ssize_t len;
     struct stat st;
-
-    if (disable_cgroup)
-        return;
 
     if (geteuid() != 0)
         return;
