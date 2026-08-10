@@ -36,6 +36,7 @@
 
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 
 #undef HAS_UTSNAME
@@ -98,6 +99,7 @@ extern void xf86SetupCGroup(void);
 
 void (*xf86OSPMClose) (void) = NULL;
 static Bool xorgHWOpenConsole = FALSE;
+static Bool highPriority = FALSE;
 
 /* Common pixmap formats */
 
@@ -784,9 +786,16 @@ OsVendorInit(void)
     if (!beenHere) {
         umask(022);
         xf86LogInit();
+        if (highPriority) {
 #ifdef __linux__
-        xf86SetupCGroup();
+            xf86SetupCGroup();
+#else
+            if (setpriority(PRIO_PROCESS, 0, -4) != 0)
+                xf86Msg(X_WARNING,
+                        "highpriority: failed to set nice level: %s\n",
+                        strerror(errno));
 #endif
+        }
     }
 
     /* Set stderr to non-blocking. */
@@ -1150,6 +1159,10 @@ ddxProcessArgument(int argc, char **argv, int i)
         xf86silkenMouseDisableFlag = TRUE;
         return 1;
     }
+    if (!strcmp(argv[i], "-highpriority")) {
+        highPriority = TRUE;
+        return 1;
+    }
 #ifdef HAVE_ACPI
     if (!strcmp(argv[i], "-noacpi")) {
         xf86acpiDisableFlag = TRUE;
@@ -1260,6 +1273,7 @@ ddxUseMsg(void)
     ErrorF
         ("-pointer name          specify the core pointer InputDevice name\n");
     ErrorF("-nosilk                disable Silken Mouse\n");
+    ErrorF("-highpriority          request high process priority from the OS\n");
     ErrorF("-flipPixels            swap default black/white Pixel values\n");
 #ifdef XF86VIDMODE
     ErrorF("-disableVidMode        disable mode adjustments with xvidtune\n");
