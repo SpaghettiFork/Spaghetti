@@ -51,8 +51,13 @@
 #define MEMCPY_WRAPPED(dst, src, size) do {                       \
     size_t _i;                                                    \
     CARD8 *_dst = (CARD8*)(dst), *_src = (CARD8*)(src);           \
-    for(_i = 0; _i < size; _i++) {                                \
-        WRITE(_dst +_i, READ(_src + _i));                         \
+    for(_i = 0; _i < size &&                                      \
+        (((uintptr_t)(_dst + _i) | (uintptr_t)(_src + _i)) & (sizeof(FbBits) - 1)); _i++) \
+        WRITE(_dst +_i, READ(_src +_i));                          \
+    for(; _i + sizeof(FbBits) <= size; _i += sizeof(FbBits))      \
+        WRITE((FbBits*)(_dst + _i), READ((FbBits*)(_src + _i)));  \
+    for(; _i < size; _i++) {                                      \
+        WRITE(_dst +_i, READ(_src +_i));                          \
     }                                                             \
 } while(0)
 
