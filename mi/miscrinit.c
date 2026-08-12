@@ -171,6 +171,9 @@ miCreateScreenResources(ScreenPtr pScreen)
     void *value;
 
     pScrInitParms = (miScreenInitParmsPtr) pScreen->devPrivate;
+    
+    /* we need our miScreenInitParmsPtr at this point */
+    BUG_RETURN_VAL(!pScrInitParms, FALSE);
 
     /* if width is non-zero, pScreen->devPrivate will be a pixmap
      * else it will just take the value pbits
