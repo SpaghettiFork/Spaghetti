@@ -165,6 +165,7 @@ if build_xorg
      'input.c',
      'list.c',
      'misc.c',
+     'region.c',
      'sha1.c',
      'signal-logging.c',
      'string.c',
@@ -227,4 +228,13 @@ if build_xorg
     )
 
     test('unit', unit)
+
+    region_bench = executable('region-bench',
+         'region-bench.c',
+         c_args: unit_c_args,
+         dependencies: [x11_dep, pixman_dep, randrproto_dep, inputproto_dep, libxcvt_dep],
+         include_directories: unit_includes,
+    )
+
+    benchmark('region-bench', region_bench)
 endif
