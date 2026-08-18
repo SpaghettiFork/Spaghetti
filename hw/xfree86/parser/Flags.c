@@ -291,7 +291,7 @@ xf86newOption(char *name, char *value)
         return NULL;
 
     opt->opt_used = 0;
-    opt->list.next = 0;
+    opt->list.next = NULL;
     opt->opt_name = name;
     opt->opt_val = value;
 

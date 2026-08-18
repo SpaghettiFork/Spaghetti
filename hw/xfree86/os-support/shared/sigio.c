@@ -264,9 +264,9 @@ xf86RemoveSIGIOHandler(int fd)
     for (i = 0; i < MAX_FUNCS; i++) {
         if (xf86SigIOFuncs[i].f) {
             if (xf86SigIOFuncs[i].fd == fd) {
-                xf86SigIOFuncs[i].f = 0;
+                xf86SigIOFuncs[i].f = NULL;
                 xf86SigIOFuncs[i].fd = 0;
-                xf86SigIOFuncs[i].closure = 0;
+                xf86SigIOFuncs[i].closure = NULL;
                 xf86SigIORemove(fd);
                 ret = 1;
             }

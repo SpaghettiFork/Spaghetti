@@ -141,7 +141,7 @@ RegionOperate(ClientPtr client,
             if (*destRgnp)
                 RegionDestroy(*destRgnp);
             *destRgnp = srcRgn;
-            srcRgn = 0;
+            srcRgn = NULL;
             break;
         case ShapeUnion:
             if (*destRgnp)
@@ -152,7 +152,7 @@ RegionOperate(ClientPtr client,
                 RegionIntersect(*destRgnp, *destRgnp, srcRgn);
             else {
                 *destRgnp = srcRgn;
-                srcRgn = 0;
+                srcRgn = NULL;
             }
             break;
         case ShapeSubtract:
@@ -359,7 +359,7 @@ ProcShapeMask(ClientPtr client)
     }
     pScreen = pWin->drawable.pScreen;
     if (stuff->src == None)
-        srcRgn = 0;
+        srcRgn = NULL;
     else {
         rc = dixLookupResourceByType((void **) &pPixmap, stuff->src,
                                      X11_RESTYPE_PIXMAP, client, DixReadAccess);
@@ -761,7 +761,7 @@ ProcShapeSelectInput(ClientPtr client)
         pNewShapeEvent = malloc(sizeof(ShapeEventRec));
         if (!pNewShapeEvent)
             return BadAlloc;
-        pNewShapeEvent->next = 0;
+        pNewShapeEvent->next = NULL;
         pNewShapeEvent->client = client;
         pNewShapeEvent->window = pWin;
         /*
@@ -794,7 +794,7 @@ ProcShapeSelectInput(ClientPtr client)
     case xFalse:
         /* delete the interest */
         if (pHead) {
-            pNewShapeEvent = 0;
+            pNewShapeEvent = NULL;
             for (pShapeEvent = *pHead; pShapeEvent;
                  pShapeEvent = pShapeEvent->next) {
                 if (pShapeEvent->client == client)

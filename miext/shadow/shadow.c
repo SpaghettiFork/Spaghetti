@@ -136,10 +136,10 @@ shadowSetup(ScreenPtr pScreen)
     wrap(pBuf, pScreen, CloseScreen);
     wrap(pBuf, pScreen, GetImage);
     wrap(pBuf, pScreen, BlockHandler);
-    pBuf->update = 0;
-    pBuf->window = 0;
-    pBuf->pPixmap = 0;
-    pBuf->closure = 0;
+    pBuf->update = NULL;
+    pBuf->window = NULL;
+    pBuf->pPixmap = NULL;
+    pBuf->closure = NULL;
     pBuf->randr = 0;
 
     dixSetPrivate(&pScreen->devPrivates, shadowScrPrivateKey, pBuf);
@@ -186,10 +186,10 @@ shadowRemove(ScreenPtr pScreen, PixmapPtr pPixmap)
 
     if (pBuf->pPixmap) {
         DamageUnregister(pBuf->pDamage);
-        pBuf->update = 0;
-        pBuf->window = 0;
+        pBuf->update = NULL;
+        pBuf->window = NULL;
         pBuf->randr = 0;
-        pBuf->closure = 0;
-        pBuf->pPixmap = 0;
+        pBuf->closure = NULL;
+        pBuf->pPixmap = NULL;
     }
 }

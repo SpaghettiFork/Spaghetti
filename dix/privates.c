@@ -443,7 +443,7 @@ _dixInitPrivates(PrivatePtr *privates, void *addr, DevPrivateType type)
     if (xselinux_private[type])
         global_keys[PRIVATE_XSELINUX].created++;
     if (global_keys[type].offset == 0)
-        addr = 0;
+        addr = NULL;
     *privates = addr;
     if (addr)
         memset(addr, '\0', global_keys[type].offset);
@@ -680,7 +680,7 @@ _dixInitScreenPrivates(ScreenPtr pScreen, PrivatePtr *privates, void *addr, DevP
     if (xselinux_private[type])
         global_keys[PRIVATE_XSELINUX].created++;
     if (privates_size == 0)
-        addr = 0;
+        addr = NULL;
     *privates = addr;
     if (addr)
         memset(addr, '\0', privates_size);

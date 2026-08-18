@@ -100,14 +100,14 @@ ClientSleepUntil(ClientPtr client,
         }
         BlockHandlerRegistered = TRUE;
     }
-    pRequest->notifyFunc = 0;
+    pRequest->notifyFunc = NULL;
     if (!AddResource(pRequest->id, SertafiedResType, (void *) pRequest))
         return FALSE;
     if (!notifyFunc)
         notifyFunc = ClientAwaken;
     pRequest->notifyFunc = notifyFunc;
     /* Insert into time-ordered queue, with earliest activation time coming first. */
-    pPrev = 0;
+    pPrev = NULL;
     for (pReq = pPending; pReq; pReq = pReq->next) {
         if (CompareTimeStamps(pReq->revive, *revive) == LATER)
             break;
@@ -134,7 +134,7 @@ SertafiedDelete(void *value, XID id)
     SertafiedPtr pRequest = (SertafiedPtr) value;
     SertafiedPtr pReq, pPrev;
 
-    pPrev = 0;
+    pPrev = NULL;
     for (pReq = pPending; pReq; pPrev = pReq, pReq = pReq->next)
         if (pReq == pRequest) {
             if (pPrev)

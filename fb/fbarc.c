@@ -64,7 +64,7 @@ fbPolyArc(DrawablePtr pDrawable, GCPtr pGC, int narcs, xArc * parcs)
             RegionPtr cclip;
 
 #ifdef FB_ACCESS_WRAPPER
-            int wrapped = 1;
+            Bool wrapped = 1;
 #endif
 
             cclip = fbGetCompositeClip(pGC);

@@ -208,8 +208,8 @@ MakeScreenPrivate(ScreenPtr pScreen)
     pPriv = calloc(1, sizeof(ScreenSaverScreenPrivateRec));
     if (!pPriv)
         return 0;
-    pPriv->events = 0;
-    pPriv->attr = 0;
+    pPriv->events = NULL;
+    pPriv->attr = NULL;
     pPriv->hasWindow = FALSE;
     pPriv->installedMap = None;
     SetScreenPrivate(pScreen, pPriv);
@@ -724,8 +724,8 @@ ScreenSaverSetAttributes(ClientPtr client, xScreenSaverSetAttributesReq *stuff)
     DrawablePtr pDraw;
     WindowPtr pParent;
     ScreenPtr pScreen;
-    ScreenSaverScreenPrivatePtr pPriv = 0;
-    ScreenSaverAttrPtr pAttr = 0;
+    ScreenSaverScreenPrivatePtr pPriv = NULL;
+    ScreenSaverAttrPtr pAttr = NULL;
     int ret, len, class, bw, depth;
     unsigned long visual;
     int idepth, ivisual;
@@ -733,7 +733,7 @@ ScreenSaverSetAttributes(ClientPtr client, xScreenSaverSetAttributesReq *stuff)
     DepthPtr pDepth;
     WindowOptPtr ancwopt;
     unsigned int *pVlist;
-    unsigned long *values = 0;
+    unsigned long *values = NULL;
     unsigned long tmask, imask;
     unsigned long val;
     Pixmap pixID;

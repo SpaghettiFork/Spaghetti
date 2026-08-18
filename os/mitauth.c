@@ -93,7 +93,7 @@ MitResetCookie(void)
         free(auth->data);
         free(auth);
     }
-    mit_auth = 0;
+    mit_auth = NULL;
     return 0;
 }
 

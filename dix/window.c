@@ -3318,7 +3318,7 @@ TileScreenSaver(ScreenPtr pScreen, int kind)
     if (!srcbits || !mskbits) {
         free(srcbits);
         free(mskbits);
-        cursor = 0;
+        cursor = NULL;
     }
     else {
         result = AllocARGBCursor(srcbits, mskbits, NULL, &cm, 0, 0, 0, 0, 0, 0,
@@ -3330,7 +3330,7 @@ TileScreenSaver(ScreenPtr pScreen, int kind)
                 mask |= CWCursor;
             }
             else
-                cursor = 0;
+                cursor = NULL;
         }
     }
 

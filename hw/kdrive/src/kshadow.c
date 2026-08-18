@@ -53,7 +53,7 @@ KdShadowFbFree(KdScreenInfo * screen)
 {
     if (screen->fb.shadow) {
         free(screen->fb.frameBuffer);
-        screen->fb.frameBuffer = 0;
+        screen->fb.frameBuffer = NULL;
         screen->fb.shadow = FALSE;
     }
 }

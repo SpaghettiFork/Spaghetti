@@ -843,7 +843,7 @@ ListFonts(ClientPtr client, unsigned char *pattern, unsigned length,
     c->current.list_started = FALSE;
     c->current.private = 0;
     c->haveSaved = FALSE;
-    c->savedName = 0;
+    c->savedName = NULL;
     doListFontsAndAliases(client, c);
     return Success;
 }
@@ -892,7 +892,7 @@ doListFontsWithInfo(ClientPtr client, LFWIclosurePtr c)
                 c->current.list_started = TRUE;
         }
         if (err == Successful) {
-            name = 0;
+            name = NULL;
             pFontInfo = &fontInfo;
             err = (*fpe_functions[fpe->type]->list_next_font_with_info)
                 (client, fpe, &name, &namelen, &pFontInfo,
@@ -926,7 +926,7 @@ doListFontsWithInfo(ClientPtr client, LFWIclosurePtr c)
                 int tmpnamelen;
                 FontInfoPtr tmpFontInfo;
 
-                tmpname = 0;
+                tmpname = NULL;
                 tmpFontInfo = &fontInfo;
                 (void) (*fpe_functions[fpe->type]->list_next_font_with_info)
                     (client, fpe, &tmpname, &tmpnamelen, &tmpFontInfo,
@@ -1084,16 +1084,16 @@ StartListFontsWithInfo(ClientPtr client, int length, unsigned char *pattern,
     }
     c->client = client;
     c->num_fpes = num_fpes;
-    c->reply = 0;
+    c->reply = NULL;
     c->length = 0;
     c->current.patlen = length;
     c->current.current_fpe = 0;
     c->current.max_names = max_names;
     c->current.list_started = FALSE;
-    c->current.private = 0;
+    c->current.private = NULL;
     c->savedNumFonts = 0;
     c->haveSaved = FALSE;
-    c->savedName = 0;
+    c->savedName = NULL;
     doListFontsWithInfo(client, c);
     return Success;
  badAlloc:
@@ -1623,7 +1623,7 @@ SetFontPathElements(int npaths, unsigned char *paths, int *bad, Bool persist)
                                          * from the old list */
                 }
                 else
-                    fpe = 0;
+                    fpe = NULL;
             }
             /* if error or can't do it, act like it's a new one */
             if (!fpe) {

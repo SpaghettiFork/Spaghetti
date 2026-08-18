@@ -75,7 +75,7 @@ miChangePictureClip(PicturePtr pPicture, int type, void *value, int n)
         clientClip = value;
         break;
     case CT_NONE:
-        clientClip = 0;
+        clientClip = NULL;
         break;
     default:
         clientClip = RegionFromRects(n, (xRectangle *) value, type);
@@ -333,7 +333,7 @@ miComputeCompositeRegion(RegionPtr pRegion,
     pRegion->extents.y1 = yDst;
     v = yDst + height;
     pRegion->extents.y2 = BOUND(v);
-    pRegion->data = 0;
+    pRegion->data = NULL;
     /* Check for empty operation */
     if (pRegion->extents.x1 >= pRegion->extents.x2 ||
         pRegion->extents.y1 >= pRegion->extents.y2) {
@@ -572,15 +572,15 @@ miPictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats)
     ps->UnrealizeGlyph = miUnrealizeGlyph;
 
     /* MI rendering routines */
-    ps->Composite = 0;          /* requires DDX support */
+    ps->Composite = NULL;          /* requires DDX support */
     ps->Glyphs = miGlyphs;
     ps->CompositeRects = miCompositeRects;
-    ps->Trapezoids = 0;
-    ps->Triangles = 0;
+    ps->Trapezoids = NULL;
+    ps->Triangles = NULL;
 
-    ps->RasterizeTrapezoid = 0; /* requires DDX support */
-    ps->AddTraps = 0;           /* requires DDX support */
-    ps->AddTriangles = 0;       /* requires DDX support */
+    ps->RasterizeTrapezoid = NULL; /* requires DDX support */
+    ps->AddTraps = NULL;           /* requires DDX support */
+    ps->AddTriangles = NULL;       /* requires DDX support */
 
     ps->TriStrip = miTriStrip;  /* converts call to CompositeTriangles */
     ps->TriFan = miTriFan;

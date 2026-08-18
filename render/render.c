@@ -740,7 +740,7 @@ ProcRenderTrapezoids(ClientPtr client)
             return rc;
     }
     else
-        pFormat = 0;
+        pFormat = NULL;
     ntraps = (client->req_len << 2) - sizeof(xRenderTrapezoidsReq);
     if (ntraps % sizeof(xTrapezoid))
         return BadLength;
@@ -779,7 +779,7 @@ ProcRenderTriangles(ClientPtr client)
             return rc;
     }
     else
-        pFormat = 0;
+        pFormat = NULL;
     ntris = (client->req_len << 2) - sizeof(xRenderTrianglesReq);
     if (ntris % sizeof(xTriangle))
         return BadLength;
@@ -818,7 +818,7 @@ ProcRenderTriStrip(ClientPtr client)
             return rc;
     }
     else
-        pFormat = 0;
+        pFormat = NULL;
     npoints = ((client->req_len << 2) - sizeof(xRenderTriStripReq));
     if (npoints & 4)
         return BadLength;
@@ -857,7 +857,7 @@ ProcRenderTriFan(ClientPtr client)
             return rc;
     }
     else
-        pFormat = 0;
+        pFormat = NULL;
     npoints = ((client->req_len << 2) - sizeof(xRenderTriStripReq));
     if (npoints & 4)
         return BadLength;
@@ -1287,7 +1287,7 @@ ProcRenderCompositeGlyphs(ClientPtr client)
             return rc;
     }
     else
-        pFormat = 0;
+        pFormat = NULL;
 
     rc = dixLookupResourceByType((void **) &glyphSet, stuff->glyphset,
                                  GlyphSetType, client, DixUseAccess);
@@ -2584,7 +2584,7 @@ SProcRenderDispatch(ClientPtr client)
 
 #define VERIFY_XIN_ALPHA(pPicture, pid, client, mode) {\
     if (pid == None) \
-	pPicture = 0; \
+	pPicture = NULL; \
     else { \
 	VERIFY_XIN_PICTURE(pPicture, pid, client, mode); \
     } \

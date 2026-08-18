@@ -240,7 +240,7 @@ fbBltOne(FbStip * src, FbStride srcStride,      /* FbStip units per scanline */
     /*
      * Get pointer to stipple mask array for this depth
      */
-    fbBits = 0;                 /* unused */
+    fbBits = NULL;                 /* unused */
     switch (pixelsPerDst) {
     case 8:
         fbBits = fbStipple8Bits;

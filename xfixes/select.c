@@ -146,7 +146,7 @@ XFixesSelectSelectionInput(ClientPtr pClient,
         if (!e)
             return BadAlloc;
 
-        e->next = 0;
+        e->next = NULL;
         e->selection = selection;
         e->pClient = pClient;
         e->pWindow = pWindow;

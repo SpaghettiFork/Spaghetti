@@ -1635,9 +1635,9 @@ DRICreateInfoRec(void)
     inforec->wrap.ClipNotify = DRIClipNotify;
     inforec->wrap.AdjustFrame = DRIAdjustFrame;
 
-    inforec->TransitionTo2d = 0;
-    inforec->TransitionTo3d = 0;
-    inforec->SetDrawableIndex = 0;
+    inforec->TransitionTo2d = NULL;
+    inforec->TransitionTo3d = NULL;
+    inforec->SetDrawableIndex = NULL;
 
     return inforec;
 }

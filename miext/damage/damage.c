@@ -90,7 +90,7 @@ getDrawableDamageRef(DrawablePtr pDrawable)
     if (WindowDrawable(pDrawable->type)) {
         ScreenPtr pScreen = pDrawable->pScreen;
 
-        pPixmap = 0;
+        pPixmap = NULL;
         if (pScreen->GetWindowPixmap
 #ifdef ROOTLESS_WORKAROUND
             && ((WindowPtr) pDrawable)->viewable
@@ -1640,7 +1640,7 @@ DamageSetup(ScreenPtr pScreen)
         return FALSE;
 
     pScrPriv->internalLevel = 0;
-    pScrPriv->pScreenDamage = 0;
+    pScrPriv->pScreenDamage = NULL;
 
     wrap(pScrPriv, pScreen, DestroyPixmap, damageDestroyPixmap);
     wrap(pScrPriv, pScreen, CreateGC, damageCreateGC);
@@ -1672,8 +1672,8 @@ DamageCreate(DamageReportFunc damageReport,
     pDamage = calloc(1, sizeof(DamageRec));
     if (!pDamage)
         return 0;
-    pDamage->pNext = 0;
-    pDamage->pNextWin = 0;
+    pDamage->pNext = NULL;
+    pDamage->pNextWin = NULL;
     RegionNull(&pDamage->damage);
     RegionNull(&pDamage->pendingDamage);
 
@@ -1681,7 +1681,7 @@ DamageCreate(DamageReportFunc damageReport,
     pDamage->isInternal = isInternal;
     pDamage->closure = closure;
     pDamage->isWindow = FALSE;
-    pDamage->pDrawable = 0;
+    pDamage->pDrawable = NULL;
     pDamage->reportAfter = FALSE;
 
     pDamage->damageReport = damageReport;
@@ -1775,7 +1775,7 @@ DamageUnregister(DamagePtr pDamage)
         }
 #endif
     }
-    pDamage->pDrawable = 0;
+    pDamage->pDrawable = NULL;
     damageRemoveDamage(getDrawableDamageRef(pDrawable), pDamage);
 }
 

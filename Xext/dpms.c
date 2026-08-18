@@ -76,7 +76,7 @@ DPMSFreeClient(void *data, XID id)
     dixLookupResourceByType((void *) &pHead, eventResource, DPMSEventType,
                             NullClient, DixUnknownAccess);
     if (pHead) {
-        pPrev = 0;
+        pPrev = NULL;
         for (pCur = *pHead; pCur && pCur != pEvent; pCur = pCur->next)
             pPrev = pCur;
         if (pCur) {
@@ -147,7 +147,7 @@ ProcDPMSSelectInput(register ClientPtr client)
         pNewEvent = (DPMSEventPtr)malloc(sizeof(DPMSEventRec));
         if (!pNewEvent)
             return BadAlloc;
-        pNewEvent->next = 0;
+        pNewEvent->next = NULL;
         pNewEvent->client = client;
         pNewEvent->mask = stuff->eventMask;
         /*
@@ -177,7 +177,7 @@ ProcDPMSSelectInput(register ClientPtr client)
     else if (stuff->eventMask == 0) {
         /* delete the interest */
         if (i == Success && pHead) {
-            pNewEvent = 0;
+            pNewEvent = NULL;
             for (pEvent = *pHead; pEvent; pEvent = pEvent->next) {
                 if (pEvent->client == client)
                     break;

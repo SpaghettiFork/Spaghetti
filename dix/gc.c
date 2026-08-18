@@ -481,7 +481,7 @@ NewGCObject(ScreenPtr pScreen, int depth)
     pGC->alu = GXcopy;          /* dst <- src */
     pGC->planemask = ~0;
     pGC->serialNumber = 0;
-    pGC->funcs = 0;
+    pGC->funcs = NULL;
     pGC->fgPixel = 0;
     pGC->bgPixel = 1;
     pGC->lineWidth = 0;

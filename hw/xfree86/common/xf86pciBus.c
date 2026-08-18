@@ -114,7 +114,7 @@ xf86PciProbe(void)
                 primaryBus.type = BUS_PCI;
                 primaryBus.id.pci = info;
             }
-            info->user_data = 0;
+            info->user_data = (intptr_t) 0;
         }
     }
     free(iter);

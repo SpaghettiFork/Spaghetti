@@ -39,9 +39,9 @@ KdCardInfoAdd(KdCardFuncs * funcs, void *closure)
     *prev = ci;
     ci->cfuncs = funcs;
     ci->closure = closure;
-    ci->screenList = 0;
+    ci->screenList = NULL;
     ci->selected = 0;
-    ci->next = 0;
+    ci->next = NULL;
     return ci;
 }
 
@@ -80,7 +80,7 @@ KdScreenInfoAdd(KdCardInfo * ci)
         return 0;
     for (prev = &ci->screenList, n = 0; *prev; prev = &(*prev)->next, n++);
     *prev = si;
-    si->next = 0;
+    si->next = NULL;
     si->card = ci;
     si->mynum = n;
     return si;

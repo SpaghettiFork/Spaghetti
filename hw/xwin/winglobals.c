@@ -40,7 +40,7 @@
  */
 
 int g_iNumScreens = 0;
-winScreenInfo *g_ScreenInfo = 0;
+winScreenInfo *g_ScreenInfo = NULL;
 
 #ifdef HAS_DEVWINDOWS
 int g_fdMessageQueue = WIN_FD_INVALID;

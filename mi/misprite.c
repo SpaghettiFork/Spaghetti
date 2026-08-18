@@ -324,7 +324,7 @@ miSpriteInitialize(ScreenPtr pScreen, miPointerScreenFuncPtr screenFuncs)
     pScreenPriv->colors[MASK_COLOR].red = 0;
     pScreenPriv->colors[MASK_COLOR].green = 0;
     pScreenPriv->colors[MASK_COLOR].blue = 0;
-    pScreenPriv->damageRegistered = 0;
+    pScreenPriv->damageRegistered = FALSE;
     pScreenPriv->numberOfCursors = 0;
 
     dixSetPrivate(&pScreen->devPrivates, &miSpriteScreenKeyRec, pScreenPriv);

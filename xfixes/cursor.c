@@ -232,7 +232,7 @@ XFixesSelectCursorInput(ClientPtr pClient, WindowPtr pWindow, CARD32 eventMask)
         if (!e)
             return BadAlloc;
 
-        e->next = 0;
+        e->next = NULL;
         e->pClient = pClient;
         e->pWindow = pWindow;
         e->clientResource = FakeClientID(pClient->index);
@@ -598,7 +598,7 @@ ReplaceCursorLookup(void *value, XID id, void *closure)
     ReplaceCursorLookupPtr rcl = (ReplaceCursorLookupPtr) closure;
     WindowPtr pWin;
     GrabPtr pGrab;
-    CursorPtr pCursor = 0, *pCursorRef = 0;
+    CursorPtr pCursor = NULL, *pCursorRef = NULL;
     XID cursor = 0;
 
     switch (rcl->type) {
@@ -615,7 +615,7 @@ ReplaceCursorLookup(void *value, XID id, void *closure)
         pCursor = *pCursorRef;
         break;
     case X11_RESTYPE_CURSOR:
-        pCursorRef = 0;
+        pCursorRef = NULL;
         pCursor = (CursorPtr) value;
         cursor = id;
         break;

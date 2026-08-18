@@ -44,7 +44,7 @@ extern int XFixesErrorBase;
     } while (0)
 
 #define VERIFY_REGION_OR_NONE(pRegion, rid, client, mode) { \
-    pRegion = 0; \
+    pRegion = NULL; \
     if (rid) VERIFY_REGION(pRegion, rid, client, mode); \
 }
 

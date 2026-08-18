@@ -1047,9 +1047,9 @@ recv_willing_msg(struct sockaddr *from, int fromlen, unsigned length)
     ARRAY8 hostname;
     ARRAY8 status;
 
-    authenticationName.data = 0;
-    hostname.data = 0;
-    status.data = 0;
+    authenticationName.data = NULL;
+    hostname.data = NULL;
+    status.data = NULL;
     if (XdmcpReadARRAY8(&buffer, &authenticationName) &&
         XdmcpReadARRAY8(&buffer, &hostname) &&
         XdmcpReadARRAY8(&buffer, &status)) {
@@ -1110,7 +1110,7 @@ send_request_msg(void)
     for (i = 0; i < ConnectionAddresses.length; i++)
         length += 2 + ConnectionAddresses.data[i].length;
     authenticationData.length = 0;
-    authenticationData.data = 0;
+    authenticationData.data = NULL;
     if (AuthenticationFuncs) {
         (*AuthenticationFuncs->Generator) (AuthenticationData,
                                            &authenticationData, REQUEST);
@@ -1173,10 +1173,10 @@ recv_accept_msg(unsigned length)
 
     if (state != XDM_AWAIT_REQUEST_RESPONSE)
         return;
-    AcceptAuthenticationName.data = 0;
-    AcceptAuthenticationData.data = 0;
-    AcceptAuthorizationName.data = 0;
-    AcceptAuthorizationData.data = 0;
+    AcceptAuthenticationName.data = NULL;
+    AcceptAuthenticationData.data = NULL;
+    AcceptAuthorizationName.data = NULL;
+    AcceptAuthorizationData.data = NULL;
     if (XdmcpReadCARD32(&buffer, &AcceptSessionID) &&
         XdmcpReadARRAY8(&buffer, &AcceptAuthenticationName) &&
         XdmcpReadARRAY8(&buffer, &AcceptAuthenticationData) &&
@@ -1214,9 +1214,9 @@ recv_decline_msg(unsigned length)
 {
     ARRAY8 status, DeclineAuthenticationName, DeclineAuthenticationData;
 
-    status.data = 0;
-    DeclineAuthenticationName.data = 0;
-    DeclineAuthenticationData.data = 0;
+    status.data = NULL;
+    DeclineAuthenticationName.data = NULL;
+    DeclineAuthenticationData.data = NULL;
     if (XdmcpReadARRAY8(&buffer, &status) &&
         XdmcpReadARRAY8(&buffer, &DeclineAuthenticationName) &&
         XdmcpReadARRAY8(&buffer, &DeclineAuthenticationData)) {
@@ -1281,7 +1281,7 @@ recv_failed_msg(unsigned length)
 
     if (state != XDM_AWAIT_MANAGE_RESPONSE)
         return;
-    status.data = 0;
+    status.data = NULL;
     if (XdmcpReadCARD32(&buffer, &FailedSessionID) &&
         XdmcpReadARRAY8(&buffer, &status)) {
         if (length == 6 + status.length && SessionID == FailedSessionID) {

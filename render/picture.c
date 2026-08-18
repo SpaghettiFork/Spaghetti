@@ -687,9 +687,9 @@ PictureInit(ScreenPtr pScreen, PictFormatPtr formats, int nformats)
     ps->fallback = formats;
     ps->nformats = nformats;
 
-    ps->filters = 0;
+    ps->filters = NULL;
     ps->nfilters = 0;
-    ps->filterAliases = 0;
+    ps->filterAliases = NULL;
     ps->nfilterAliases = 0;
 
     ps->subpixel = SubPixelUnknown;
@@ -725,23 +725,23 @@ SetPictureToDefaults(PicturePtr pPicture)
     pPicture->componentAlpha = FALSE;
     pPicture->repeatType = RepeatNone;
 
-    pPicture->alphaMap = 0;
+    pPicture->alphaMap = NULL;
     pPicture->alphaOrigin.x = 0;
     pPicture->alphaOrigin.y = 0;
 
     pPicture->clipOrigin.x = 0;
     pPicture->clipOrigin.y = 0;
-    pPicture->clientClip = 0;
+    pPicture->clientClip = NULL;
 
-    pPicture->transform = 0;
+    pPicture->transform = NULL;
 
     pPicture->filter = PictureGetFilterId(FilterNearest, -1, TRUE);
-    pPicture->filter_params = 0;
+    pPicture->filter_params = NULL;
     pPicture->filter_nparams = 0;
 
     pPicture->serialNumber = GC_CHANGE_SERIAL_BIT;
     pPicture->stateChanges = -1;
-    pPicture->pSourcePict = 0;
+    pPicture->pSourcePict = NULL;
 }
 
 PicturePtr
@@ -773,7 +773,7 @@ CreatePicture(Picture pid,
 
     if (pDrawable->type == DRAWABLE_PIXMAP) {
         ++((PixmapPtr) pDrawable)->refcnt;
-        pPicture->pNext = 0;
+        pPicture->pNext = NULL;
     }
     else {
         pPicture->pNext = GetPictureWindow(((WindowPtr) pDrawable));
@@ -791,7 +791,7 @@ CreatePicture(Picture pid,
  out:
     if (*error != Success) {
         FreePicture(pPicture, (XID) 0);
-        pPicture = 0;
+        pPicture = NULL;
     }
     return pPicture;
 }
@@ -851,9 +851,9 @@ createSourcePicture(void)
     if (!pPicture)
 	return 0;
 
-    pPicture->pDrawable = 0;
-    pPicture->pFormat = 0;
-    pPicture->pNext = 0;
+    pPicture->pDrawable = NULL;
+    pPicture->pFormat = NULL;
+    pPicture->pNext = NULL;
     pPicture->format = PICT_a8r8g8b8;
 
     SetPictureToDefaults(pPicture);
@@ -1084,7 +1084,7 @@ ChangePicture(PicturePtr pPicture,
                 Picture pid = NEXT_VAL(Picture);
 
                 if (pid == None)
-                    pAlpha = 0;
+                    pAlpha = NULL;
                 else {
                     error = cpAlphaMap((void **) &pAlpha, pid, pScreen,
                                        client, DixReadAccess);
@@ -1303,7 +1303,7 @@ SetPictureClipRegion(PicturePtr pPicture,
     }
     else {
         type = CT_NONE;
-        clientClip = 0;
+        clientClip = NULL;
     }
 
     result = (*ps->ChangePictureClip) (pPicture, type, (void *) clientClip, 0);
@@ -1333,7 +1333,7 @@ int
 SetPictureTransform(PicturePtr pPicture, PictTransform * transform)
 {
     if (transform && transformIsIdentity(transform))
-        transform = 0;
+        transform = NULL;
 
     if (transform) {
         if (!pPicture->transform) {

@@ -112,7 +112,7 @@ ProcRRSelectInput(ClientPtr client)
             pRREvent = (RREventPtr) malloc(sizeof(RREventRec));
             if (!pRREvent)
                 return BadAlloc;
-            pRREvent->next = 0;
+            pRREvent->next = NULL;
             pRREvent->client = client;
             pRREvent->window = pWin;
             pRREvent->mask = stuff->enable;
@@ -183,7 +183,7 @@ ProcRRSelectInput(ClientPtr client)
     else if (stuff->enable == 0) {
         /* delete the interest */
         if (pHead) {
-            RREventPtr pNewRREvent = 0;
+            RREventPtr pNewRREvent = NULL;
 
             for (pRREvent = *pHead; pRREvent; pRREvent = pRREvent->next) {
                 if (pRREvent->client == client)

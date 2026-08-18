@@ -481,8 +481,8 @@ FreeGlyphSet(void *value, XID gid)
         }
         if (!globalGlyphs[glyphSet->fdepth].tableEntries) {
             free(globalGlyphs[glyphSet->fdepth].table);
-            globalGlyphs[glyphSet->fdepth].table = 0;
-            globalGlyphs[glyphSet->fdepth].hashSet = 0;
+            globalGlyphs[glyphSet->fdepth].table = NULL;
+            globalGlyphs[glyphSet->fdepth].hashSet = NULL;
         }
         else
             ResizeGlyphHash(&globalGlyphs[glyphSet->fdepth], 0, TRUE);
@@ -577,7 +577,7 @@ miGlyphs(CARD8 op,
          INT16 ySrc, int nlist, GlyphListPtr list, GlyphPtr * glyphs)
 {
     PicturePtr pPicture;
-    PixmapPtr pMaskPixmap = 0;
+    PixmapPtr pMaskPixmap = NULL;
     PicturePtr pMask;
     ScreenPtr pScreen = pDst->pDrawable->pScreen;
     int width = 0, height = 0;

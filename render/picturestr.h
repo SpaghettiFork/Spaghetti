@@ -369,7 +369,7 @@ extern RESTYPE GlyphSetType;
 
 #define VERIFY_ALPHA(pPicture, pid, client, mode) {\
     if (pid == None) \
-	pPicture = 0; \
+	pPicture = NULL; \
     else { \
 	VERIFY_PICTURE(pPicture, pid, client, mode); \
     } \
