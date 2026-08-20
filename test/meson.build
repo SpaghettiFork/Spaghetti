@@ -5,6 +5,35 @@ simple_xinit = executable(
     dependencies: [ xproto_dep ],
 )
 
+xcb_dep = dependency('xcb', required: false)
+xcb_present_dep = dependency('xcb-present', required: false)
+xcb_dri3_dep = dependency('xcb-dri3', required: false)
+xcb_sync_dep = dependency('xcb-sync', required: false)
+xcb_shm_dep = dependency('xcb-shm', required: false)
+
+if xcb_dep.found()
+    pattern_putimage = executable('pattern-putimage', 'pattern-putimage.c',
+                                  dependencies: [xcb_dep])
+else
+    message('xcb not found, skipping pattern-putimage test')
+endif
+
+if xcb_dep.found() and xcb_shm_dep.found()
+    pattern_putimage32 = executable('pattern-putimage32', 'pattern-putimage32.c',
+                                    dependencies: [xcb_dep, xcb_shm_dep])
+else
+    message('xcb/xcb-shm not found, skipping pattern-putimage32 test')
+endif
+
+if xcb_dep.found() and xcb_present_dep.found() and xcb_dri3_dep.found() and xcb_sync_dep.found() and libdrm_dep.found()
+    pattern_present = executable('pattern-present', 'pattern-present.c',
+                                 dependencies: [xcb_dep, xcb_present_dep,
+                                                xcb_dri3_dep, xcb_sync_dep,
+                                                libdrm_dep])
+else
+    message('xcb present/dri3/sync/libdrm not found, skipping pattern-present test')
+endif
+
 piglit_env = environment()
 piglit_env.set('XSERVER_DIR', meson.project_source_root())
 piglit_env.set('XSERVER_BUILDDIR', meson.project_build_root())
