@@ -32,6 +32,9 @@
 /* Build DRI3 extension */
 #mesondefine DRI3
 
+/* Build SPAGHETTI-VRR extension */
+#mesondefine SPAGHETTI_VRR
+
 /* Build GLX extension */
 #mesondefine GLXEXT
 

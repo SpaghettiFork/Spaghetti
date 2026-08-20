@@ -44,6 +44,7 @@
 
 #include "driver.h"
 #include "drmmode_display.h"
+#include "vrr.h"
 
 #if 0
 #define DebugPresent(x) ErrorF x
@@ -421,10 +422,7 @@ ms_present_flip(RRCrtcPtr crtc,
      * If the window also has the variable refresh property then
      * variable refresh supported can be enabled on every CRTC.
      */
-    if (ms->vrr_support && ms->is_connector_vrr_capable &&
-          ms_window_has_variable_refresh(ms, ms->flip_window)) {
-        ms_present_set_screen_vrr(scrn, TRUE);
-    }
+    vrr_set_flip_window(screen, ms->flip_window);
 
     ret = ms_do_pageflip(screen, pixmap, event, xf86_crtc, !sync_flip,
                          ms_present_flip_handler, ms_present_flip_abort,
@@ -447,7 +445,7 @@ ms_present_unflip(ScreenPtr screen, uint64_t event_id)
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
     int i;
 
-    ms_present_set_screen_vrr(scrn, FALSE);
+    vrr_set_flip_window(screen, NULL);
 
     if (ms_present_check_unflip(NULL, screen->root, pixmap, TRUE, NULL)) {
         struct ms_present_vblank_event *event;

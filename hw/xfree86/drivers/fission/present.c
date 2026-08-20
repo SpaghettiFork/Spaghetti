@@ -42,6 +42,7 @@
 
 #include "driver.h"
 #include "drmmode_display.h"
+#include "vrr.h"
 
 #if 0
 #define DebugPresent(x) ErrorF x
@@ -391,9 +392,7 @@ ms_present_commit(RRCrtcPtr crtc,
     event->crtc = xf86_crtc;
     event->unflip = FALSE;
 
-    if (ms->vrr_support && ms->is_connector_vrr_capable &&
-        ms_window_has_variable_refresh(ms, ms->flip_window))
-        ms_present_set_screen_vrr(scrn, TRUE);
+    vrr_set_flip_window(screen, ms->flip_window);
 
     ret = ms_do_pageflip(screen, pixmap, event,
                          drmmode_crtc->vblank_pipe, type,
@@ -417,7 +416,7 @@ ms_present_uncommit(ScreenPtr screen, RRCrtcPtr crtc, uint64_t event_id)
     xf86CrtcPtr xf86_crtc = crtc->devPrivate;
     int i;
 
-    ms_present_set_screen_vrr(scrn, FALSE);
+    vrr_set_flip_window(screen, NULL);
 
     if (ms_present_check_unflip(NULL, screen->root, pixmap, TRUE, NULL)) {
         struct ms_present_vblank_event *event;
