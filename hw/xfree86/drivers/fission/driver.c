@@ -663,21 +663,6 @@ dispatch_dirty_region(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
                             pixmap, damage, fb_id, x, y);
 }
 
-static inline void
-get_damage_to_dispatch(DamagePtr *damage, RegionPtr *region,
-                       drmmode_crtc_private_ptr drmmode_crtc,
-                       modesettingPtr ms, xf86CrtcPtr crtc)
-{
-    if (!ms->drmmode.tearfree)
-        return;
-
-    if (crtc->rotatedPixmap)
-        return;
-
-    *damage = drmmode_crtc->tearfree.damage;
-    *region = DamageRegion(drmmode_crtc->tearfree.damage);
-}
-
 static void
 dispatch_dirty(ScreenPtr pScreen)
 {
@@ -690,34 +675,30 @@ dispatch_dirty(ScreenPtr pScreen)
 
     for (c = 0; c < xf86_config->num_crtc; c++) {
         xf86CrtcPtr crtc = xf86_config->crtc[c];
-        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    
         PixmapPtr pmap;
-        DamagePtr damage = NULL;
-        RegionPtr region = NULL;
+
+        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
         if (!drmmode_crtc)
             continue;
 
-        if (ms->drmmode.tearfree &&
-            drmmode_crtc->tearfree.fb_id[0] && !crtc->rotatedPixmap) {
-            fb_id = drmmode_crtc->tearfree.fb_id[drmmode_crtc->tearfree.back_idx];
-            x = y = 0;
-        } else {
-            drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y);
-        }
+        drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y);
 
         if (crtc->rotatedPixmap)
             pmap = crtc->rotatedPixmap;
         else
             pmap = pixmap;
 
-        get_damage_to_dispatch(&damage, &region, drmmode_crtc, ms, crtc);
-
-        ret = dispatch_damages(scrn, crtc, region, pmap, damage, fb_id, x, y);
-        if (ret == -EINVAL || ret == -ENOSYS)
+        ret = dispatch_dirty_region(scrn, crtc, pmap, ms->damage, fb_id, x, y);
+        if (ret == -EINVAL || ret == -ENOSYS) {
+            DamageUnregister(ms->damage);
+            DamageDestroy(ms->damage);
+            ms->damage = NULL;
             return;
+        }
     }
+
+    DamageEmpty(ms->damage);
 }
 
 static void
@@ -892,6 +873,50 @@ out:
 }
 
 static void
+ms_tearfree_update_damages(ScreenPtr pScreen)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+    modesettingPtr ms = modesettingPTR(scrn);
+    RegionPtr dirty = DamageRegion(ms->damage);
+    int c, i;
+
+    if (RegionNil(dirty))
+        return;
+
+    for (c = 0; c < xf86_config->num_crtc; c++) {
+        xf86CrtcPtr crtc = xf86_config->crtc[c];
+        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+        drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
+        RegionRec region;
+
+        /* Compute how much of the damage intersects with this CRTC */
+        RegionInit(&region, &crtc->bounds, 0);
+        RegionIntersect(&region, &region, dirty);
+
+        if (trf->fb_id[0] && !crtc->rotatedPixmap) {
+            /*
+             * Accumulate the damage into both TearFree buffers. The stale
+             * regions and the ms_copy_area clip operate in buffer-local
+             * (0,0-based) space, so translate out of screen coordinates.
+             */
+            RegionTranslate(&region, -crtc->x, -crtc->y);
+            for (i = 0; i < 2; i++)
+                RegionUnion(&trf->stale[i], &trf->stale[i], &region);
+        } else {
+            /* Just notify the kernel of the damages if TearFree isn't used */
+            dispatch_damages(scrn, crtc, &region,
+                             pScreen->GetScreenPixmap(pScreen),
+                             NULL, ms->drmmode.fb_id, 0, 0);
+        }
+
+        RegionUninit(&region);
+    }
+
+    DamageEmpty(ms->damage);
+}
+
+static void
 ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -902,8 +927,6 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     pixman_f_transform_t transform;
     pixman_f_transform_t *transform_ptr = NULL;
     PixmapPtr src;
-    RegionRec blit_region;
-    BoxRec crtc_box;
     int back = trf->back_idx;
     uint32_t seq;
     Bool ret;
@@ -914,38 +937,15 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     if (crtc_flip_owner(crtc) != FLIP_OWNER_NONE)
         return;
 
-    if (!trf->damage ||
-        !RegionNotEmpty(DamageRegion(trf->damage)))
+    if (RegionNil(&trf->stale[back]))
         return;
 
     /*
-     * Clip damage to this CRTC's viewport then translate into buffer-local
-     * coordinates.  Both the stale region and the ms_copy_area clip operate
-     * in buffer-local (0,0-based) space; the transform shifts the source
-     * sample point back into screen coordinates.
-     */
-    crtc_box.x1 = crtc->x;
-    crtc_box.y1 = crtc->y;
-    crtc_box.x2 = crtc->x + crtc->mode.HDisplay;
-    crtc_box.y2 = crtc->y + crtc->mode.VDisplay;
-
-    RegionInitBoxes(&blit_region, &crtc_box, 1);
-    RegionIntersect(&blit_region, &blit_region,
-                    DamageRegion(trf->damage));
-    RegionTranslate(&blit_region, -crtc->x, -crtc->y);
-
-    /* Include regions this buffer missed while it was being scanned out. */
-    RegionUnion(&blit_region, &blit_region, &trf->stale[back]);
-
-    if (!RegionNotEmpty(&blit_region))
-        goto bail;
-
-    /*
-     * When the CRTC has a software-rotated shadow pixmap, blit from that
-     * directly - it already contains correctly rotated content at (0, 0).
-     * Otherwise blit from the screen pixmap, applying a translation to
-     * map buffer-local coordinates back to the CRTC's position in screen
-     * space.
+     * Blit the accumulated damage into the back buffer. The stale region
+     * operates in buffer-local (0,0-based) space; the transform shifts the
+     * source sample point back into screen coordinates. When the CRTC has a
+     * software-rotated shadow pixmap, blit from that directly - it already
+     * contains correctly rotated content at (0, 0).
      */
     if (crtc->rotatedPixmap) {
         src = crtc->rotatedPixmap;
@@ -958,19 +958,11 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     screen->SourceValidate = miSourceValidate;
     ret = ms_copy_area(src,
                        trf->pixmap[back],
-                       transform_ptr, &blit_region);
+                       transform_ptr, &trf->stale[back]);
     screen->SourceValidate = SourceValidate;
 
-    if (!ret) {
-        goto bail;
-    }
-
-    RegionUnion(&trf->stale[back ^ 1],
-                &trf->stale[back ^ 1],
-                &blit_region);
-    RegionEmpty(&trf->stale[back]);
-
-    DamageEmpty(trf->damage);
+    if (!ret)
+        return;
 
 #ifdef GLAMOR_HAS_GBM
     /* Ensure the blit is visible to the display engine before the flip. */
@@ -982,7 +974,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
                              ms_tearfree_flip_handler,
                              ms_tearfree_flip_abort);
     if (!seq)
-        goto bail;
+        return;
 
     if (drmmode_crtc_flip(crtc,
                           trf->fb_id[back],
@@ -990,14 +982,18 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
                           DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_ATOMIC_NONBLOCK,
                           (void *)(intptr_t) seq) != 0) {
         ms_drm_abort_seq(scrn, seq);
-        goto bail;
+        return;
     }
+
+    /*
+     * Only clear the stale region once the flip is accepted. On any failure
+     * above it's left intact so the accumulated damage is retried on the
+     * next block handler.
+     */
+    RegionEmpty(&trf->stale[back]);
 
     crtc_flip_claim(crtc, FLIP_OWNER_TEARFREE);
     trf->flip_seq = seq;
-
-bail:
-    RegionUninit(&blit_region);
 }
 
 static void
@@ -1022,7 +1018,9 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
     pScreen->BlockHandler = msBlockHandler;
     if (pScreen->isGPU && !ms->drmmode.reverse_prime_offload_mode)
         dispatch_secondary_dirty(pScreen);
-    else if (ms->dirty_enabled && !ms->drmmode.tearfree)
+    else if (ms->drmmode.tearfree)
+        ms_tearfree_update_damages(pScreen);
+    else if (ms->dirty_enabled)
         dispatch_dirty(pScreen);
 
     ms_dirty_update(pScreen, timeout);
@@ -1767,9 +1765,21 @@ CreateScreenResources(ScreenPtr pScreen)
         FatalError("Couldn't adjust screen pixmap\n");
 
     err = drmModeDirtyFB(ms->fd, ms->drmmode.fb_id, NULL, 0);
-    if ((err != -EINVAL && err != -ENOSYS)) {
-        ms->dirty_enabled = TRUE;
-        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Damage tracking available\n");
+
+    if ((err != -EINVAL && err != -ENOSYS) || ms->drmmode.tearfree) {
+        ms->damage = DamageCreate(NULL, NULL, DamageReportNone, TRUE,
+                                  pScreen, rootPixmap);
+
+        if (ms->damage) {
+            DamageRegister(&rootPixmap->drawable, ms->damage);
+            ms->dirty_enabled = err != -EINVAL && err != -ENOSYS;
+            xf86DrvMsg(pScrn->scrnIndex, X_INFO, "Damage tracking initialized\n");
+        }
+        else {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                       "Failed to create screen damage record\n");
+            return FALSE;
+        }
     }
 
     if (dixPrivateKeyRegistered(rrPrivKey)) {
@@ -2314,6 +2324,12 @@ CloseScreen(ScreenPtr pScreen)
     drmmode_uevent_fini(pScrn, &ms->drmmode);
 
     drmmode_free_bos(pScrn, &ms->drmmode);
+
+    if (ms->damage) {
+        DamageUnregister(ms->damage);
+        DamageDestroy(ms->damage);
+        ms->damage = NULL;
+    }
 
     if (ms->drmmode.pageflip) {
         miPointerScreenPtr PointPriv =
