@@ -212,7 +212,6 @@ typedef struct {
     uint32_t   fb_id[2];
     int        back_idx;   /* index of the buffer being written to */
     uint32_t   flip_seq;   /* DRM queue seq for in-flight TearFree flip */
-    DamagePtr  damage;
     PixmapPtr  pixmap[2];  /* pixmap wrappers for blitting */
     RegionRec  stale[2];
 } drmmode_tearfree_rec, *drmmode_tearfree_ptr;

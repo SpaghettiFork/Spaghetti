@@ -128,6 +128,9 @@ typedef struct _modesettingRec {
     Bool dirty_enabled;
     /** @} */
 
+    /* Screen damage tracking for kernel dirty updates and TearFree */
+    DamagePtr damage;
+
     /* VRR support */
     WindowPtr flip_window;
     Bool vrr_support;

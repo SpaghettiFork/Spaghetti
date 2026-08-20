@@ -4602,14 +4602,6 @@ drmmode_tearfree_alloc_crtc(xf86CrtcPtr crtc)
     RegionInitBoxes(&drmmode_crtc->tearfree.stale[0], &full_viewport, 1);
     RegionInitBoxes(&drmmode_crtc->tearfree.stale[1], &full_viewport, 1);
 
-    drmmode_crtc->tearfree.damage = DamageCreate(NULL, NULL,
-                                                 DamageReportNone, TRUE,
-                                                 screen, screen);
-    if (!drmmode_crtc->tearfree.damage)
-        goto fail;
-
-    DamageRegister(&screen->GetScreenPixmap(screen)->drawable,
-                   drmmode_crtc->tearfree.damage);
     return TRUE;
 
 fail:
@@ -4639,12 +4631,6 @@ drmmode_tearfree_free_crtc(xf86CrtcPtr crtc)
     if (!drmmode_crtc->tearfree.fb_id[0] &&
         !drmmode_crtc->tearfree.fb_id[1])
         return;
-
-    if (drmmode_crtc->tearfree.damage) {
-        DamageUnregister(drmmode_crtc->tearfree.damage);
-        DamageDestroy(drmmode_crtc->tearfree.damage);
-        drmmode_crtc->tearfree.damage = NULL;
-    }
 
     RegionUninit(&drmmode_crtc->tearfree.stale[0]);
     RegionUninit(&drmmode_crtc->tearfree.stale[1]);
