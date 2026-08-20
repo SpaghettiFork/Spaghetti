@@ -531,6 +531,7 @@ static present_screen_info_rec ms_present_screen_info = {
 
     .capabilities = PresentCapabilityNone,
 #if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+    .prepare_copy = ms_present_prepare_copy,
     .check_commit = ms_present_check_commit,
     .commit = ms_present_commit,
     .uncommit = ms_present_uncommit
