@@ -45,11 +45,11 @@
 #include <sys/stat.h>
 
 #ifdef FISSION_SOFT2D
-static Bool ms_dri3_modifiers_get(ScreenPtr screen, uint32_t format,
+static Bool soft2d_modifiers_get(ScreenPtr screen, uint32_t format,
                                   uint32_t *num, uint64_t **modifiers);
 
 static void *
-ms_dri3_pixmap_map_bo(msPixmapPrivPtr ppriv, struct gbm_bo *bo)
+soft2d_pixmap_map_bo(msPixmapPrivPtr ppriv, struct gbm_bo *bo)
 {
     void *baddr;
     size_t size;
@@ -82,7 +82,7 @@ fail:
 }
 
 static Bool
-ms_dri3_pixmap_make_exportable(PixmapPtr pixmap, Bool mods)
+soft2d_pixmap_make_exportable(PixmapPtr pixmap, Bool mods)
 {
     ScreenPtr screen = pixmap->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -125,7 +125,7 @@ ms_dri3_pixmap_make_exportable(PixmapPtr pixmap, Bool mods)
         uint32_t num;
         uint64_t *modifiers = NULL;
 
-        ms_dri3_modifiers_get(screen, format, &num, &modifiers);
+        soft2d_modifiers_get(screen, format, &num, &modifiers);
 
         bo = gbm_bo_create_with_modifiers(ms->drmmode.gbm,
                                           pixmap->drawable.width,
@@ -150,7 +150,7 @@ ms_dri3_pixmap_make_exportable(PixmapPtr pixmap, Bool mods)
 
     exported_priv->bo = bo;
 
-    baddr = ms_dri3_pixmap_map_bo(exported_priv, bo);
+    baddr = soft2d_pixmap_map_bo(exported_priv, bo);
     if (!baddr)
         goto map_fail;
 
@@ -165,7 +165,7 @@ ms_dri3_pixmap_make_exportable(PixmapPtr pixmap, Bool mods)
     FreeScratchGC(sgc);
 
     /* swap gbm_bo, data, etc */
-    ms_dri3_buffers_exchange(pixmap, exported);
+    soft2d_buffers_exchange(pixmap, exported);
 
     screen->ModifyPixmapHeader(pixmap, pixmap->drawable.width,
                                pixmap->drawable.height, 0, 0,
@@ -180,7 +180,7 @@ map_fail:
 }
 
 Bool
-ms_dri3_pixmap_from_gbm_bo(PixmapPtr pixmap, struct gbm_bo *bo)
+soft2d_pixmap_from_gbm_bo(PixmapPtr pixmap, struct gbm_bo *bo)
 {
     ScreenPtr screen = pixmap->drawable.pScreen;
     uint32_t stride, w, h;
@@ -194,7 +194,7 @@ ms_dri3_pixmap_from_gbm_bo(PixmapPtr pixmap, struct gbm_bo *bo)
 }
 
 Bool
-ms_dri3_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
+soft2d_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
                             CARD16 width, CARD16 height,
                             CARD16 stride, CARD8 depth, CARD8 bpp)
 {
@@ -241,7 +241,7 @@ ms_dri3_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
     ppriv->bo = bo;
     ppriv->use_modifiers = FALSE;
 
-    baddr = ms_dri3_pixmap_map_bo(ppriv, bo);
+    baddr = soft2d_pixmap_map_bo(ppriv, bo);
     if (!baddr) {
         return FALSE;
     }
@@ -250,7 +250,7 @@ ms_dri3_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
 }
 
 static int
-ms_dri3_render_node(int fd, struct stat *st)
+soft2d_render_node(int fd, struct stat *st)
 {
     if (fstat(fd, st)) return -1;
     if (!S_ISCHR(st->st_mode)) return -1;
@@ -258,7 +258,7 @@ ms_dri3_render_node(int fd, struct stat *st)
 }
 
 static int
-ms_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out)
+soft2d_open(ScreenPtr screen, RRProviderPtr provider, int *out)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
@@ -283,7 +283,7 @@ ms_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out)
         return -BadMatch;
     }
 
-    if (!ms_dri3_render_node(fd, &buff)) {
+    if (!soft2d_render_node(fd, &buff)) {
         drm_magic_t magic;
 
         if ((drmGetMagic(fd, &magic)) || (drmAuthMagic(ms->fd, magic))) {
@@ -297,7 +297,7 @@ ms_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out)
 }
 
 static inline Bool
-ms_dri3_find_modifier(uint64_t modifier, const uint64_t *modifiers, unsigned int count)
+soft2d_find_modifier(uint64_t modifier, const uint64_t *modifiers, unsigned int count)
 {
     unsigned int i;
 
@@ -310,7 +310,7 @@ ms_dri3_find_modifier(uint64_t modifier, const uint64_t *modifiers, unsigned int
 }
 
 static inline uint32_t
-ms_dri3_alpha_twin_format_get(uint32_t format)
+soft2d_alpha_twin_format_get(uint32_t format)
 {
     switch (format) {
     case DRM_FORMAT_XRGB8888:
@@ -335,7 +335,7 @@ ms_dri3_alpha_twin_format_get(uint32_t format)
 }
 
 static Bool
-ms_dri3_formats_get(ScreenPtr screen, CARD32 *num, CARD32 **formats)
+soft2d_formats_get(ScreenPtr screen, CARD32 *num, CARD32 **formats)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     xf86CrtcConfigPtr xcfg = XF86_CRTC_CONFIG_PTR(scrn);
@@ -367,7 +367,7 @@ ms_dri3_formats_get(ScreenPtr screen, CARD32 *num, CARD32 **formats)
             if (j == n)
                 (*formats)[n++] = f;
 
-            f = ms_dri3_alpha_twin_format_get(f);
+            f = soft2d_alpha_twin_format_get(f);
             if (f) {
                 for (j = 0; j < n; j++) {
                     if ((*formats)[j] == f)
@@ -386,7 +386,7 @@ ms_dri3_formats_get(ScreenPtr screen, CARD32 *num, CARD32 **formats)
 }
 
 static inline uint32_t
-ms_dri3_opaque_format_get(uint32_t format)
+soft2d_opaque_format_get(uint32_t format)
 {
     switch (format) {
     case DRM_FORMAT_ARGB8888:
@@ -399,7 +399,7 @@ ms_dri3_opaque_format_get(uint32_t format)
 }
 
 static Bool
-ms_dri3_modifiers_get(ScreenPtr screen, uint32_t format,
+soft2d_modifiers_get(ScreenPtr screen, uint32_t format,
                       uint32_t *num, uint64_t **modifiers)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -411,7 +411,7 @@ ms_dri3_modifiers_get(ScreenPtr screen, uint32_t format,
     drmmode_format_ptr dformat = NULL;
     int c = 0, i = 0;
 
-    format = ms_dri3_opaque_format_get(format);
+    format = soft2d_opaque_format_get(format);
 
     for (; c < xcfg->num_crtc; c++) {
         xf86CrtcPtr crtc = xcfg->crtc[c];
@@ -442,7 +442,7 @@ ms_dri3_modifiers_get(ScreenPtr screen, uint32_t format,
 }
 
 static Bool
-ms_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
+soft2d_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
                                uint32_t *num, uint64_t **modifiers)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
@@ -454,7 +454,7 @@ ms_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
     drmmode_format_ptr dformat = NULL;
     int c = 0, i = 0, j = 0;
 
-    format = ms_dri3_opaque_format_get(format);
+    format = soft2d_opaque_format_get(format);
 
     for (; c < xcfg->num_crtc; c++) {
         xf86CrtcPtr crtc = xcfg->crtc[c];
@@ -468,7 +468,7 @@ ms_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 
         for (i = 0; i < dcrtc->num_formats; i++) {
             if ((dcrtc->formats[i].format == format) &&
-                (ms_dri3_find_modifier(DRM_FORMAT_MOD_LINEAR,
+                (soft2d_find_modifier(DRM_FORMAT_MOD_LINEAR,
                                        dcrtc->formats[i].modifiers,
                                        dcrtc->formats[i].num_modifiers))) {
                 dformat = &dcrtc->formats[i];
@@ -491,7 +491,7 @@ ms_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 }
 
 PixmapPtr
-ms_dri3_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
+soft2d_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
                         CARD16 width, CARD16 height, const CARD32 *strides,
                         const CARD32 *offsets, CARD8 depth, CARD8 bpp, uint64_t modifier)
 {
@@ -541,7 +541,7 @@ ms_dri3_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
             ppriv->bo = bo;
             ppriv->use_modifiers = TRUE;
 
-            baddr = ms_dri3_pixmap_map_bo(ppriv, bo);
+            baddr = soft2d_pixmap_map_bo(ppriv, bo);
             if (!baddr)
                 goto map_fail;
 
@@ -551,7 +551,7 @@ ms_dri3_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
         }
     } else {
         if (num == 1)
-            ret = ms_dri3_back_pixmap_from_fd(pixmap, fds[0], width, height,
+            ret = soft2d_back_pixmap_from_fd(pixmap, fds[0], width, height,
                                               strides[0], depth, bpp);
     }
 
@@ -568,7 +568,7 @@ map_fail:
 }
 
 static int
-ms_dri3_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
+soft2d_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
                         uint32_t *strides, uint32_t *offsets, uint64_t *modifier)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -577,18 +577,18 @@ ms_dri3_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
     struct gbm_bo *bo;
     int num = 0, i;
 
-    if (!ms_dri3_pixmap_make_exportable(pixmap, TRUE))
+    if (!soft2d_pixmap_make_exportable(pixmap, TRUE))
         return 0;
 
     ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
 
     if (!ppriv->bo)
-        ppriv->bo = ms_dri3_gbm_bo_from_pixmap(screen, pixmap);
+        ppriv->bo = soft2d_gbm_bo_from_pixmap(screen, pixmap);
 
     bo = ppriv->bo;
     if (!bo) {
         xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-                   "ms_dri3_fds_from_pixmap: pixmap has no bo\n");
+                   "soft2d_fds_from_pixmap: pixmap has no bo\n");
         return 0;
     }
 
@@ -603,7 +603,7 @@ ms_dri3_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
 }
 
 int
-ms_dri3_shareable_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
+soft2d_shareable_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
                                  CARD16 *stride, CARD32 *size)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -620,7 +620,7 @@ ms_dri3_shareable_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
     pixmap->usage_hint = CREATE_PIXMAP_USAGE_SHARED;
 
     if (!ppriv->bo)
-        ppriv->bo = ms_dri3_gbm_bo_from_pixmap(screen, pixmap);
+        ppriv->bo = soft2d_gbm_bo_from_pixmap(screen, pixmap);
 
     bo = ppriv->bo;
     if (!bo)
@@ -636,7 +636,7 @@ out:
 }
 
 struct gbm_bo *
-ms_dri3_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap)
+soft2d_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
@@ -650,7 +650,7 @@ ms_dri3_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap)
     if (pixmap == screen->GetScreenPixmap(screen) && (!ppriv || !ppriv->bo))
         return NULL;
 
-    if (!ms_dri3_pixmap_make_exportable(pixmap, TRUE))
+    if (!soft2d_pixmap_make_exportable(pixmap, TRUE))
         return NULL;
 
     if (ppriv->bo)
@@ -671,7 +671,7 @@ ms_dri3_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap)
         break;
     }
 
-    ms_dri3_modifiers_get(screen, format, &num, &modifiers);
+    soft2d_modifiers_get(screen, format, &num, &modifiers);
 
     bo = gbm_bo_create_with_modifiers(ms->drmmode.gbm,
                                       pixmap->drawable.width,
@@ -689,7 +689,7 @@ ms_dri3_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap)
 }
 
 Bool
-ms_dri3_destroy_pixmap(PixmapPtr pixmap)
+soft2d_destroy_pixmap(PixmapPtr pixmap)
 {
     ScreenPtr screen = pixmap->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -710,7 +710,7 @@ ms_dri3_destroy_pixmap(PixmapPtr pixmap)
 }
 
 static Bool
-ms_dri3_flink_name_get(int fd, int handle, int *name)
+soft2d_flink_name_get(int fd, int handle, int *name)
 {
     struct drm_gem_flink f;
 
@@ -729,17 +729,17 @@ ms_dri3_flink_name_get(int fd, int handle, int *name)
 }
 
 static void
-ms_dri3_bo_name_get(int fd, struct gbm_bo *bo, int *name)
+soft2d_bo_name_get(int fd, struct gbm_bo *bo, int *name)
 {
     union gbm_bo_handle hdl;
 
     hdl = gbm_bo_get_handle(bo);
-    if (!ms_dri3_flink_name_get(fd, hdl.u32, name))
+    if (!soft2d_flink_name_get(fd, hdl.u32, name))
       *name = -1;
 }
 
 int
-ms_dri3_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size)
+soft2d_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size)
 {
     ScreenPtr screen = pixmap->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -750,7 +750,7 @@ ms_dri3_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size)
 
     ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
 
-    if (!ms_dri3_pixmap_make_exportable(pixmap, TRUE))
+    if (!soft2d_pixmap_make_exportable(pixmap, TRUE))
         goto fail;
 
     bo = ppriv->bo;
@@ -758,7 +758,7 @@ ms_dri3_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size)
         goto fail;
 
     pixmap->devKind = gbm_bo_get_stride(bo);
-    ms_dri3_bo_name_get(ms->fd, bo, &fd);
+    soft2d_bo_name_get(ms->fd, bo, &fd);
     *stride = pixmap->devKind;
     *size = pixmap->devKind * gbm_bo_get_height(bo);
 
@@ -767,7 +767,7 @@ fail:
 }
 
 void
-ms_dri3_buffers_exchange(PixmapPtr front, PixmapPtr back)
+soft2d_buffers_exchange(PixmapPtr front, PixmapPtr back)
 {
     ScreenPtr screen = front->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -783,31 +783,31 @@ ms_dri3_buffers_exchange(PixmapPtr front, PixmapPtr back)
     XORG_EXCHANGE(fpriv->bo_map_size,   bpriv->bo_map_size)
 }
 
-static const dri3_screen_info_rec ms_dri3_screen_info = {
+static const dri3_screen_info_rec soft2d_screen_info = {
     .version = 2,
 
-    .open = ms_dri3_open,
-    .fd_from_pixmap = ms_dri3_shareable_fd_from_pixmap,
+    .open = soft2d_open,
+    .fd_from_pixmap = soft2d_shareable_fd_from_pixmap,
 
-    .pixmap_from_fds = ms_dri3_pixmap_from_fds,
-    .fds_from_pixmap = ms_dri3_fds_from_pixmap,
+    .pixmap_from_fds = soft2d_pixmap_from_fds,
+    .fds_from_pixmap = soft2d_fds_from_pixmap,
 
-    .get_formats = ms_dri3_formats_get,
-    .get_modifiers = ms_dri3_modifiers_get,
-    .get_drawable_modifiers = ms_dri3_get_drawable_modifiers,
+    .get_formats = soft2d_formats_get,
+    .get_modifiers = soft2d_modifiers_get,
+    .get_drawable_modifiers = soft2d_get_drawable_modifiers,
 };
 
 Bool
-ms_dri3_screen_init(ScreenPtr screen)
+soft2d_screen_init(ScreenPtr screen)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
     Bool ret = FALSE;
 
     ms->drmmode.destroy_pixmap = screen->DestroyPixmap;
-    screen->DestroyPixmap = ms_dri3_destroy_pixmap;
+    screen->DestroyPixmap = soft2d_destroy_pixmap;
 
-    ret = dri3_screen_init(screen, &ms_dri3_screen_info);
+    ret = dri3_screen_init(screen, &soft2d_screen_info);
     if (!ret)
         xf86DrvMsg(scrn->scrnIndex, X_ERROR, "soft2d: Failed to initialize DRI3\n");
 

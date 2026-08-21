@@ -360,7 +360,7 @@ ms_do_pageflip(ScreenPtr screen,
             new_front_bo.dumb = ms->drmmode.front_bo.dumb;
             dumb_borrowed = TRUE;
         } else {
-            new_front_bo.gbm = ms_dri3_gbm_bo_from_pixmap(screen, new_front);
+            new_front_bo.gbm = soft2d_gbm_bo_from_pixmap(screen, new_front);
             new_front_bo.dumb = NULL;
             if (!new_front_bo.gbm) {
                 msPixmapPrivPtr ppriv = msGetPixmapPriv(&ms->drmmode, new_front);
