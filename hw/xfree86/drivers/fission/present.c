@@ -326,7 +326,7 @@ ms_present_check_unflip(RRCrtcPtr crtc,
         gbm = ms->glamor.gbm_bo_from_pixmap(screen, pixmap);
 #ifdef FISSION_SOFT2D
     else
-        gbm = ms_dri3_gbm_bo_from_pixmap(screen, pixmap);
+        gbm = soft2d_gbm_bo_from_pixmap(screen, pixmap);
 #endif
 
     if (gbm) {

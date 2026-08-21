@@ -1638,7 +1638,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode, ScrnInfoPtr pScrn, int fbcon_id)
                                                    depth, bpp, modifier);
 #if defined(FISSION_SOFT2D)
     else
-        pixmap = ms_dri3_pixmap_from_fds(pScreen, num_fds, fds,
+        pixmap = soft2d_pixmap_from_fds(pScreen, num_fds, fds,
                                          width, height, strides, offsets,
                                          depth, bpp, modifier);
 #endif
@@ -3720,7 +3720,7 @@ drmmode_set_pixmap_bo(drmmode_ptr drmmode, PixmapPtr pixmap, drmmode_bo *bo)
     }
 #ifdef FISSION_SOFT2D
     else if (bo->gbm) {
-        if (!ms_dri3_pixmap_from_gbm_bo(pixmap, bo->gbm)) {
+        if (!soft2d_pixmap_from_gbm_bo(pixmap, bo->gbm)) {
             xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Failed to create pixmap\n");
             return FALSE;
         }

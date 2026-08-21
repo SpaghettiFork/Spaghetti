@@ -49,41 +49,42 @@ struct dri3_sync_fence
 };
 
 static inline struct dri3_sync_fence *
-ms_dri3_get_sync_fence(SyncFence *fence)
+soft2d_get_sync_fence(SyncFence *fence)
 {
     return (struct dri3_sync_fence *)dixLookupPrivate(&fence->devPrivates, &dri3_sync_fence_key);
 }
 
 static void
-ms_dri3_sync_fence_set_triggered(SyncFence *fence)
+soft2d_sync_fence_set_triggered(SyncFence *fence)
 {
-    struct dri3_sync_fence *dri3_fence = ms_dri3_get_sync_fence(fence);
+    struct dri3_sync_fence *dri3_fence = soft2d_get_sync_fence(fence);
 
     fence->funcs.SetTriggered = dri3_fence->set_triggered;
     fence->funcs.SetTriggered(fence);
     dri3_fence->set_triggered = fence->funcs.SetTriggered;
-    fence->funcs.SetTriggered = ms_dri3_sync_fence_set_triggered;
+    fence->funcs.SetTriggered = soft2d_sync_fence_set_triggered;
 }
 
 static void
-ms_dri3_sync_create_fence(ScreenPtr screen, SyncFence *fence, Bool triggered)
+soft2d_sync_create_fence(ScreenPtr screen, SyncFence *fence, Bool triggered)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
     SyncScreenFuncsPtr scrn_funcs = miSyncGetScreenFuncs(screen);
-    struct dri3_sync_fence *dri3_fence = ms_dri3_get_sync_fence(fence);
+    struct dri3_sync_fence *dri3_fence = soft2d_get_sync_fence(fence);
 
     scrn_funcs->CreateFence = ms->drmmode.sync_funcs.CreateFence;
     scrn_funcs->CreateFence(screen, fence, triggered);
     ms->drmmode.sync_funcs.CreateFence = scrn_funcs->CreateFence;
-    scrn_funcs->CreateFence = ms_dri3_sync_create_fence;
+    scrn_funcs->CreateFence = soft2d_sync_create_fence;
 
     dri3_fence->set_triggered = fence->funcs.SetTriggered;
-    fence->funcs.SetTriggered = ms_dri3_sync_fence_set_triggered;
+    fence->funcs.SetTriggered = soft2d_sync_fence_set_triggered;
 }
 #endif
 
-Bool ms_dri3_sync_init(ScreenPtr screen)
+Bool
+soft2d_sync_init(ScreenPtr screen)
 {
 #if XSYNC
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -107,13 +108,14 @@ Bool ms_dri3_sync_init(ScreenPtr screen)
 
     scrn_funcs = miSyncGetScreenFuncs(screen);
     ms->drmmode.sync_funcs.CreateFence = scrn_funcs->CreateFence;
-    scrn_funcs->CreateFence = ms_dri3_sync_create_fence;
+    scrn_funcs->CreateFence = soft2d_sync_create_fence;
 #endif
 
     return TRUE;
 }
 
-void ms_dri3_sync_close(ScreenPtr screen)
+void
+soft2d_sync_close(ScreenPtr screen)
 {
 #if XSYNC
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);

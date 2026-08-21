@@ -226,33 +226,33 @@ void ms_vblank_close_screen(ScreenPtr screen);
 Bool ms_present_screen_init(ScreenPtr screen);
 
 #ifdef FISSION_SOFT2D
-Bool ms_dri3_screen_init(ScreenPtr screen);
+Bool soft2d_screen_init(ScreenPtr screen);
 
-Bool ms_dri3_pixmap_from_gbm_bo(PixmapPtr pixmap, struct gbm_bo *bo);
+Bool soft2d_pixmap_from_gbm_bo(PixmapPtr pixmap, struct gbm_bo *bo);
 
-int ms_dri3_shareable_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
+int soft2d_shareable_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
                                      CARD16 *stride, CARD32 *size);
 
 PixmapPtr
-ms_dri3_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
+soft2d_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
                         CARD16 width, CARD16 height, const CARD32 *strides,
                         const CARD32 *offsets, CARD8 depth, CARD8 bpp, uint64_t modifier);
 
-Bool ms_dri3_sync_init(ScreenPtr screen);
+Bool soft2d_sync_init(ScreenPtr screen);
 
-void ms_dri3_sync_close(ScreenPtr screen);
+void soft2d_sync_close(ScreenPtr screen);
 
-struct gbm_bo *ms_dri3_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap);
+struct gbm_bo *soft2d_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap);
 
-Bool ms_dri3_destroy_pixmap(PixmapPtr pixmap);
+Bool soft2d_destroy_pixmap(PixmapPtr pixmap);
 
-Bool ms_dri3_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
+Bool soft2d_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
                                  CARD16 width, CARD16 height,
                                  CARD16 stride, CARD8 depth, CARD8 bpp);
 
-int ms_dri3_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size);
+int soft2d_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size);
 
-void ms_dri3_buffers_exchange(PixmapPtr front, PixmapPtr back);
+void soft2d_buffers_exchange(PixmapPtr front, PixmapPtr back);
 #endif
 
 #if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)

@@ -1836,7 +1836,7 @@ msSharePixmapBacking(PixmapPtr ppix, ScreenPtr secondary, void **handle)
                                                   &stride, &size);
 #ifdef FISSION_SOFT2D
     else
-        ret = ms_dri3_shareable_fd_from_pixmap(ppix->drawable.pScreen, ppix,
+        ret = soft2d_shareable_fd_from_pixmap(ppix->drawable.pScreen, ppix,
                                                &stride, &size);
 #endif
 
@@ -1873,7 +1873,7 @@ msSetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
                                                  ppix->drawable.bitsPerPixel);
 #ifdef FISSION_SOFT2D
         else
-            ret = ms_dri3_back_pixmap_from_fd(ppix, ihandle,
+            ret = soft2d_back_pixmap_from_fd(ppix, ihandle,
                                               ppix->drawable.width,
                                               ppix->drawable.height,
                                               ppix->devKind,
@@ -2159,12 +2159,12 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
                        "Failed to initialize the DRI2 extension.\n");
         }
     } else {
-        if (!ms_dri3_screen_init(pScreen)) {
+        if (!soft2d_screen_init(pScreen)) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                        "Failed to initialize the DRI3 extension.\n");
         }
 
-        if (!ms_dri3_sync_init(pScreen)) {
+        if (!soft2d_sync_init(pScreen)) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                        "Failed to initialize the SYNC extension.\n");
         }
@@ -2305,7 +2305,7 @@ CloseScreen(ScreenPtr pScreen)
 
 #ifdef FISSION_SOFT2D
     if (!ms->drmmode.glamor)
-        ms_dri3_sync_close(pScreen);
+        soft2d_sync_close(pScreen);
 #endif
 
 #ifdef GLAMOR_HAS_GBM
