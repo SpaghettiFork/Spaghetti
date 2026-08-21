@@ -232,7 +232,7 @@ ms_present_prepare_copy(PixmapPtr pixmap)
 #endif
 }
 
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
 
 /**
  * Callback for the DRM event queue when a flip has completed on all pipes
@@ -309,15 +309,15 @@ ms_present_check_unflip(RRCrtcPtr crtc,
             return FALSE;
 #endif
 
+        if (drmmode_crtc->rotate_bo.dumb)
+            return FALSE;
+
         if (xf86_crtc_on(config->crtc[i]))
             num_crtcs_on++;
     }
 
     /* We can't do pageflipping if all the CRTCs are off. */
     if (num_crtcs_on == 0)
-        return FALSE;
-
-    if (!ms->drmmode.glamor)
         return FALSE;
 
 #ifdef GBM_BO_WITH_MODIFIERS
