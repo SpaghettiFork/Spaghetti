@@ -646,10 +646,13 @@ ms_dri3_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap)
     uint32_t num;
     uint64_t *modifiers = NULL;
 
+    ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
+    if (pixmap == screen->GetScreenPixmap(screen) && (!ppriv || !ppriv->bo))
+        return NULL;
+
     if (!ms_dri3_pixmap_make_exportable(pixmap, TRUE))
         return NULL;
 
-    ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
     if (ppriv->bo)
         return ppriv->bo;
 

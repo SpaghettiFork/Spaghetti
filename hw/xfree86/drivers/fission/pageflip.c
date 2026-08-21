@@ -344,29 +344,46 @@ ms_do_pageflip(ScreenPtr screen,
     xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
     drmmode_bo new_front_bo;
     int i;
+    Bool dumb_borrowed = FALSE;
     struct ms_flipdata *flipdata;
 
     if (ms->drmmode.glamor) {
         ms->glamor.block_handler(screen);
         new_front_bo.gbm = ms->glamor.gbm_bo_from_pixmap(screen, new_front);
+        new_front_bo.dumb = NULL;
     }
 #ifdef FISSION_SOFT2D
     else {
-        new_front_bo.gbm = ms_dri3_gbm_bo_from_pixmap(screen, new_front);
+        if (new_front == screen->GetScreenPixmap(screen) &&
+            ms->drmmode.front_bo.dumb) {
+            new_front_bo.gbm = NULL;
+            new_front_bo.dumb = ms->drmmode.front_bo.dumb;
+            dumb_borrowed = TRUE;
+        } else {
+            new_front_bo.gbm = ms_dri3_gbm_bo_from_pixmap(screen, new_front);
+            new_front_bo.dumb = NULL;
+            if (!new_front_bo.gbm) {
+                msPixmapPrivPtr ppriv = msGetPixmapPriv(&ms->drmmode, new_front);
+                if (ppriv && ppriv->backing_bo) {
+                    new_front_bo.dumb = ppriv->backing_bo;
+                    dumb_borrowed = TRUE;
+                }
+            }
+        }
     }
 #endif
 
-    new_front_bo.dumb = NULL;
-
-    if (!new_front_bo.gbm) {
+    if (!new_front_bo.gbm && !new_front_bo.dumb) {
         xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-                   "%s: Failed to get GBM BO for flip to new front.\n",
+                   "%s: Failed to get BO for flip to new front.\n",
                    log_prefix);
         goto error_free_event;
     }
 
     flipdata = calloc(1, sizeof(struct ms_flipdata));
     if (!flipdata) {
+        if (dumb_borrowed)
+            new_front_bo.dumb = NULL;
         drmmode_bo_destroy(&ms->drmmode, &new_front_bo);
         xf86DrvMsg(scrn->scrnIndex, X_ERROR,
                    "%s: Failed to allocate flipdata.\n", log_prefix);
@@ -469,6 +486,8 @@ ms_do_pageflip(ScreenPtr screen,
         }
     }
 
+    if (dumb_borrowed)
+        new_front_bo.dumb = NULL;
     drmmode_bo_destroy(&ms->drmmode, &new_front_bo);
 
     /*
@@ -494,6 +513,8 @@ error_undo:
     }
 
 error_out:
+    if (dumb_borrowed)
+        new_front_bo.dumb = NULL;
     drmmode_bo_destroy(&ms->drmmode, &new_front_bo);
     /* if only the local reference - free the structure,
      * else drop the local reference and return */
