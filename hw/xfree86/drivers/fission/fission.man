@@ -69,9 +69,11 @@ One of \*qglamor\*q or \*qsoft2d\*q.  Default: glamor.
 .BI "Option \*qVariableRefresh\*q \*q" boolean \*q
 Enables support for enabling variable refresh on the Screen's CRTCs
 when an suitable application is flipping via the Present extension.
-.br
+.sp 2
 The default is
 .B off.
+.sp 2
+Not supported on soft2d.
 .TP
 .BI "Option \*qTearFree\*q \*q" boolean \*q
 Enable tearing prevention using the hardware page flipping mechanism.
@@ -79,6 +81,8 @@ It allocates two extra scanout buffers for each CRTC and utilizes damage
 tracking to minimize buffer copying and skip unnecessary flips when the
 screen's contents have not changed. It works on transformed screens too, such
 as rotated and scaled CRTCs.
+.sp 2
+Not supported on soft2d.
 .sp 2
 TearFree does not mitigate against applications that utilize
 PresentOptionAsyncMayTear.
