@@ -243,10 +243,6 @@ ms_dri3_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
 
     baddr = ms_dri3_pixmap_map_bo(ppriv, bo);
     if (!baddr) {
-        ppriv->bo = NULL;
-        gbm_bo_destroy(bo);
-        xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-                   "Failed to map bo (%s)\n", strerror(errno));
         return FALSE;
     }
 
