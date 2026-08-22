@@ -1285,6 +1285,42 @@ load_glamor(ScrnInfoPtr pScrn)
 
 #endif
 
+#ifdef FISSION_SOFT2D
+static Bool
+load_soft2d(ScrnInfoPtr pScrn)
+{
+    void *mod = xf86LoadSubModule(pScrn, "soft2d");
+    modesettingPtr ms = modesettingPTR(pScrn);
+
+    if (!mod)
+        return FALSE;
+
+    ms->soft2d.init = LoaderSymbolFromModule(mod, "soft2d_init");
+    ms->soft2d.sync_close = LoaderSymbolFromModule(mod, "soft2d_sync_close");
+    ms->soft2d.shareable_fd_from_pixmap = LoaderSymbolFromModule(mod, "soft2d_shareable_fd_from_pixmap");
+    ms->soft2d.back_pixmap_from_fd = LoaderSymbolFromModule(mod, "soft2d_back_pixmap_from_fd");
+    ms->soft2d.pixmap_from_gbm_bo = LoaderSymbolFromModule(mod, "soft2d_pixmap_from_gbm_bo");
+    ms->soft2d.gbm_bo_from_pixmap = LoaderSymbolFromModule(mod, "soft2d_gbm_bo_from_pixmap");
+    ms->soft2d.pixmap_from_fds = LoaderSymbolFromModule(mod, "soft2d_pixmap_from_fds");
+    ms->soft2d.set_drawable_modifiers_func = LoaderSymbolFromModule(mod, "soft2d_set_drawable_modifiers_func");
+    ms->soft2d.set_formats_func = LoaderSymbolFromModule(mod, "soft2d_set_formats_func");
+    ms->soft2d.set_modifiers_func = LoaderSymbolFromModule(mod, "soft2d_set_modifiers_func");
+
+    return TRUE;
+}
+
+static Bool
+try_enable_soft2d(ScrnInfoPtr pScrn)
+{
+    modesettingPtr ms = modesettingPTR(pScrn);
+
+    if (ms->drmmode.glamor)
+        return TRUE;
+    else
+        return load_soft2d(pScrn);
+}
+#endif
+
 static void
 try_enable_glamor(ScrnInfoPtr pScrn)
 {
@@ -1484,6 +1520,12 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     }
 
     try_enable_glamor(pScrn);
+#ifdef FISSION_SOFT2D
+    if (!try_enable_soft2d(pScrn)) {
+        xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "Failed to load soft2d\n");
+        return FALSE;    
+    }
+#endif
 
     ms->drmmode.pageflip =
         xf86ReturnOptValBool(ms->drmmode.Options, OPTION_PAGEFLIP, TRUE);
@@ -1826,7 +1868,7 @@ msSharePixmapBacking(PixmapPtr ppix, ScreenPtr secondary, void **handle)
 #ifdef GLAMOR_HAS_GBM
     modesettingPtr ms =
         modesettingPTR(xf86ScreenToScrn(ppix->drawable.pScreen));
-    int ret;
+    int ret = -1;
     CARD16 stride;
     CARD32 size;
 
@@ -1835,9 +1877,9 @@ msSharePixmapBacking(PixmapPtr ppix, ScreenPtr secondary, void **handle)
         ret = ms->glamor.shareable_fd_from_pixmap(ppix->drawable.pScreen, ppix,
                                                   &stride, &size);
 #ifdef FISSION_SOFT2D
-    else
-        ret = soft2d_shareable_fd_from_pixmap(ppix->drawable.pScreen, ppix,
-                                               &stride, &size);
+    else if (ms->soft2d.shareable_fd_from_pixmap)
+        ret = ms->soft2d.shareable_fd_from_pixmap(ppix->drawable.pScreen, ppix,
+                                                  &stride, &size);
 #endif
 
     if (ret == -1)
@@ -1872,13 +1914,13 @@ msSetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
                                                  ppix->drawable.depth,
                                                  ppix->drawable.bitsPerPixel);
 #ifdef FISSION_SOFT2D
-        else
-            ret = soft2d_back_pixmap_from_fd(ppix, ihandle,
-                                              ppix->drawable.width,
-                                              ppix->drawable.height,
-                                              ppix->devKind,
-                                              ppix->drawable.depth,
-                                              ppix->drawable.bitsPerPixel);
+        else if (ms->soft2d.back_pixmap_from_fd)
+            ret = ms->soft2d.back_pixmap_from_fd(ppix, ihandle,
+                                                 ppix->drawable.width,
+                                                 ppix->drawable.height,
+                                                 ppix->devKind,
+                                                 ppix->drawable.depth,
+                                                 ppix->drawable.bitsPerPixel);
 #endif
         close(ihandle);
     } else {
@@ -2055,7 +2097,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
     if (drmmode_init(pScrn, &ms->drmmode) == FALSE) {
         xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                   "Failed to initialize glamor at ScreenInit() time.\n");
+                   "Failed to initialize at ScreenInit() time.\n");
         return FALSE;
     }
 
@@ -2157,16 +2199,6 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
         if (!(ms->drmmode.dri2_enable = ms_dri2_screen_init(pScreen))) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                        "Failed to initialize the DRI2 extension.\n");
-        }
-    } else {
-        if (!soft2d_screen_init(pScreen)) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                       "Failed to initialize the DRI3 extension.\n");
-        }
-
-        if (!soft2d_sync_init(pScreen)) {
-            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
-                       "Failed to initialize the SYNC extension.\n");
         }
     }
 #endif
@@ -2305,7 +2337,7 @@ CloseScreen(ScreenPtr pScreen)
 
 #ifdef FISSION_SOFT2D
     if (!ms->drmmode.glamor)
-        soft2d_sync_close(pScreen);
+        ms->soft2d.sync_close(pScreen);
 #endif
 
 #ifdef GLAMOR_HAS_GBM
