@@ -266,4 +266,13 @@ if build_xorg
     )
 
     benchmark('region-bench', region_bench)
+
+    fbblt_bench = executable('fbblt-bench',
+         'fbblt-bench.c',
+         c_args: unit_c_args,
+         dependencies: [x11_dep, pixman_dep, randrproto_dep, inputproto_dep, libxcvt_dep],
+         include_directories: unit_includes,
+    )
+
+    benchmark('fbblt-bench', fbblt_bench)
 endif
