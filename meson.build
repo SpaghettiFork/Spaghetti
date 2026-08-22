@@ -189,6 +189,7 @@ else
 endif
 
 glamor_option = get_option('glamor')
+soft2d_option = get_option('soft2d')
 
 hal_option = get_option('hal')
 if ['windows', 'darwin', 'cygwin'].contains(host_machine.system())
@@ -420,8 +421,17 @@ if not libdrm_dep.found() and libdrm_required
 endif
 
 build_fission = libdrm_dep.found() and dri2proto_dep.found()
-build_soft2d = build_fission and gbm_dep.found() and gbm_dep.version().version_compare('>= 17.1')
 build_modesetting = libdrm_dep.found() and dri2proto_dep.found()
+
+if soft2d_option == 'auto'
+    build_soft2d = build_xorg and build_fission
+else
+    build_soft2d = soft2d_option == 'true'
+endif
+
+if not build_glamor and build_soft2d
+    gbm_dep = dependency('gbm', version: '>= 17.1', required: true)
+endif
 
 build_vgahw = false
 if get_option('vgahw') == 'auto'
