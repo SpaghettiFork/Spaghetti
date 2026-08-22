@@ -4,6 +4,8 @@ option('xephyr', type: 'boolean', value: false,
        description: 'Enable Xephyr nested X server')
 option('glamor', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
        description: 'Enable glamor (default yes for Xorg builds)')
+option('soft2d', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
+       description: 'Enable soft2d (default yes for fission builds)')
 option('xnest', type: 'combo', choices: ['true', 'false', 'auto'], value: 'auto',
        description: 'Enable Xnest nested X server')
 option('xvfb', type: 'boolean', value: true,
