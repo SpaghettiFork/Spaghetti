@@ -289,7 +289,6 @@ conf_data.set_quoted('BUILDERSTRING', get_option('builder_string'))
 
 if build_rootless
     conf_data.set('ROOTLESS', build_rootless ? '1' : false)
-    conf_data.set('ROOTLESS_WORKAROUND', 1)
     conf_data.set('ROOTLESS_SAFEALPHA', 1)
 endif
 
