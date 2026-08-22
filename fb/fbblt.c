@@ -25,6 +25,7 @@
 #endif
 
 #include <string.h>
+#include "os/osdep.h"
 #include "fb.h"
 
 #define InitializeShifts(sx,dx,ls,rs) { \
@@ -38,6 +39,46 @@
 	} \
     } \
 }
+
+#if __has_attribute(vector_size)
+/* 128-bit vector of FbBits (4 x 32 = 16 bytes) */
+typedef FbBits FbVec4 __attribute__((vector_size(16)));
+
+static inline FbVec4
+FbVecLoad(const FbBits *p)
+{
+    FbVec4 v;
+    __builtin_memcpy(&v, p, sizeof(v));
+    return v;
+}
+
+static inline void
+FbVecStore(FbBits *p, FbVec4 v)
+{
+    __builtin_memcpy(p, &v, sizeof(v));
+}
+
+#if BITMAP_BIT_ORDER == LSBFirst
+#define FbVecScrLeft(v,n)  ((v) >> (n))
+#define FbVecScrRight(v,n) ((v) << (n))
+#else
+#define FbVecScrLeft(v,n)  ((v) << (n))
+#define FbVecScrRight(v,n) ((v) >> (n))
+#endif
+
+static inline FbVec4
+FbDoMergeRopVec(FbVec4 src, FbVec4 dst,
+                FbVec4 ca1, FbVec4 cx1, FbVec4 ca2, FbVec4 cx2)
+{
+    return (dst & ((src & ca1) ^ cx1)) ^ ((src & ca2) ^ cx2);
+}
+
+static inline FbVec4
+FbDoDestInvariantVec(FbVec4 src, FbVec4 ca2, FbVec4 cx2)
+{
+    return (src & ca2) ^ cx2;
+}
+#endif /* __has_attribute(vector_size) */
 
 void
 fbBlt(FbBits * srcLine,
@@ -152,32 +193,49 @@ fbBlt(FbBits * srcLine,
                 }
                 n = nmiddle;
                 if (destInvarient) {
-#if 0
-                    /*
-                     * This provides some speedup on screen->screen blts
-                     * over the PCI bus, usually about 10%.  But fb
-                     * isn't usually used for this operation...
-                     */
-                    if (_ca2 + 1 == 0 && _cx2 == 0) {
-                        FbBits t1, t2, t3, t4;
-
-                        while (n >= 4) {
-                            t1 = *src++;
-                            t2 = *src++;
-                            t3 = *src++;
-                            t4 = *src++;
-                            *dst++ = t1;
-                            *dst++ = t2;
-                            *dst++ = t3;
-                            *dst++ = t4;
+#if __has_attribute(vector_size)
+#ifndef FB_ACCESS_WRAPPER
+                    if (n >= 4) {
+                        FbVec4 vca2 = { _ca2, _ca2, _ca2, _ca2 };
+                        FbVec4 vcx2 = { _cx2, _cx2, _cx2, _cx2 };
+                        int vn = n & ~3;
+                        while (vn >= 4) {
+                            FbVec4 vs = FbVecLoad(src);
+                            FbVec4 vd = FbDoDestInvariantVec(vs, vca2, vcx2);
+                            FbVecStore(dst, vd);
+                            src += 4;
+                            dst += 4;
+                            vn -= 4;
                             n -= 4;
                         }
                     }
+#endif
 #endif
                     while (n--)
                         WRITE(dst++, FbDoDestInvarientMergeRop(READ(src++)));
                 }
                 else {
+#if __has_attribute(vector_size)
+#ifndef FB_ACCESS_WRAPPER
+                    if (n >= 4) {
+                        FbVec4 vca1 = { _ca1, _ca1, _ca1, _ca1 };
+                        FbVec4 vcx1 = { _cx1, _cx1, _cx1, _cx1 };
+                        FbVec4 vca2 = { _ca2, _ca2, _ca2, _ca2 };
+                        FbVec4 vcx2 = { _cx2, _cx2, _cx2, _cx2 };
+                        int vn = n & ~3;
+                        while (vn >= 4) {
+                            FbVec4 vs = FbVecLoad(src);
+                            FbVec4 vd = FbVecLoad(dst);
+                            FbVec4 vr = FbDoMergeRopVec(vs, vd, vca1, vcx1, vca2, vcx2);
+                            FbVecStore(dst, vr);
+                            src += 4;
+                            dst += 4;
+                            vn -= 4;
+                            n -= 4;
+                        }
+                    }
+#endif
+#endif
                     while (n--) {
                         bits = READ(src++);
                         WRITE(dst, FbDoMergeRop(bits, READ(dst)));
@@ -262,6 +320,28 @@ fbBlt(FbBits * srcLine,
                 }
                 n = nmiddle;
                 if (destInvarient) {
+#if __has_attribute(vector_size)
+#ifndef FB_ACCESS_WRAPPER
+                    if (n >= 4) {
+                        FbVec4 vca2 = { _ca2, _ca2, _ca2, _ca2 };
+                        FbVec4 vcx2 = { _cx2, _cx2, _cx2, _cx2 };
+                        int vn = n & ~3;
+                        while (vn >= 4) {
+                            FbVec4 vcurr = FbVecLoad(src);
+                            FbVec4 vprev = { bits1, vcurr[0], vcurr[1], vcurr[2] };
+                            FbVec4 vbits = FbVecScrLeft(vprev, leftShift) |
+                                           FbVecScrRight(vcurr, rightShift);
+                            FbVec4 vr = FbDoDestInvariantVec(vbits, vca2, vcx2);
+                            FbVecStore(dst, vr);
+                            bits1 = vcurr[3];
+                            src += 4;
+                            dst += 4;
+                            vn -= 4;
+                            n -= 4;
+                        }
+                    }
+#endif
+#endif
                     while (n--) {
                         bits = FbScrLeft(bits1, leftShift);
                         bits1 = READ(src++);
@@ -271,6 +351,31 @@ fbBlt(FbBits * srcLine,
                     }
                 }
                 else {
+#if __has_attribute(vector_size)
+#ifndef FB_ACCESS_WRAPPER
+                    if (n >= 4) {
+                        FbVec4 vca1 = { _ca1, _ca1, _ca1, _ca1 };
+                        FbVec4 vcx1 = { _cx1, _cx1, _cx1, _cx1 };
+                        FbVec4 vca2 = { _ca2, _ca2, _ca2, _ca2 };
+                        FbVec4 vcx2 = { _cx2, _cx2, _cx2, _cx2 };
+                        int vn = n & ~3;
+                        while (vn >= 4) {
+                            FbVec4 vcurr = FbVecLoad(src);
+                            FbVec4 vprev = { bits1, vcurr[0], vcurr[1], vcurr[2] };
+                            FbVec4 vbits = FbVecScrLeft(vprev, leftShift) |
+                                           FbVecScrRight(vcurr, rightShift);
+                            FbVec4 vd = FbVecLoad(dst);
+                            FbVec4 vr = FbDoMergeRopVec(vbits, vd, vca1, vcx1, vca2, vcx2);
+                            FbVecStore(dst, vr);
+                            bits1 = vcurr[3];
+                            src += 4;
+                            dst += 4;
+                            vn -= 4;
+                            n -= 4;
+                        }
+                    }
+#endif
+#endif
                     while (n--) {
                         bits = FbScrLeft(bits1, leftShift);
                         bits1 = READ(src++);
