@@ -66,6 +66,10 @@ SOFTWARE.
 # define __has_builtin(x) 0     /* Compatibility with older compilers */
 #endif
 
+#ifndef __has_attribute
+# define __has_attribute(x) 0   /* Compatibility with non-clang compilers */
+#endif
+
 /* If EAGAIN and EWOULDBLOCK are distinct errno values, then we check errno
  * for both EAGAIN and EWOULDBLOCK, because some supposedly POSIX
  * systems are broken and return EWOULDBLOCK when they should return EAGAIN
