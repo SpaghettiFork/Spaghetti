@@ -34,7 +34,6 @@
 #endif
 
 #include "xf86.h"
-#include "driver.h"
 #include "dri3.h"
 #include <drm_fourcc.h>
 #include <drm_mode.h>
@@ -43,13 +42,19 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include "fb.h"
+#include "gcstruct.h"
+#include "picturestr.h"
+#include "os/xserver_poll.h"
+#include <poll.h>
+#include "soft2d_priv.h"
 
-#ifdef FISSION_SOFT2D
 static Bool soft2d_modifiers_get(ScreenPtr screen, uint32_t format,
-                                  uint32_t *num, uint64_t **modifiers);
+                                   uint32_t *num, uint64_t **modifiers);
+static Bool soft2d_pixmap_make_exportable(PixmapPtr pixmap, Bool mods);
 
 static void *
-soft2d_pixmap_map_bo(msPixmapPrivPtr ppriv, struct gbm_bo *bo)
+soft2d_pixmap_map_bo(struct soft2d_pixmap_priv *ppriv, struct gbm_bo *bo)
 {
     void *baddr;
     size_t size;
@@ -85,16 +90,15 @@ static Bool
 soft2d_pixmap_make_exportable(PixmapPtr pixmap, Bool mods)
 {
     ScreenPtr screen = pixmap->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    msPixmapPrivPtr pixmap_priv, exported_priv;
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
+    struct soft2d_pixmap_priv *pixmap_priv, *exported_priv;
     uint32_t format = GBM_FORMAT_ARGB8888;
     struct gbm_bo *bo = NULL;
     PixmapPtr exported;
     void *baddr;
     GCPtr sgc;
 
-    pixmap_priv = msGetPixmapPriv(&ms->drmmode, pixmap);
+    pixmap_priv = soft2dGetPixmapPriv(pixmap);
 
     if (pixmap_priv->bo &&
         (mods || !pixmap_priv->use_modifiers))
@@ -119,7 +123,7 @@ soft2d_pixmap_make_exportable(PixmapPtr pixmap, Bool mods)
     }
 
     exported = fbCreatePixmap(screen, 0, 0, pixmap->drawable.depth, 0);
-    exported_priv = msGetPixmapPriv(&ms->drmmode, exported);
+    exported_priv = soft2dGetPixmapPriv(exported);
 
     if (mods) {
         uint32_t num;
@@ -127,7 +131,7 @@ soft2d_pixmap_make_exportable(PixmapPtr pixmap, Bool mods)
 
         soft2d_modifiers_get(screen, format, &num, &modifiers);
 
-        bo = gbm_bo_create_with_modifiers(ms->drmmode.gbm,
+        bo = gbm_bo_create_with_modifiers(spriv->gbm,
                                           pixmap->drawable.width,
                                           pixmap->drawable.height,
                                           format, modifiers, num);
@@ -142,7 +146,7 @@ soft2d_pixmap_make_exportable(PixmapPtr pixmap, Bool mods)
         if (pixmap->usage_hint == CREATE_PIXMAP_USAGE_SHARED)
             flags |= GBM_BO_USE_LINEAR;
 
-        bo = gbm_bo_create(ms->drmmode.gbm, pixmap->drawable.width,
+        bo = gbm_bo_create(spriv->gbm, pixmap->drawable.width,
                            pixmap->drawable.height, format, flags);
         if (!bo)
             goto map_fail;
@@ -199,9 +203,9 @@ soft2d_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
                             CARD16 stride, CARD8 depth, CARD8 bpp)
 {
     ScreenPtr screen = pixmap->drawable.pScreen;
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    msPixmapPrivPtr ppriv;
+    struct soft2d_pixmap_priv * ppriv;
     struct gbm_import_fd_data import = { 0 };
     struct gbm_bo *bo;
     void *baddr;
@@ -230,14 +234,14 @@ soft2d_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
         break;
     }
 
-    bo = gbm_bo_import(ms->drmmode.gbm, GBM_BO_IMPORT_FD, &import, 0);
+    bo = gbm_bo_import(spriv->gbm, GBM_BO_IMPORT_FD, &import, 0);
     if (!bo) {
         xf86DrvMsg(scrn->scrnIndex, X_ERROR,
                    "Failed to import bo (%s)\n", strerror(errno));
         return FALSE;
     }
 
-    ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
+    ppriv = soft2dGetPixmapPriv(pixmap);
     ppriv->bo = bo;
     ppriv->use_modifiers = FALSE;
 
@@ -260,13 +264,12 @@ soft2d_render_node(int fd, struct stat *st)
 static int
 soft2d_open(ScreenPtr screen, RRProviderPtr provider, int *out)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
     struct stat buff;
     char *dev;
     int fd = -1;
 
-    dev = drmGetDeviceNameFromFd2(ms->fd);
+    dev = drmGetDeviceNameFromFd2(spriv->fd);
 
 #ifdef O_CLOEXEC
     fd = open(dev, O_RDWR | O_CLOEXEC);
@@ -286,7 +289,7 @@ soft2d_open(ScreenPtr screen, RRProviderPtr provider, int *out)
     if (!soft2d_render_node(fd, &buff)) {
         drm_magic_t magic;
 
-        if ((drmGetMagic(fd, &magic)) || (drmAuthMagic(ms->fd, magic))) {
+        if ((drmGetMagic(fd, &magic)) || (drmAuthMagic(spriv->fd, magic))) {
             close(fd);
             return -BadMatch;
         }
@@ -296,198 +299,64 @@ soft2d_open(ScreenPtr screen, RRProviderPtr provider, int *out)
     return Success;
 }
 
-static inline Bool
-soft2d_find_modifier(uint64_t modifier, const uint64_t *modifiers, unsigned int count)
-{
-    unsigned int i;
-
-    for (i = 0; i < count; i++) {
-        if (modifiers[i] == modifier)
-           return TRUE;
-    }
-
-    return FALSE;
-}
-
-static inline uint32_t
-soft2d_alpha_twin_format_get(uint32_t format)
-{
-    switch (format) {
-    case DRM_FORMAT_XRGB8888:
-        return DRM_FORMAT_ARGB8888;
-    case DRM_FORMAT_ARGB8888:
-        return DRM_FORMAT_XRGB8888;
-    case DRM_FORMAT_XBGR8888:
-        return DRM_FORMAT_ABGR8888;
-    case DRM_FORMAT_ABGR8888:
-        return DRM_FORMAT_XBGR8888;
-    case DRM_FORMAT_XRGB2101010:
-        return DRM_FORMAT_ARGB2101010;
-    case DRM_FORMAT_ARGB2101010:
-        return DRM_FORMAT_XRGB2101010;
-    case DRM_FORMAT_XBGR2101010:
-        return DRM_FORMAT_ABGR2101010;
-    case DRM_FORMAT_ABGR2101010:
-        return DRM_FORMAT_XBGR2101010;
-    default:
-        return 0;
-    }
-}
-
 static Bool
 soft2d_formats_get(ScreenPtr screen, CARD32 *num, CARD32 **formats)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    xf86CrtcConfigPtr xcfg = XF86_CRTC_CONFIG_PTR(scrn);
-    int c = 0, i = 0, j = 0, n = 0;
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
 
-    *num = 0;
-
-    for (; c < xcfg->num_crtc; c++) {
-        xf86CrtcPtr crtc = xcfg->crtc[c];
-        drmmode_crtc_private_ptr dcrtc = crtc->driver_private;
-
-        if (!crtc->enabled)
-            continue;
-
-        if (dcrtc->num_formats == 0)
-            continue;
-
-        *formats = calloc(dcrtc->num_formats * 2, sizeof(CARD32));
-        if (!*formats)
-            return FALSE;
-
-        for (i = 0; i < dcrtc->num_formats; i++) {
-            uint32_t f = dcrtc->formats[i].format;
-
-            for (j = 0; j < n; j++) {
-                if ((*formats)[j] == f)
-                    break;
-            }
-            if (j == n)
-                (*formats)[n++] = f;
-
-            f = soft2d_alpha_twin_format_get(f);
-            if (f) {
-                for (j = 0; j < n; j++) {
-                    if ((*formats)[j] == f)
-                        break;
-                }
-                if (j == n)
-                    (*formats)[n++] = f;
-            }
-        }
-
-        *num = n;
-        break;
-    }
-
-    return TRUE;
+    if (_X_LIKELY(spriv->get_formats))
+        return spriv->get_formats(screen, num, formats);
+    else
+        return FALSE;
 }
 
-static inline uint32_t
-soft2d_opaque_format_get(uint32_t format)
+void
+soft2d_set_formats_func(ScreenPtr screen, dri3_get_formats_proc func)
 {
-    switch (format) {
-    case DRM_FORMAT_ARGB8888:
-        return DRM_FORMAT_XRGB8888;
-    case DRM_FORMAT_ARGB2101010:
-        return DRM_FORMAT_XRGB2101010;
-    default:
-        return format;
-    }
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
+
+    spriv->get_formats = func;
+}
+
+void
+soft2d_set_modifiers_func(ScreenPtr screen, dri3_get_modifiers_proc func)
+{
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
+
+    spriv->get_modifiers = func;
+}
+
+void
+soft2d_set_drawable_modifiers_func(ScreenPtr screen,
+                                   dri3_get_drawable_modifiers_proc func)
+{
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
+
+    spriv->get_drawable_modifiers = func;
 }
 
 static Bool
 soft2d_modifiers_get(ScreenPtr screen, uint32_t format,
-                      uint32_t *num, uint64_t **modifiers)
+                     uint32_t *num, uint64_t **modifiers)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
 
-    *num = 0;
-    *modifiers = NULL;
-
-    xf86CrtcConfigPtr xcfg = XF86_CRTC_CONFIG_PTR(scrn);
-    drmmode_format_ptr dformat = NULL;
-    int c = 0, i = 0;
-
-    format = soft2d_opaque_format_get(format);
-
-    for (; c < xcfg->num_crtc; c++) {
-        xf86CrtcPtr crtc = xcfg->crtc[c];
-        drmmode_crtc_private_ptr dcrtc = crtc->driver_private;
-
-        if (!crtc->enabled)
-            continue;
-
-        if (dcrtc->num_formats == 0)
-            continue;
-
-        for (i = 0; i < dcrtc->num_formats; i++) {
-            if (dcrtc->formats[i].format == format) {
-                dformat = &dcrtc->formats[i];
-
-                free(*modifiers);
-                *modifiers = calloc(dformat->num_modifiers, sizeof(uint64_t));
-                if (!*modifiers)
-                    return FALSE;
-                memcpy(*modifiers, dformat->modifiers, dformat->num_modifiers * sizeof(uint64_t));
-                *num = dformat->num_modifiers;
-                break;
-            }
-        }
-    }
-
-    return TRUE;
+    if (_X_LIKELY(spriv->get_modifiers))
+        return spriv->get_modifiers(screen, format, num, modifiers);
+    else
+        return FALSE;
 }
 
 static Bool
 soft2d_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
-                               uint32_t *num, uint64_t **modifiers)
+                              uint32_t *num, uint64_t **modifiers)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(draw->pScreen);
 
-    *num = 0;
-    *modifiers = NULL;
-
-    xf86CrtcConfigPtr xcfg = XF86_CRTC_CONFIG_PTR(scrn);
-    drmmode_format_ptr dformat = NULL;
-    int c = 0, i = 0, j = 0;
-
-    format = soft2d_opaque_format_get(format);
-
-    for (; c < xcfg->num_crtc; c++) {
-        xf86CrtcPtr crtc = xcfg->crtc[c];
-        drmmode_crtc_private_ptr dcrtc = crtc->driver_private;
-
-        if (!crtc->enabled)
-            continue;
-
-        if (dcrtc->num_formats == 0)
-            continue;
-
-        for (i = 0; i < dcrtc->num_formats; i++) {
-            if ((dcrtc->formats[i].format == format) &&
-                (soft2d_find_modifier(DRM_FORMAT_MOD_LINEAR,
-                                       dcrtc->formats[i].modifiers,
-                                       dcrtc->formats[i].num_modifiers))) {
-                dformat = &dcrtc->formats[i];
-                for (j = 0; j < dformat->num_modifiers; j++) {
-                    if (dformat->modifiers[j] == DRM_FORMAT_MOD_LINEAR) {
-                        free(*modifiers);
-                        *modifiers = calloc(1, sizeof(uint64_t));
-                        if (!*modifiers)
-                            return FALSE;
-                        **modifiers = dformat->modifiers[j];
-                        *num = 1;
-                        return TRUE;
-                    }
-                }
-            }
-        }
-    }
-
-    return TRUE;
+    if (_X_LIKELY(spriv->get_drawable_modifiers))
+        return spriv->get_drawable_modifiers(draw, format, num, modifiers);
+    else
+        return FALSE;
 }
 
 PixmapPtr
@@ -495,8 +364,7 @@ soft2d_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
                         CARD16 width, CARD16 height, const CARD32 *strides,
                         const CARD32 *offsets, CARD8 depth, CARD8 bpp, uint64_t modifier)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
     PixmapPtr pixmap;
     Bool ret = FALSE;
     int i;
@@ -532,12 +400,12 @@ soft2d_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
             break;
         }
 
-        bo = gbm_bo_import(ms->drmmode.gbm, GBM_BO_IMPORT_FD_MODIFIER, &import, 0);
+        bo = gbm_bo_import(spriv->gbm, GBM_BO_IMPORT_FD_MODIFIER, &import, 0);
         if (bo) {
-            msPixmapPrivPtr ppriv;
+            struct soft2d_pixmap_priv * ppriv;
             void *baddr;
 
-            ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
+            ppriv = soft2dGetPixmapPriv(pixmap);
             ppriv->bo = bo;
             ppriv->use_modifiers = TRUE;
 
@@ -572,15 +440,14 @@ soft2d_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
                         uint32_t *strides, uint32_t *offsets, uint64_t *modifier)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    msPixmapPrivPtr ppriv;
+    struct soft2d_pixmap_priv * ppriv;
     struct gbm_bo *bo;
     int num = 0, i;
 
     if (!soft2d_pixmap_make_exportable(pixmap, TRUE))
         return 0;
 
-    ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
+    ppriv = soft2dGetPixmapPriv(pixmap);
 
     if (!ppriv->bo)
         ppriv->bo = soft2d_gbm_bo_from_pixmap(screen, pixmap);
@@ -604,16 +471,14 @@ soft2d_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
 
 int
 soft2d_shareable_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
-                                 CARD16 *stride, CARD32 *size)
+                                CARD16 *stride, CARD32 *size)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
     unsigned ohint = pixmap->usage_hint;
-    msPixmapPrivPtr ppriv;
+    struct soft2d_pixmap_priv * ppriv;
     struct gbm_bo *bo;
     int fd = -1;
 
-    ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
+    ppriv = soft2dGetPixmapPriv(pixmap);
     if (!ppriv)
         return -1;
 
@@ -638,15 +503,15 @@ out:
 struct gbm_bo *
 soft2d_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap)
 {
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    msPixmapPrivPtr ppriv;
+    struct soft2d_pixmap_priv * ppriv;
     uint32_t format = GBM_FORMAT_ARGB8888;
     struct gbm_bo *bo;
     uint32_t num;
     uint64_t *modifiers = NULL;
 
-    ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
+    ppriv = soft2dGetPixmapPriv(pixmap);
     if (pixmap == screen->GetScreenPixmap(screen) && (!ppriv || !ppriv->bo))
         return NULL;
 
@@ -673,7 +538,7 @@ soft2d_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap)
 
     soft2d_modifiers_get(screen, format, &num, &modifiers);
 
-    bo = gbm_bo_create_with_modifiers(ms->drmmode.gbm,
+    bo = gbm_bo_create_with_modifiers(spriv->gbm,
                                       pixmap->drawable.width,
                                       pixmap->drawable.height,
                                       format, modifiers, num);
@@ -691,12 +556,8 @@ soft2d_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap)
 Bool
 soft2d_destroy_pixmap(PixmapPtr pixmap)
 {
-    ScreenPtr screen = pixmap->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-
     if (pixmap->refcnt == 1) {
-        msPixmapPrivPtr ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
+        struct soft2d_pixmap_priv * ppriv = soft2dGetPixmapPriv(pixmap);
 
         if (ppriv && ppriv->bo) {
             if (ppriv->bo_map)
@@ -742,13 +603,12 @@ int
 soft2d_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size)
 {
     ScreenPtr screen = pixmap->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    msPixmapPrivPtr ppriv;
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
+    struct soft2d_pixmap_priv * ppriv;
     struct gbm_bo *bo;
     int fd = -1;
 
-    ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
+    ppriv = soft2dGetPixmapPriv(pixmap);
 
     if (!soft2d_pixmap_make_exportable(pixmap, TRUE))
         goto fail;
@@ -758,7 +618,7 @@ soft2d_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size)
         goto fail;
 
     pixmap->devKind = gbm_bo_get_stride(bo);
-    soft2d_bo_name_get(ms->fd, bo, &fd);
+    soft2d_bo_name_get(spriv->fd, bo, &fd);
     *stride = pixmap->devKind;
     *size = pixmap->devKind * gbm_bo_get_height(bo);
 
@@ -769,18 +629,26 @@ fail:
 void
 soft2d_buffers_exchange(PixmapPtr front, PixmapPtr back)
 {
-    ScreenPtr screen = front->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    msPixmapPrivPtr fpriv, bpriv;
+    struct soft2d_pixmap_priv *fpriv, *bpriv;
 
-    fpriv = msGetPixmapPriv(&ms->drmmode, front);
-    bpriv = msGetPixmapPriv(&ms->drmmode, back);
+    fpriv = soft2dGetPixmapPriv(front);
+    bpriv = soft2dGetPixmapPriv(back);
 
     XORG_EXCHANGE(fpriv->use_modifiers, bpriv->use_modifiers)
     XORG_EXCHANGE(fpriv->bo,            bpriv->bo)
     XORG_EXCHANGE(fpriv->bo_map,        bpriv->bo_map)
     XORG_EXCHANGE(fpriv->bo_map_size,   bpriv->bo_map_size)
+}
+
+static Bool
+soft2d_close_screen(ScreenPtr screen)
+{
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
+
+    screen->DestroyPixmap = spriv->saved_DestroyPixmap;
+    screen->CloseScreen = spriv->saved_CloseScreen;
+
+    return screen->CloseScreen(screen);
 }
 
 static const dri3_screen_info_rec soft2d_screen_info = {
@@ -798,19 +666,46 @@ static const dri3_screen_info_rec soft2d_screen_info = {
 };
 
 Bool
-soft2d_screen_init(ScreenPtr screen)
+soft2d_init(ScreenPtr screen, struct gbm_device *gbm, int fd)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    Bool ret = FALSE;
+    struct soft2d_screen_priv *spriv;
 
-    ms->drmmode.destroy_pixmap = screen->DestroyPixmap;
+    if (!dixRegisterPrivateKey(&soft2d_screen_private_key,
+                               PRIVATE_SCREEN,
+                               sizeof(struct soft2d_screen_priv)))
+        return FALSE;
+
+    if (!dixRegisterPrivateKey(&soft2d_pixmap_private_key,
+                               PRIVATE_PIXMAP,
+                               sizeof(struct soft2d_pixmap_priv)))
+        return FALSE;
+
+    spriv = soft2dGetScreenPriv(screen);
+    spriv->gbm = gbm;
+    spriv->fd = fd;
+
+    if (!soft2d_init_gc(screen)) {
+        xf86DrvMsg(scrn->scrnIndex, X_ERROR, "soft2d: GC init failed\n");
+        return FALSE;
+    }
+
+    spriv->saved_DestroyPixmap = screen->DestroyPixmap;
     screen->DestroyPixmap = soft2d_destroy_pixmap;
 
-    ret = dri3_screen_init(screen, &soft2d_screen_info);
-    if (!ret)
-        xf86DrvMsg(scrn->scrnIndex, X_ERROR, "soft2d: Failed to initialize DRI3\n");
+    spriv->saved_CloseScreen = screen->CloseScreen;
+    screen->CloseScreen = soft2d_close_screen;
 
-    return ret;
+    if (!soft2d_sync_init(screen, spriv)) {
+        xf86DrvMsg(scrn->scrnIndex, X_ERROR, "soft2d: SYNC initialization failed\n");
+        return FALSE;
+    }
+
+    if (!dri3_screen_init(screen, &soft2d_screen_info)) {
+        xf86DrvMsg(scrn->scrnIndex, X_ERROR, "soft2d: DRI3 initialization failed\n");
+        return FALSE;
+    }
+
+    return TRUE;
 }
-#endif
+

@@ -283,6 +283,178 @@ get_drawable_modifiers(DrawablePtr draw, uint32_t format,
                                        TRUE, !ms->drmmode.multiplanar, async_flip);
     return TRUE;
 }
+
+static inline uint32_t
+drmmode_alpha_twin_format_get(uint32_t format)
+{
+    switch (format) {
+    case DRM_FORMAT_XRGB8888:
+        return DRM_FORMAT_ARGB8888;
+    case DRM_FORMAT_ARGB8888:
+        return DRM_FORMAT_XRGB8888;
+    case DRM_FORMAT_XBGR8888:
+        return DRM_FORMAT_ABGR8888;
+    case DRM_FORMAT_ABGR8888:
+        return DRM_FORMAT_XBGR8888;
+    case DRM_FORMAT_XRGB2101010:
+        return DRM_FORMAT_ARGB2101010;
+    case DRM_FORMAT_ARGB2101010:
+        return DRM_FORMAT_XRGB2101010;
+    case DRM_FORMAT_XBGR2101010:
+        return DRM_FORMAT_ABGR2101010;
+    case DRM_FORMAT_ABGR2101010:
+        return DRM_FORMAT_XBGR2101010;
+    default:
+        return 0;
+    }
+}
+
+static Bool
+drmmode_soft2d_get_formats(ScreenPtr screen, CARD32 *num, CARD32 **formats)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    xf86CrtcConfigPtr xcfg = XF86_CRTC_CONFIG_PTR(scrn);
+    int c = 0, i = 0, j = 0, n = 0;
+
+    *num = 0;
+    *formats = NULL;
+
+    for (; c < xcfg->num_crtc; c++) {
+        xf86CrtcPtr crtc = xcfg->crtc[c];
+        drmmode_crtc_private_ptr dcrtc = crtc->driver_private;
+
+        if (!crtc->enabled)
+            continue;
+
+        if (dcrtc->num_formats == 0)
+            continue;
+
+        *formats = calloc(dcrtc->num_formats * 2, sizeof(CARD32));
+        if (!*formats)
+            return FALSE;
+
+        for (i = 0; i < dcrtc->num_formats; i++) {
+            uint32_t f = dcrtc->formats[i].format;
+
+            for (j = 0; j < n; j++) {
+                if ((*formats)[j] == f)
+                    break;
+            }
+            if (j == n)
+                (*formats)[n++] = f;
+
+            f = drmmode_alpha_twin_format_get(f);
+            if (f) {
+                for (j = 0; j < n; j++) {
+                    if ((*formats)[j] == f)
+                        break;
+                }
+                if (j == n)
+                    (*formats)[n++] = f;
+            }
+        }
+
+        *num = n;
+        break;
+    }
+
+    return TRUE;
+}
+
+static Bool
+drmmode_soft2d_get_modifiers(ScreenPtr screen, uint32_t format,
+                             uint32_t *num, uint64_t **modifiers)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    xf86CrtcConfigPtr xcfg = XF86_CRTC_CONFIG_PTR(scrn);
+    drmmode_format_ptr dformat = NULL;
+    int c = 0, i = 0;
+
+    *num = 0;
+    *modifiers = NULL;
+
+    format = get_opaque_format(format);
+
+    for (; c < xcfg->num_crtc; c++) {
+        xf86CrtcPtr crtc = xcfg->crtc[c];
+        drmmode_crtc_private_ptr dcrtc = crtc->driver_private;
+
+        if (!crtc->enabled)
+            continue;
+
+        if (dcrtc->num_formats == 0)
+            continue;
+
+        for (i = 0; i < dcrtc->num_formats; i++) {
+            if (dcrtc->formats[i].format == format) {
+                dformat = &dcrtc->formats[i];
+
+                free(*modifiers);
+                *modifiers = calloc(dformat->num_modifiers, sizeof(uint64_t));
+                if (!*modifiers)
+                    return FALSE;
+                memcpy(*modifiers, dformat->modifiers,
+                       dformat->num_modifiers * sizeof(uint64_t));
+                *num = dformat->num_modifiers;
+                break;
+            }
+        }
+    }
+
+    return TRUE;
+}
+
+static Bool
+drmmode_soft2d_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
+                                      uint32_t *num, uint64_t **modifiers)
+{
+    ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
+    xf86CrtcConfigPtr xcfg = XF86_CRTC_CONFIG_PTR(scrn);
+    drmmode_format_ptr dformat = NULL;
+    int c = 0, i = 0, j = 0;
+
+    *num = 0;
+    *modifiers = NULL;
+
+    format = get_opaque_format(format);
+
+    for (; c < xcfg->num_crtc; c++) {
+        xf86CrtcPtr crtc = xcfg->crtc[c];
+        drmmode_crtc_private_ptr dcrtc = crtc->driver_private;
+
+        if (!crtc->enabled)
+            continue;
+
+        if (dcrtc->num_formats == 0)
+            continue;
+
+        for (i = 0; i < dcrtc->num_formats; i++) {
+            Bool has_linear = FALSE;
+            for (j = 0; j < dcrtc->formats[i].num_modifiers; j++) {
+                if (dcrtc->formats[i].modifiers[j] == DRM_FORMAT_MOD_LINEAR) {
+                    has_linear = TRUE;
+                    break;
+                }
+            }
+            if ((dcrtc->formats[i].format == format) && has_linear) {
+                dformat = &dcrtc->formats[i];
+                for (j = 0; j < dformat->num_modifiers; j++) {
+                    if (dformat->modifiers[j] == DRM_FORMAT_MOD_LINEAR) {
+                        free(*modifiers);
+                        *modifiers = calloc(1, sizeof(uint64_t));
+                        if (!*modifiers)
+                            return FALSE;
+                        **modifiers = dformat->modifiers[j];
+                        *num = 1;
+                        return TRUE;
+                    }
+                }
+            }
+        }
+    }
+
+    return TRUE;
+}
 #endif
 
 static Bool
@@ -1637,10 +1809,10 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode, ScrnInfoPtr pScrn, int fbcon_id)
                                                    width, height, strides, offsets,
                                                    depth, bpp, modifier);
 #if defined(FISSION_SOFT2D)
-    else
-        pixmap = soft2d_pixmap_from_fds(pScreen, num_fds, fds,
-                                         width, height, strides, offsets,
-                                         depth, bpp, modifier);
+    else if (ms->soft2d.pixmap_from_fds)
+        pixmap = ms->soft2d.pixmap_from_fds(pScreen, num_fds, fds,
+                                            width, height, strides, offsets,
+                                            depth, bpp, modifier);
 #endif
 
     if (!pixmap)
@@ -3720,7 +3892,7 @@ drmmode_set_pixmap_bo(drmmode_ptr drmmode, PixmapPtr pixmap, drmmode_bo *bo)
     }
 #ifdef FISSION_SOFT2D
     else if (bo->gbm) {
-        if (!soft2d_pixmap_from_gbm_bo(pixmap, bo->gbm)) {
+        if (!ms->soft2d.pixmap_from_gbm_bo(pixmap, bo->gbm)) {
             xf86DrvMsg(scrn->scrnIndex, X_ERROR, "Failed to create pixmap\n");
             return FALSE;
         }
@@ -4040,10 +4212,10 @@ drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 Bool
 drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 {
-#ifdef GLAMOR_HAS_GBM
     ScreenPtr pScreen = xf86ScrnToScreen(pScrn);
     modesettingPtr ms = modesettingPTR(pScrn);
 
+#ifdef GLAMOR_HAS_GBM
     if (drmmode->glamor) {
         if (!ms->glamor.init(pScreen, GLAMOR_USE_EGL_SCREEN)) {
             return FALSE;
@@ -4051,6 +4223,18 @@ drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 #ifdef GBM_BO_WITH_MODIFIERS
         ms->glamor.set_drawable_modifiers_func(pScreen, get_drawable_modifiers);
 #endif
+        return TRUE;
+    }
+#endif
+#ifdef FISSION_SOFT2D
+    if (ms->soft2d.init) {
+        if (!ms->soft2d.init(pScreen, ms->drmmode.gbm, ms->fd))
+            return FALSE;
+        
+        ms->soft2d.set_drawable_modifiers_func(pScreen,
+                                               drmmode_soft2d_get_drawable_modifiers);
+        ms->soft2d.set_formats_func(pScreen, drmmode_soft2d_get_formats);
+        ms->soft2d.set_modifiers_func(pScreen, drmmode_soft2d_get_modifiers);
     }
 #endif
 

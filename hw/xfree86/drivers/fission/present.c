@@ -190,48 +190,6 @@ ms_present_flush(WindowPtr window)
 #endif
 }
 
-/*
- * Prepare the presented pixmap for the CPU copy in present_copy_region:
- * ensure its GPU work is finished so the copy does not race with the
- * client's rendering.
- */
-static void
-ms_present_prepare_copy(PixmapPtr pixmap)
-{
-    ScreenPtr screen = pixmap->drawable.pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-
-#ifdef GLAMOR_HAS_GBM
-    if (ms->drmmode.glamor)
-        return;
-#endif
-
-#ifdef FISSION_SOFT2D
-    msPixmapPrivPtr ppriv = msGetPixmapPriv(&ms->drmmode, pixmap);
-    struct gbm_bo *bo;
-    int fd;
-
-    /* this is a no-op for window-event and screen-pixmap callers. */
-    if (!ppriv || !ppriv->bo)
-        return;
-
-    bo = ppriv->bo;
-    fd = gbm_bo_get_fd(bo);
-    if (fd < 0)
-        return;
-
-    /* poll() on the dma-buf fd blocks until its implicit fence is signalled */
-    struct pollfd pfd = { .fd = fd, .events = POLLIN };
-    int ret;
-
-    do {
-        ret = xserver_poll(&pfd, 1, 1000);
-    } while (ret < 0 && errno == EINTR);
-    close(fd);
-#endif
-}
-
 #if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
 
 /**
@@ -325,8 +283,8 @@ ms_present_check_unflip(RRCrtcPtr crtc,
     if (ms->drmmode.glamor)
         gbm = ms->glamor.gbm_bo_from_pixmap(screen, pixmap);
 #ifdef FISSION_SOFT2D
-    else
-        gbm = soft2d_gbm_bo_from_pixmap(screen, pixmap);
+    else if (ms->soft2d.gbm_bo_from_pixmap)
+        gbm = ms->soft2d.gbm_bo_from_pixmap(screen, pixmap);
 #endif
 
     if (gbm) {
@@ -531,7 +489,6 @@ static present_screen_info_rec ms_present_screen_info = {
 
     .capabilities = PresentCapabilityNone,
 #if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
-    .prepare_copy = ms_present_prepare_copy,
     .check_commit = ms_present_check_commit,
     .commit = ms_present_commit,
     .uncommit = ms_present_uncommit

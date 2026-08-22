@@ -45,6 +45,9 @@
 #if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
 # include <gbm.h>
 #endif
+#ifdef FISSION_SOFT2D
+# include "dri3.h"
+#endif
 
 
 #include "drmmode_display.h"
@@ -173,6 +176,20 @@ typedef struct _modesettingRec {
         const char *(*egl_get_driver_name)(ScreenPtr);
     } glamor;
 #endif
+#ifdef FISSION_SOFT2D
+    struct {
+        Bool (*init)(ScreenPtr, struct gbm_device *, int);
+        void (*sync_close)(ScreenPtr);
+        int (*shareable_fd_from_pixmap)(ScreenPtr, PixmapPtr, CARD16 *, CARD32 *);
+        Bool (*back_pixmap_from_fd)(PixmapPtr, int, CARD16, CARD16, CARD16, CARD8, CARD8);
+        Bool (*pixmap_from_gbm_bo)(PixmapPtr, struct gbm_bo *);
+        struct gbm_bo *(*gbm_bo_from_pixmap)(ScreenPtr, PixmapPtr);
+        PixmapPtr (*pixmap_from_fds)(ScreenPtr, CARD8, const int *, CARD16, CARD16, const CARD32 *, const CARD32 *, CARD8, CARD8, uint64_t);
+        void (*set_drawable_modifiers_func)(ScreenPtr, dri3_get_drawable_modifiers_proc);
+        void (*set_formats_func)(ScreenPtr, dri3_get_formats_proc);
+        void (*set_modifiers_func)(ScreenPtr, dri3_get_modifiers_proc);
+    } soft2d;
+#endif
 } modesettingRec, *modesettingPtr;
 
 #define glamor_finish(screen) ms->glamor.finish(screen)
@@ -224,36 +241,6 @@ Bool ms_vblank_screen_init(ScreenPtr screen);
 void ms_vblank_close_screen(ScreenPtr screen);
 
 Bool ms_present_screen_init(ScreenPtr screen);
-
-#ifdef FISSION_SOFT2D
-Bool soft2d_screen_init(ScreenPtr screen);
-
-Bool soft2d_pixmap_from_gbm_bo(PixmapPtr pixmap, struct gbm_bo *bo);
-
-int soft2d_shareable_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
-                                     CARD16 *stride, CARD32 *size);
-
-PixmapPtr
-soft2d_pixmap_from_fds(ScreenPtr screen, CARD8 num, const int *fds,
-                        CARD16 width, CARD16 height, const CARD32 *strides,
-                        const CARD32 *offsets, CARD8 depth, CARD8 bpp, uint64_t modifier);
-
-Bool soft2d_sync_init(ScreenPtr screen);
-
-void soft2d_sync_close(ScreenPtr screen);
-
-struct gbm_bo *soft2d_gbm_bo_from_pixmap(ScreenPtr screen, PixmapPtr pixmap);
-
-Bool soft2d_destroy_pixmap(PixmapPtr pixmap);
-
-Bool soft2d_back_pixmap_from_fd(PixmapPtr pixmap, int fd,
-                                 CARD16 width, CARD16 height,
-                                 CARD16 stride, CARD8 depth, CARD8 bpp);
-
-int soft2d_pixmap_name_get(PixmapPtr pixmap, CARD16 *stride, CARD32 *size);
-
-void soft2d_buffers_exchange(PixmapPtr front, PixmapPtr back);
-#endif
 
 #if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
 

@@ -121,7 +121,7 @@ conf_data.set('GBM_BO_WITH_MODIFIERS2',
               build_glamor and gbm_dep.found() and gbm_dep.version().version_compare('>= 21.3') ? '1' : false)
 
 conf_data.set('FISSION_SOFT2D',
-              build_fission and gbm_dep.found() and gbm_dep.version().version_compare('>= 17.1') ? '1' : false)
+              build_soft2d ? '1' : false)
 
 conf_data.set_quoted('SERVER_MISC_CONFIG_PATH', serverconfigdir)
 conf_data.set_quoted('PROJECTROOT', get_option('prefix'))

@@ -146,14 +146,6 @@ typedef Bool (*present_check_commit_ptr) (RRCrtcPtr crtc, WindowPtr window,
 typedef void (*present_uncommit_ptr) (ScreenPtr screen,
                                       RRCrtcPtr crtc,
                                       uint64_t event_id);
-
-/* Prepare 'pixmap' for being read back by the CPU copy in
- * present_copy_region. The driver may wait on the buffer's implicit write
- * fence so the copy does not race the client's rendering. Only drivers with
- * info->version >= 3 provide this; older drivers rely on the legacy flush
- * hook after the copy.
- */
-typedef void (*present_prepare_copy_ptr) (PixmapPtr pixmap);
 #endif
 
 /* Flip pixmap for window, return false if it didn't happen.
@@ -201,7 +193,6 @@ typedef struct present_screen_info {
     present_check_flip2_ptr             check_flip2;
 
 #if SPAGHETTI   
-    present_prepare_copy_ptr            prepare_copy;
     present_check_commit_ptr            check_commit;
     present_commit_ptr                  commit;
     present_uncommit_ptr                uncommit;

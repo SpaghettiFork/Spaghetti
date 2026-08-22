@@ -420,6 +420,7 @@ if not libdrm_dep.found() and libdrm_required
 endif
 
 build_fission = libdrm_dep.found() and dri2proto_dep.found()
+build_soft2d = build_fission and gbm_dep.found() and gbm_dep.version().version_compare('>= 17.1')
 build_modesetting = libdrm_dep.found() and dri2proto_dep.found()
 
 build_vgahw = false

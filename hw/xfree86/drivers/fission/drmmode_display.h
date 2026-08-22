@@ -301,9 +301,7 @@ typedef struct {
 
 typedef struct _msPixmapPriv {
     uint32_t fb_id;
-#if defined(FISSION_SOFT2D)
-    Bool use_modifiers;
-#endif
+
     struct dumb_bo *backing_bo; /* if this pixmap is backed by a dumb bo */
 
     DamagePtr secondary_damage;
@@ -317,12 +315,6 @@ typedef struct _msPixmapPriv {
     Bool notify_on_damage; /* if sink has requested damage notification */
     PixmapDirtyUpdatePtr dirty; /* cached dirty ent to avoid searching list */
     DrawablePtr secondary_src; /* if we exported shared pixmap, dirty tracking src */
-
-#if defined(FISSION_SOFT2D)
-    struct gbm_bo *bo;
-    void *bo_map;
-    size_t bo_map_size;
-#endif
 } msPixmapPrivRec, *msPixmapPrivPtr;
 
 #define msGetPixmapPriv(drmmode, p) ((msPixmapPrivPtr)dixGetPrivateAddr(&(p)->devPrivates, &(drmmode)->pixmapPrivateKeyRec))

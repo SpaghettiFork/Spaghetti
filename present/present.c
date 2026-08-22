@@ -73,14 +73,6 @@ present_copy_region(DrawablePtr drawable,
     ScreenPtr   screen = drawable->pScreen;
     GCPtr       gc;
 
-#if SPAGHETTI
-    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
-
-    if (screen_priv && screen_priv->info &&
-        screen_priv->info->version >= 3 && screen_priv->info->prepare_copy)
-        (*screen_priv->info->prepare_copy) (pixmap);
-#endif
-
     gc = GetScratchGC(drawable->depth, screen);
     if (update) {
         ChangeGCVal     changes[2];

@@ -1,6 +1,4 @@
 fission_srcs = [
-    'soft2d_sync.c',
-    'soft2d.c',
     'dri2.c',
     'driver.c',
     'drmmode_display.c',
@@ -38,6 +36,9 @@ if build_glx
 endif
 if gbm_dep.found()
     symbol_test_args += join_paths(xorg_build_root, 'glamor_egl', 'libglamoregl.so')
+endif
+if build_soft2d
+    symbol_test_args += join_paths(xorg_build_root, 'soft2d', 'libsoft2d.so')
 endif
 symbol_test_args += join_paths(xorg_build_root, 'drivers', 'fission', 'fission_drv.so')
 

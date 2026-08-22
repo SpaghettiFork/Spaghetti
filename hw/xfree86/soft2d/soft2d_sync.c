@@ -23,13 +23,11 @@
  * Authors:
  *    Christopher Michael <cmichael@igalia.com>
  */
-
 #ifdef HAVE_DIX_CONFIG_H
 #include "dix-config.h"
 #endif
 
-#include "xf86.h"
-#include "driver.h"
+#include "soft2d_priv.h"
 #include "dri3.h"
 #ifdef XSYNC
 #include "misync.h"
@@ -37,7 +35,6 @@
 #include "misyncshm.h"
 #endif
 #include "misyncstr.h"
-#include <epoxy/gl.h>
 #endif
 
 #if XSYNC
@@ -68,14 +65,13 @@ soft2d_sync_fence_set_triggered(SyncFence *fence)
 static void
 soft2d_sync_create_fence(ScreenPtr screen, SyncFence *fence, Bool triggered)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
     SyncScreenFuncsPtr scrn_funcs = miSyncGetScreenFuncs(screen);
     struct dri3_sync_fence *dri3_fence = soft2d_get_sync_fence(fence);
 
-    scrn_funcs->CreateFence = ms->drmmode.sync_funcs.CreateFence;
+    scrn_funcs->CreateFence = spriv->saved_sync_funcs.CreateFence;
     scrn_funcs->CreateFence(screen, fence, triggered);
-    ms->drmmode.sync_funcs.CreateFence = scrn_funcs->CreateFence;
+    spriv->saved_sync_funcs.CreateFence = scrn_funcs->CreateFence;
     scrn_funcs->CreateFence = soft2d_sync_create_fence;
 
     dri3_fence->set_triggered = fence->funcs.SetTriggered;
@@ -84,19 +80,15 @@ soft2d_sync_create_fence(ScreenPtr screen, SyncFence *fence, Bool triggered)
 #endif
 
 Bool
-soft2d_sync_init(ScreenPtr screen)
+soft2d_sync_init(ScreenPtr screen, struct soft2d_screen_priv *spriv)
 {
 #if XSYNC
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
     SyncScreenFuncsPtr scrn_funcs;
 
-    if (!dixPrivateKeyRegistered(&dri3_sync_fence_key))
-    {
-        if (!dixRegisterPrivateKey(&dri3_sync_fence_key, PRIVATE_SYNC_FENCE,
-                                   sizeof(struct dri3_sync_fence)))
-            return FALSE;
-    }
+	if (!dixRegisterPrivateKey(&dri3_sync_fence_key,
+					   		   PRIVATE_SYNC_FENCE,
+							   sizeof (struct dri3_sync_fence)))
+		return FALSE;
 
 #ifdef HAVE_XSHMFENCE
     if (!miSyncShmScreenInit(screen))
@@ -107,7 +99,7 @@ soft2d_sync_init(ScreenPtr screen)
 #endif
 
     scrn_funcs = miSyncGetScreenFuncs(screen);
-    ms->drmmode.sync_funcs.CreateFence = scrn_funcs->CreateFence;
+    spriv->saved_sync_funcs.CreateFence = scrn_funcs->CreateFence;
     scrn_funcs->CreateFence = soft2d_sync_create_fence;
 #endif
 
@@ -118,11 +110,10 @@ void
 soft2d_sync_close(ScreenPtr screen)
 {
 #if XSYNC
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
+    struct soft2d_screen_priv *spriv = soft2dGetScreenPriv(screen);
     SyncScreenFuncsPtr scrn_funcs = miSyncGetScreenFuncs(screen);
 
-    if (scrn_funcs)
-        scrn_funcs->CreateFence = ms->drmmode.sync_funcs.CreateFence;
+    if (_X_LIKELY(scrn_funcs))
+        scrn_funcs->CreateFence = spriv->saved_sync_funcs.CreateFence;
 #endif
 }
