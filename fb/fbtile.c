@@ -25,6 +25,7 @@
 #endif
 
 #include "fb.h"
+#include "fbvec.h"
 
 /*
  * Accelerated tile fill -- tile width is a power of two not greater
@@ -84,14 +85,47 @@ fbEvenTile(FbBits * dst,
             dst++;
         }
         n = nmiddle;
-        if (!and)
+        if (!and) {
+#if __has_attribute(vector_size)
+#ifndef FB_ACCESS_WRAPPER
+            if (n >= FB_VEC_THRESH_STORE) {
+                FbVec4 vxor = {xor, xor, xor, xor};
+                int vn = n & ~3;
+                while (vn >= 4) {
+                    FbVecStore(dst, vxor);
+                    dst += 4;
+                    vn -= 4;
+                    n -= 4;
+                }
+            }
+#endif
+#endif
             while (n--)
                 WRITE(dst++, xor);
-        else
+        }
+        else {
+#if __has_attribute(vector_size)
+#ifndef FB_ACCESS_WRAPPER
+            if (n >= FB_VEC_THRESH_ROP) {
+                FbVec4 vand = {and, and, and, and};
+                FbVec4 vxor = {xor, xor, xor, xor};
+                int vn = n & ~3;
+                while (vn >= 4) {
+                    FbVec4 vd = FbVecLoad(dst);
+                    FbVec4 vr = FbDoRRopVec(vd, vand, vxor);
+                    FbVecStore(dst, vr);
+                    dst += 4;
+                    vn -= 4;
+                    n -= 4;
+                }
+            }
+#endif
+#endif
             while (n--) {
                 WRITE(dst, FbDoRRop(READ(dst), and, xor));
                 dst++;
             }
+        }
         if (endmask)
             FbDoRightMaskByteRRop(dst, endbyte, endmask, and, xor);
         dst += dstStride;
