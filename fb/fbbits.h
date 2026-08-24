@@ -27,6 +27,8 @@
 
 #define isClipped(c,ul,lr)  (((c) | ((c) - (ul)) | ((lr) - (c))) & 0x80008000)
 
+#include "fbvec.h"
+
 #ifdef HAVE_DIX_CONFIG_H
 #include <dix-config.h>
 #endif
@@ -792,15 +794,48 @@ POLYSEGMENT(DrawablePtr pDrawable, GCPtr pGC, int nseg, xSegment * pseg)
                                        startmask));
                     dstLine++;
                 }
-                if (!andBits)
+                if (!andBits) {
+#if __has_attribute(vector_size)
+#ifndef FB_ACCESS_WRAPPER
+                    if (nmiddle >= 4) {
+                        FbVec4 vxor = {xorBits, xorBits, xorBits, xorBits};
+                        int vn = nmiddle & ~3;
+                        while (vn >= 4) {
+                            FbVecStore(dstLine, vxor);
+                            dstLine += 4;
+                            vn -= 4;
+                            nmiddle -= 4;
+                        }
+                    }
+#endif
+#endif
                     while (nmiddle--)
                         WRITE(dstLine++, xorBits);
-                else
+                }
+                else {
+#if __has_attribute(vector_size)
+#ifndef FB_ACCESS_WRAPPER
+                    if (nmiddle >= 4) {
+                        FbVec4 vand = {andBits, andBits, andBits, andBits};
+                        FbVec4 vxor = {xorBits, xorBits, xorBits, xorBits};
+                        int vn = nmiddle & ~3;
+                        while (vn >= 4) {
+                            FbVec4 vd = FbVecLoad(dstLine);
+                            FbVec4 vr = FbDoRRopVec(vd, vand, vxor);
+                            FbVecStore(dstLine, vr);
+                            dstLine += 4;
+                            vn -= 4;
+                            nmiddle -= 4;
+                        }
+                    }
+#endif
+#endif
                     while (nmiddle--) {
                         WRITE(dstLine,
                               FbDoRRop(READ(dstLine), andBits, xorBits));
                         dstLine++;
                     }
+                }
                 if (endmask)
                     WRITE(dstLine,
                           FbDoMaskRRop(READ(dstLine), andBits, xorBits,
