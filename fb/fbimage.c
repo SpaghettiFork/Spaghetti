@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "fb.h"
+#include "fbvec.h"
 
 void
 fbPutImage(DrawablePtr pDrawable,
@@ -240,8 +241,28 @@ fbGetImage(DrawablePtr pDrawable,
                   dst, dstStride, 0, w * srcBpp, h, GXcopy, FB_ALLONES, srcBpp);
 
         if (pm != FB_ALLONES) {
+#if __has_attribute(vector_size) && !defined(FB_ACCESS_WRAPPER)
+            int len = dstStride * h;
+            int n = len & ~3;
+            if (n >= 4) {
+                FbStipVec4 vpm = {pm, pm, pm, pm};
+                FbStip *vdst = dst;
+                int vn = n;
+                while (vn >= 4) {
+                    FbStipVec4 v = FbStipVecLoad(vdst);
+                    v &= vpm;
+                    FbStipVecStore(vdst, v);
+                    vdst += 4;
+                    vn -= 4;
+                }
+            }
+
+            for (int i = n; i < len; i++)
+                dst[i] &= pm;
+#else
             for (int i = 0; i < dstStride * h; i++)
                 dst[i] &= pm;
+#endif
         }
     }
     else {
