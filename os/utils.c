@@ -1999,7 +1999,7 @@ FormatInt64(int64_t num, char *string)
 
     if (num < 0) {
         string[0] = '-';
-        unum = num * -1;
+        unum = -(uint64_t)num;
         string++;
     }
     FormatUInt64(unum, string);
