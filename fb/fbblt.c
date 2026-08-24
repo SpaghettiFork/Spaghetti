@@ -27,6 +27,7 @@
 #include <string.h>
 #include "os/osdep.h"
 #include "fb.h"
+#include "fbvec.h"
 
 #define InitializeShifts(sx,dx,ls,rs) { \
     if (sx != dx) { \
@@ -39,46 +40,6 @@
 	} \
     } \
 }
-
-#if __has_attribute(vector_size)
-/* 128-bit vector of FbBits (4 x 32 = 16 bytes) */
-typedef FbBits FbVec4 __attribute__((vector_size(16)));
-
-static inline FbVec4
-FbVecLoad(const FbBits *p)
-{
-    FbVec4 v;
-    __builtin_memcpy(&v, p, sizeof(v));
-    return v;
-}
-
-static inline void
-FbVecStore(FbBits *p, FbVec4 v)
-{
-    __builtin_memcpy(p, &v, sizeof(v));
-}
-
-#if BITMAP_BIT_ORDER == LSBFirst
-#define FbVecScrLeft(v,n)  ((v) >> (n))
-#define FbVecScrRight(v,n) ((v) << (n))
-#else
-#define FbVecScrLeft(v,n)  ((v) << (n))
-#define FbVecScrRight(v,n) ((v) >> (n))
-#endif
-
-static inline FbVec4
-FbDoMergeRopVec(FbVec4 src, FbVec4 dst,
-                FbVec4 ca1, FbVec4 cx1, FbVec4 ca2, FbVec4 cx2)
-{
-    return (dst & ((src & ca1) ^ cx1)) ^ ((src & ca2) ^ cx2);
-}
-
-static inline FbVec4
-FbDoDestInvariantVec(FbVec4 src, FbVec4 ca2, FbVec4 cx2)
-{
-    return (src & ca2) ^ cx2;
-}
-#endif /* __has_attribute(vector_size) */
 
 void
 fbBlt(FbBits * srcLine,
