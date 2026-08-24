@@ -41,6 +41,7 @@
 
 ExtensionEntry *GlxExtensionEntry;
 int GlxErrorBase = 0;
+static Bool glxClientCallbackRegistered = FALSE;
 static CallbackListRec vndInitCallbackList;
 static CallbackListPtr vndInitCallbackListPtr = &vndInitCallbackList;
 static DevPrivateKeyRec glvXGLVScreenPrivKey;
@@ -190,10 +191,36 @@ GLXClientCallback(CallbackListPtr *list, void *closure, void *data)
     }
 }
 
+static inline void
+GlxFreeAllClientData(void)
+{
+    int i;
+
+    for (i = 0; i < currentMaxClients; i++) {
+        if (clients[i] != NULL) {
+            GlxFreeClientData(clients[i]);
+        }
+    }
+
+    if (serverClient != NULL &&
+        (currentMaxClients == 0 || serverClient != clients[0])) {
+        GlxFreeClientData(serverClient);
+    }
+}
+
 static void
 GLXReset(ExtensionEntry *extEntry)
 {
-    // xf86Msg(X_INFO, "GLX: GLXReset\n");
+#if DEBUG
+    LogMessage(X_INFO, "GLX: GLXReset\n");
+#endif
+
+    GlxFreeAllClientData();
+
+    if (glxClientCallbackRegistered) {
+        DeleteCallback(&ClientStateCallback, GLXClientCallback, NULL);
+        glxClientCallbackRegistered = FALSE;
+    }
 
     GlxVendorExtensionReset(extEntry);
     GlxDispatchReset();
@@ -225,17 +252,25 @@ GlxExtensionInit(void)
     }
 
     if (!GlxDispatchInit()) {
+        GlxMappingReset();
         return;
     }
 
     if (!AddCallback(&ClientStateCallback, GLXClientCallback, NULL)) {
+        GlxDispatchReset();
+        GlxMappingReset();
         return;
     }
+    glxClientCallbackRegistered = TRUE;
 
     extEntry = AddExtension(GLX_EXTENSION_NAME, __GLX_NUMBER_EVENTS,
                             __GLX_NUMBER_ERRORS, GlxDispatchRequest,
                             GlxDispatchRequest, GLXReset, StandardMinorOpcode);
     if (!extEntry) {
+        DeleteCallback(&ClientStateCallback, GLXClientCallback, NULL);
+        glxClientCallbackRegistered = FALSE;
+        GlxDispatchReset();
+        GlxMappingReset();
         return;
     }
 

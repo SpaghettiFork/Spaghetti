@@ -413,6 +413,8 @@ Bool GlxDispatchInit(void)
     // vendor private request that we need to deal with in libglvnd itself.
     disp = LookupVendorPrivDispatch(X_GLXvop_MakeCurrentReadSGI, TRUE);
     if (disp == NULL) {
+        ht_destroy(vendorPrivHash);
+        vendorPrivHash = NULL;
         return FALSE;
     }
     disp->proc = dispatch_GLXMakeCurrentReadSGI;
