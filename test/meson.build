@@ -275,4 +275,40 @@ if build_xorg
     )
 
     benchmark('fbblt-bench', fbblt_bench)
+
+    fbsolid_bench = executable('fbsolid-bench',
+         'fbsolid-bench.c',
+         c_args: unit_c_args,
+         dependencies: [x11_dep, pixman_dep, randrproto_dep, inputproto_dep, libxcvt_dep],
+         include_directories: unit_includes,
+    )
+
+    benchmark('fbsolid-bench', fbsolid_bench)
+
+    fbtile_bench = executable('fbtile-bench',
+         'fbtile-bench.c',
+         c_args: unit_c_args,
+         dependencies: [x11_dep, pixman_dep, randrproto_dep, inputproto_dep, libxcvt_dep],
+         include_directories: unit_includes,
+    )
+
+    benchmark('fbtile-bench', fbtile_bench)
+
+    fbimage_bench = executable('fbimage-bench',
+         'fbimage-bench.c',
+         c_args: unit_c_args,
+         dependencies: [x11_dep, pixman_dep, randrproto_dep, inputproto_dep, libxcvt_dep],
+         include_directories: unit_includes,
+    )
+
+    benchmark('fbimage-bench', fbimage_bench)
+
+    fbpolyseg_bench = executable('fbpolyseg-bench',
+         'fbpolyseg-bench.c',
+         c_args: unit_c_args,
+         dependencies: [x11_dep, pixman_dep, randrproto_dep, inputproto_dep, libxcvt_dep],
+         include_directories: unit_includes,
+    )
+
+    benchmark('fbpolyseg-bench', fbpolyseg_bench)
 endif
