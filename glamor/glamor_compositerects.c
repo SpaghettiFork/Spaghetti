@@ -105,7 +105,6 @@ glamor_composite_rectangles(CARD8 op,
     pixman_box16_t *boxes;
     int num_boxes;
     PicturePtr source = NULL;
-    Bool need_free_region = FALSE;
 
     DEBUGF("%s(op=%d, %08x x %d [(%d, %d)x(%d, %d) ...])\n",
            __FUNCTION__, op,
@@ -197,8 +196,6 @@ glamor_composite_rectangles(CARD8 op,
         goto fallback;
     }
 
-    need_free_region = TRUE;
-
     DEBUGF("%s: drawable extents (%d, %d),(%d, %d) x %d\n",
            __FUNCTION__,
            RegionExtents(&region)->x1, RegionExtents(&region)->y1,
@@ -262,9 +259,8 @@ glamor_composite_rectangles(CARD8 op,
     DamageRegionAppend(&pixmap->drawable, &region);
     DamageRegionProcessPending(&pixmap->drawable);
 
-    if (need_free_region)
-        pixman_region_fini(&region);
+    pixman_region_fini(&region);
+
     if (source)
         FreePicture(source, 0);
-    return;
 }
