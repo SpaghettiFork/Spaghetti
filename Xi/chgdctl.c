@@ -89,14 +89,17 @@ SProcXChangeDeviceControl(ClientPtr client)
     case DEVICE_ENABLE:
         break;
     case DEVICE_RESOLUTION:
-        {
-            xDeviceResolutionCtl *r = (xDeviceResolutionCtl *) &stuff[1];
-            if (client->req_len - bytes_to_int32(sizeof(xChangeDeviceControlReq))
-                < bytes_to_int32(sizeof(xDeviceResolutionCtl)))
-                return BadLength;
-            SwapLongs((CARD32 *) (r + 1), r->num_valuators);
-            break;
-        }
+        xDeviceResolutionCtl *r;
+        unsigned int extra;
+
+        extra = client->req_len - bytes_to_int32(sizeof(xChangeDeviceControlReq));
+        if (extra < bytes_to_int32(sizeof(xDeviceResolutionCtl)))
+            return BadLength;
+        r = (xDeviceResolutionCtl *) &stuff[1];
+        if (extra != bytes_to_int32(sizeof(xDeviceResolutionCtl)) + r->num_valuators)
+            return BadLength;
+        SwapLongs((CARD32 *) (r + 1), r->num_valuators);
+        break;
     }
     return (ProcXChangeDeviceControl(client));
 }
