@@ -228,6 +228,19 @@ present_pixmap(WindowPtr window,
                present_notify_ptr notifies,
                int num_notifies);
 
+extern _X_EXPORT int
+present_notify_msc(WindowPtr window,
+                   CARD32 serial,
+                   uint64_t target_msc,
+                   uint64_t divisor,
+                   uint64_t remainder);
+
+extern _X_EXPORT int
+present_select_input(ClientPtr client,
+                     XID eid,
+                     WindowPtr window,
+                     CARD32 event_mask);
+
 extern _X_EXPORT uint32_t FakeScreenFps;
 
 #endif /* _PRESENT_H_ */
