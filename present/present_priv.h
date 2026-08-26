@@ -55,8 +55,6 @@ extern DevPrivateKeyRec present_screen_private_key;
 
 typedef struct present_fence *present_fence_ptr;
 
-typedef struct present_notify present_notify_rec, *present_notify_ptr;
-
 struct present_notify {
     struct xorg_list    window_list;
     WindowPtr           window;
@@ -296,30 +294,6 @@ present_get_target_msc(uint64_t target_msc_arg,
                        uint64_t divisor,
                        uint64_t remainder,
                        uint32_t options);
-
-int
-present_pixmap(WindowPtr window,
-               PixmapPtr pixmap,
-               CARD32 serial,
-               RegionPtr valid,
-               RegionPtr update,
-               int16_t x_off,
-               int16_t y_off,
-               RRCrtcPtr target_crtc,
-               SyncFence *wait_fence,
-               SyncFence *idle_fence,
-#ifdef DRI3
-               struct dri3_syncobj *acquire_syncobj,
-               struct dri3_syncobj *release_syncobj,
-               uint64_t acquire_point,
-               uint64_t release_point,
-#endif /* DRI3 */
-               uint32_t options,
-               uint64_t target_msc,
-               uint64_t divisor,
-               uint64_t remainder,
-               present_notify_ptr notifies,
-               int num_notifies);
 
 int
 present_notify_msc(WindowPtr window,
