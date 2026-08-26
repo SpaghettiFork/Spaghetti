@@ -341,6 +341,10 @@ SmartScheduleClient(void)
     xorg_list_for_each_entry(pClient, &ready_clients, ready) {
         nready++;
 
+        /* Skip non-X11 clients */
+        if (pClient->external)
+            continue;
+
         /* Praise clients which haven't run in a while */
         if ((now - pClient->smart_stop_tick) >= idle) {
             if (pClient->smart_priority < 0)
