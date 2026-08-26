@@ -504,7 +504,7 @@ SetInputFocus(ClientPtr /* client */ ,
               Time /* ctime */ ,
               Bool /* followOK */ );
 
-extern int
+extern _X_EXPORT int
 GrabDevice(ClientPtr /* client */ ,
            DeviceIntPtr /* dev */ ,
            unsigned /* this_mode */ ,
