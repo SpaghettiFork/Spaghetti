@@ -95,6 +95,41 @@ RRLeaseAlloc(ScreenPtr screen, RRLease lid, int numCrtcs, int numOutputs)
     return lease;
 }
 
+RRLeasePtr
+RRLeaseCreate(ScreenPtr screen, int numCrtcs, RRCrtcPtr *crtcs,
+              int numOutputs, RROutputPtr *outputs, int *fd)
+{
+    rrScrPrivPtr pScrPriv = rrGetScrPriv(screen);
+    RRLeasePtr lease;
+    XID lid = FakeClientID(0);
+
+    if (numCrtcs <= 0)
+        return NULL;
+    
+    if (numOutputs <= 0)
+        return NULL;
+
+    lease = RRLeaseAlloc(screen, lid, numCrtcs, numOutputs);
+    if (!lease)
+        return NULL;
+
+    memcpy(lease->crtcs, crtcs, sizeof(RRCrtcPtr) * numCrtcs);
+    memcpy(lease->outputs, outputs, sizeof(RROutputPtr) * numOutputs);
+
+    if (pScrPriv->rrCreateLease) {
+        int rc = pScrPriv->rrCreateLease(screen, lease, fd);
+        if (rc != Success) {
+            free(lease);
+            return NULL;
+        }
+    } else if (fd) {
+        *fd = -1;
+    }
+
+    AddResource(lid, RRLeaseType, lease);
+    return lease;
+}
+
 /*
  * Check if a crtc is leased
  */
