@@ -295,13 +295,6 @@ present_get_target_msc(uint64_t target_msc_arg,
                        uint64_t remainder,
                        uint32_t options);
 
-int
-present_notify_msc(WindowPtr window,
-                   CARD32 serial,
-                   uint64_t target_msc,
-                   uint64_t divisor,
-                   uint64_t remainder);
-
 /*
  * present_event.c
  */
@@ -317,12 +310,6 @@ present_send_complete_notify(WindowPtr window, CARD8 kind, CARD8 mode, CARD32 se
 
 void
 present_send_idle_notify(WindowPtr window, CARD32 serial, PixmapPtr pixmap, present_fence_ptr idle_fence);
-
-int
-present_select_input(ClientPtr client,
-                     XID eid,
-                     WindowPtr window,
-                     CARD32 event_mask);
 
 Bool
 present_event_init(void);
