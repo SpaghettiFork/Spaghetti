@@ -1554,7 +1554,6 @@ PreInit(ScrnInfoPtr pScrn, int flags)
 
         ms->shadow.Setup        = LoaderSymbolFromModule(mod, "shadowSetup");
         ms->shadow.Add          = LoaderSymbolFromModule(mod, "shadowAdd");
-        ms->shadow.Remove       = LoaderSymbolFromModule(mod, "shadowRemove");
         ms->shadow.Update32to24 = LoaderSymbolFromModule(mod, "shadowUpdate32to24");
         ms->shadow.UpdatePacked = LoaderSymbolFromModule(mod, "shadowUpdatePacked");
     }
@@ -2369,7 +2368,6 @@ CloseScreen(ScreenPtr pScreen)
     }
 
     if (ms->drmmode.shadow_enable) {
-        ms->shadow.Remove(pScreen, pScreen->GetScreenPixmap(pScreen));
         free(ms->drmmode.shadow_fb);
         ms->drmmode.shadow_fb = NULL;
         free(ms->drmmode.shadow_fb2);

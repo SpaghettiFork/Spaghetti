@@ -147,7 +147,6 @@ typedef struct _modesettingRec {
         Bool (*Setup)(ScreenPtr);
         Bool (*Add)(ScreenPtr, PixmapPtr, ShadowUpdateProc, ShadowWindowProc,
                     int, void *);
-        void (*Remove)(ScreenPtr, PixmapPtr);
         void (*Update32to24)(ScreenPtr, shadowBufPtr);
         void (*UpdatePacked)(ScreenPtr, shadowBufPtr);
     } shadow;
