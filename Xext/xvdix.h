@@ -93,9 +93,9 @@ typedef struct _XvPortNotifyRec {
 
 typedef struct {
     int id;
+    unsigned short width, height;
     ScreenPtr pScreen;
     char *name;
-    unsigned short width, height;
     XvRationalRec rate;
 } XvEncodingRec, *XvEncodingPtr;
 
