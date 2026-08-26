@@ -32,6 +32,12 @@ extern _X_EXPORT int
 extern _X_EXPORT SyncObject*
  SyncCreate(ClientPtr client, XID id, unsigned char type);
 
+extern _X_EXPORT int
+SyncCreateFenceFromFD(ClientPtr client, DrawablePtr pDraw, XID id, int fd, BOOL initially_triggered);
+
+extern _X_EXPORT int
+SyncFDFromFence(ClientPtr client, DrawablePtr pDraw, SyncFence *fence);
+
 #define VERIFY_SYNC_FENCE(pFence, fid, client, mode)			\
     do {								\
 	int rc;								\
