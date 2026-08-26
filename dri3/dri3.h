@@ -145,6 +145,16 @@ dri3_screen_init(ScreenPtr screen, const dri3_screen_info_rec *info);
 extern _X_EXPORT int
 dri3_send_open_reply(ClientPtr client, int fd);
 
+extern _X_EXPORT int
+dri3_pixmap_from_fds(PixmapPtr *ppixmap, ScreenPtr screen,
+                     CARD8 num_fds, const int *fds,
+                     CARD16 width, CARD16 height,
+                     const CARD32 *strides, const CARD32 *offsets,
+                     CARD8 depth, CARD8 bpp, CARD64 modifier);
+
+extern _X_EXPORT int
+dri3_fd_from_pixmap(PixmapPtr pixmap, CARD16 *stride, CARD32 *size);
+
 #endif
 
 #endif /* _DRI3_H_ */
