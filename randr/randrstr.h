@@ -767,6 +767,12 @@ extern _X_EXPORT int
 extern _X_EXPORT Bool
  RRClientKnowsRates(ClientPtr pClient);
 
+extern MEATBALL_EXPORT RRLeasePtr
+RRLeaseCreate(ScreenPtr screen,
+              int numCrtcs, RRCrtcPtr *crtcs,
+              int numOutputs, RROutputPtr *outputs,
+              int *fd);
+
 extern _X_EXPORT void
 RRLeaseTerminated(RRLeasePtr lease);
 
