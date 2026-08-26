@@ -72,8 +72,8 @@ typedef struct {
     RegionPtr ckeyFilled;
     RegionPtr pCompositeClip;
     Bool FreeCompositeClip;
-    XvAdaptorRecPrivatePtr AdaptorRec;
     XvStatus isOn;
+    XvAdaptorRecPrivatePtr AdaptorRec;
     Bool clipChanged;
     int vid_x, vid_y, vid_w, vid_h;
     int drw_x, drw_y, drw_w, drw_h;
