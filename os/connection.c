@@ -776,15 +776,20 @@ CloseDownConnection(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
+    if (client->external)
+        return;
+
     if (FlushCallback)
         CallCallbacks(&FlushCallback, client);
 
     if (oc->output)
-	FlushClient(client, oc, (char *) NULL, 0);
+	    FlushClient(client, oc, (char *) NULL, 0);
+
     CloseDownFileDescriptor(oc);
     FreeOsBuffers(oc);
     free(client->osPrivate);
     client->osPrivate = (void *) NULL;
+
     if (auditTrailLevel > 1)
         AuditF("client %d disconnected\n", client->index);
 }

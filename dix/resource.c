@@ -1200,6 +1200,8 @@ LegalNewID(XID id, ClientPtr client)
     void *val;
     int rc;
 
+    BUG_RETURN_VAL(client->external, FALSE);
+
 #ifdef PANORAMIX
     XID minid, maxid;
 
