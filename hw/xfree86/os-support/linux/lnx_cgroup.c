@@ -83,21 +83,6 @@ xf86SetupCGroup(void)
     }
     close(fd);
 
-    fd = open(CGROUP_PATH "/cpu.uclamp.min", O_WRONLY);
-    if (fd < 0) {
-        xf86Msg(X_WARNING, "cgroup: failed to open cpu.uclamp.min: %s\n",
-                strerror(errno));
-        goto skip_uclamp;
-    }
-
-    if (write(fd, "10", 3) != 3) {
-        xf86Msg(X_WARNING, "cgroup: failed to write cpu.uclamp.min: %s\n",
-                strerror(errno));
-        return;
-    }
-    close(fd);
-skip_uclamp:
-
     xf86Msg(X_CONFIG, "cgroup: assigned to %s successfully\n",
             CGROUP_PATH);
 }
