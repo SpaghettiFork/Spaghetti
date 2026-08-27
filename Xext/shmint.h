@@ -89,6 +89,10 @@ extern _X_EXPORT void
 extern _X_EXPORT void
  ShmRegisterFbFuncs(ScreenPtr pScreen);
 
+extern _X_EXPORT PixmapPtr
+ shm_create_pixmap_from_fd(ScreenPtr pScreen, int fd, CARD16 width, CARD16 height,
+                           CARD8 depth, CARD8 bpp, CARD16 stride, CARD32 offset);
+
 extern _X_EXPORT RESTYPE ShmSegType;
 extern _X_EXPORT int ShmCompletionCode;
 extern _X_EXPORT int BadShmSegCode;
