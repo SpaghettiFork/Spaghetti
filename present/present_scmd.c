@@ -61,7 +61,7 @@ static Bool
 present_check_flip(RRCrtcPtr            crtc,
                    WindowPtr            window,
                    PixmapPtr            pixmap,
-                   present_flip_type    type,
+                   Bool                 sync_flip,
                    RegionPtr            valid,
                    int16_t              x_off,
                    int16_t              y_off,
@@ -121,7 +121,7 @@ present_check_flip(RRCrtcPtr            crtc,
     if (reason)
         *reason = PRESENT_FLIP_REASON_UNKNOWN;
 
-    return screen_priv->check_flip_driver(crtc, window, pixmap, type, reason);
+    return screen_priv->check_flip_driver(crtc, window, pixmap, sync_flip, reason);
 }
 
 static Bool
@@ -134,8 +134,8 @@ present_flip(RRCrtcPtr crtc,
     ScreenPtr                   screen = crtc->pScreen;
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
 
-    if (screen_priv->info->version >= 3 && screen_priv->info->commit) {
-        return (*screen_priv->info->commit) (crtc, event_id, target_msc, pixmap, type);
+    if (screen_priv->info->version >= 2 && screen_priv->info->flip2) {
+        return (*screen_priv->info->flip2) (crtc, event_id, target_msc, pixmap, type);
     } else {
         return (*screen_priv->info->flip) (crtc, event_id, target_msc, pixmap, (type == PRESENT_TYPE_SYNCHRONOUS));
     }
@@ -413,8 +413,9 @@ present_check_flip_window (WindowPtr window)
          * Check pending flip
          */
         if (flip_pending->window == window) {
+            Bool sync_flip = flip_pending->flip_type == PRESENT_TYPE_SYNCHRONOUS;
             if (!present_check_flip(flip_pending->crtc, window, flip_pending->pixmap,
-                                    flip_pending->flip_type, NULL, 0, 0, NULL))
+                                    sync_flip, NULL, 0, 0, NULL))
                 present_set_abort_flip(screen);
         }
     } else if (flip_active) {
@@ -422,16 +423,18 @@ present_check_flip_window (WindowPtr window)
          * Check current flip
          */
         if (window == flip_active->window) {
+            Bool sync_flip = flip_active->flip_type == PRESENT_TYPE_SYNCHRONOUS;
             if (!present_check_flip(flip_active->crtc, window, flip_active->pixmap,
-                                    flip_active->flip_type, NULL, 0, 0, NULL))
+                                    sync_flip, NULL, 0, 0, NULL))
                 present_unflip(screen);
         }
     }
 
     /* Now check any queued vblanks */
     xorg_list_for_each_entry(vblank, &window_priv->vblank, window_list) {
+        Bool sync_flip = vblank->flip_type == PRESENT_TYPE_SYNCHRONOUS;
         if (vblank->queued && vblank->mode == PresentCompleteModeFlip &&
-            !present_check_flip(vblank->crtc, window, vblank->pixmap, vblank->flip_type, NULL, 0, 0, &reason)) {
+            !present_check_flip(vblank->crtc, window, vblank->pixmap, sync_flip, NULL, 0, 0, &reason)) {
             vblank->mode = PresentCompleteModeCopy;
             /* Don't spuriously flag this as a TearFree presentation */
             if (reason < PRESENT_FLIP_REASON_DRIVER_TEARFREE)
@@ -457,7 +460,8 @@ present_scmd_can_window_flip(WindowPtr window)
         return FALSE;
 
     /* Check to see if the driver supports flips at all */
-    if (!screen_priv->info->flip && !screen_priv->info->commit)
+    if (!screen_priv->info->flip &&
+        (screen_priv->info->version < 2 || !screen_priv->info->flip2))
         return FALSE;
 
     /* Make sure the window hasn't been redirected with Composite */
@@ -544,7 +548,6 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
     if (pixmap && window &&
         (vblank->reason < PRESENT_FLIP_REASON_DRIVER_TEARFREE ||
-         vblank->reason == PRESENT_FLIP_REASON_TEARFREE_PREEMPTED ||
          vblank->exec_msc != vblank->target_msc)) {
 
         if (vblank->mode == PresentCompleteModeFlip) {
@@ -937,7 +940,7 @@ static Bool
 present_flip_unsupported(RRCrtcPtr crtc,
                          WindowPtr window,
                          PixmapPtr pixmap,
-                         present_flip_type type,
+                         Bool sync_flip,
                          PresentFlipReason *reason)
 {
     return FALSE;
@@ -947,36 +950,11 @@ static Bool
 present_flip_v1_adapter(RRCrtcPtr crtc,
                         WindowPtr window,
                         PixmapPtr pixmap,
-                        present_flip_type type,
+                        Bool sync_flip,
                         PresentFlipReason *reason)
 {
     present_screen_priv_ptr sp = present_screen_priv(crtc->pScreen);
-    return (*sp->info->check_flip)(crtc, window, pixmap,
-                                  (type == PRESENT_TYPE_SYNCHRONOUS));
-}
-
-static Bool
-present_flip_v2_adapter(RRCrtcPtr crtc,
-                        WindowPtr window,
-                        PixmapPtr pixmap,
-                        present_flip_type type,
-                        PresentFlipReason *reason)
-{
-    present_screen_priv_ptr sp = present_screen_priv(crtc->pScreen);
-    return (*sp->info->check_flip2)(crtc, window, pixmap,
-                                   (type == PRESENT_TYPE_SYNCHRONOUS),
-                                    reason);
-}
-
-static Bool
-present_check_commit_adapter(RRCrtcPtr crtc,
-                             WindowPtr window,
-                             PixmapPtr pixmap,
-                             present_flip_type type,
-                             PresentFlipReason *reason)
-{
-    present_screen_priv_ptr sp = present_screen_priv(crtc->pScreen);
-    return (*sp->info->check_commit)(crtc, window, pixmap, type, reason);
+    return (*sp->info->check_flip)(crtc, window, pixmap, sync_flip);
 }
 
 void
@@ -985,10 +963,8 @@ present_scmd_init_driver_flip(present_screen_priv_ptr screen_priv)
     if (!screen_priv->info)
         goto unsupported;
 
-    if (screen_priv->info->version >= 3 && screen_priv->info->check_commit)
-        screen_priv->check_flip_driver = present_check_commit_adapter;
-    else if (screen_priv->info->version >= 1 && screen_priv->info->check_flip2)
-        screen_priv->check_flip_driver = present_flip_v2_adapter;
+    if (screen_priv->info->version >= 1 && screen_priv->info->check_flip2)
+        screen_priv->check_flip_driver = screen_priv->info->check_flip2;
     else if (screen_priv->info->check_flip)
         screen_priv->check_flip_driver = present_flip_v1_adapter;
     else

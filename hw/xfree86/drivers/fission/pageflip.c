@@ -528,9 +528,8 @@ ms_tearfree_flip_handler(uint64_t frame, uint64_t usec, void *data)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
     /* Back buffer is now being scanned out; swap roles. */
-    drmmode_crtc->tearfree.back_idx     ^= 1;
-    drmmode_crtc->tearfree.flip_pending  = FALSE;
-    drmmode_crtc->tearfree.flip_seq      = 0;
+    drmmode_crtc->tearfree.back_idx ^= 1;
+    drmmode_crtc->tearfree.flip_seq  = 0;
 }
 
 void
@@ -539,6 +538,5 @@ ms_tearfree_flip_abort(void *data)
     xf86CrtcPtr crtc = data;
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
-    drmmode_crtc->tearfree.flip_pending = FALSE;
-    drmmode_crtc->tearfree.flip_seq     = 0;
+    drmmode_crtc->tearfree.flip_seq  = 0;
 }

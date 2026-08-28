@@ -206,7 +206,6 @@ typedef struct {
     drmmode_bo bo[2];
     uint32_t   fb_id[2];
     int        back_idx;   /* index of the buffer being written to */
-    Bool       flip_pending;
     uint32_t   flip_seq;   /* DRM queue seq for in-flight TearFree flip */
     PixmapPtr  pixmap[2];  /* pixmap wrappers for blitting */
     RegionRec  stale[2];

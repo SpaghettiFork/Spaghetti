@@ -937,7 +937,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     if (!crtc->enabled)
         return;
 
-    if (trf->flip_pending || trf->yielded)
+    if (trf->flip_seq || trf->yielded)
         return;
 
     if (ms->drmmode.present_flipping)
@@ -998,7 +998,6 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
      */
     RegionEmpty(&trf->stale[back]);
 
-    trf->flip_pending = TRUE;
     trf->flip_seq = seq;
 }
 

@@ -132,19 +132,15 @@ present_vblank_init(present_vblank_ptr vblank,
         screen_priv->check_flip) {
 
         Bool sync_flip = !present_want_async_flip(options, capabilities);
-        present_flip_type type;
-
-        if (sync_flip)
-            type = PRESENT_TYPE_SYNCHRONOUS;
-        else
-            type = (options & PresentOptionAsyncMayTear)
-                 ? PRESENT_TYPE_ASYNC_TEARING : PRESENT_TYPE_ASYNCHRONOUS;
 
         if (screen_priv->check_flip(target_crtc, window, pixmap,
-                                    type, valid, x_off, y_off, &reason))
+                                     sync_flip, valid, x_off, y_off, &reason))
         {
             vblank->mode = PresentCompleteModeFlip;
-            vblank->flip_type = type;
+            if (sync_flip)
+                vblank->flip_type = PRESENT_TYPE_SYNCHRONOUS;
+            else
+                vblank->flip_type = (options & PresentOptionAsyncMayTear) ? PRESENT_TYPE_ASYNC_TEARING : PRESENT_TYPE_ASYNCHRONOUS;
         }
     }
     vblank->reason = reason;
