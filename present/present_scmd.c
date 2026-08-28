@@ -131,7 +131,7 @@ present_flip(RRCrtcPtr crtc,
     ScreenPtr                   screen = crtc->pScreen;
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
 
-    if (screen_priv->info->version >= 3 && screen_priv->info->commit) {
+    if (screen_priv->info->version >= 3 && *screen_priv->info->commit) {
         return (*screen_priv->info->commit) (crtc, event_id, target_msc, pixmap, type);
     } else {
         return (*screen_priv->info->flip) (crtc, event_id, target_msc, pixmap, (type == PRESENT_TYPE_SYNCHRONOUS));
@@ -309,7 +309,7 @@ present_unflip(ScreenPtr screen, RRCrtcPtr crtc)
     screen_priv->unflip_event_id = ++present_scmd_event_id;
     DebugPresent(("u %" PRIu64 "\n", screen_priv->unflip_event_id));
 
-    if (screen_priv->info->version >= 3 && screen_priv->info->uncommit) {
+    if (screen_priv->info->version >= 3 && *screen_priv->info->uncommit) {
         (*screen_priv->info->uncommit) (screen, crtc, screen_priv->unflip_event_id);
     } else {
         (*screen_priv->info->unflip) (screen, screen_priv->unflip_event_id);
