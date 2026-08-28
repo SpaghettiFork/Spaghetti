@@ -479,7 +479,7 @@ ms_present_uncommit(ScreenPtr screen, RRCrtcPtr crtc, uint64_t event_id)
 #endif
 
 static present_screen_info_rec ms_present_screen_info = {
-    .version = SPAGHETTI,
+    .version = PRESENT_SCREEN_INFO_VERSION,
 
     .get_crtc = ms_present_get_crtc,
     .get_ust_msc = ms_present_get_ust_msc,

@@ -176,7 +176,7 @@ typedef void (*present_unflip_ptr) (ScreenPtr screen,
  */
 typedef void (*present_wnmd_flips_stop_ptr) (WindowPtr window);
 
-#define PRESENT_SCREEN_INFO_VERSION        1
+#define PRESENT_SCREEN_INFO_VERSION        3
 
 typedef struct present_screen_info {
     uint32_t                            version;
