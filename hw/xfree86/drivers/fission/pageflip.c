@@ -180,6 +180,9 @@ static Bool
 do_queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc, uint32_t flags,
                       uint32_t seq, uint32_t fb_id, int x, int y)
 {
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
+
     while (drmmode_crtc_flip(crtc, fb_id, x, y, flags, (void *)(long)seq)) {
         /* We may have failed because the event queue was full.  Flush it
          * and retry.  If there was nothing to flush, then we failed for
@@ -189,7 +192,7 @@ do_queue_flip_on_crtc(ScreenPtr screen, xf86CrtcPtr crtc, uint32_t flags,
             /* The failure could be caused by a pending TearFree flip, in which
              * case we should wait until there's a new event and try again.
              */
-            if (ms_flush_drm_events_timeout(screen, -1) < 0) {
+            if (!trf->flip_seq || ms_flush_drm_events_timeout(screen, -1) < 0) {
                 ms_drm_abort_seq(crtc->scrn, seq);
                 return TRUE;
             }
