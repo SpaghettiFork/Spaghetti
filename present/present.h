@@ -156,11 +156,12 @@ typedef void (*present_unflip_ptr) (ScreenPtr screen,
  */
 typedef void (*present_wnmd_flips_stop_ptr) (WindowPtr window);
 
-#define PRESENT_SCREEN_INFO_VERSION        2
+#define PRESENT_SCREEN_INFO_VERSION        1
 
 typedef struct present_screen_info {
     uint32_t                            version;
 
+    /* Version 0 */
     present_get_crtc_ptr                get_crtc;
     present_get_ust_msc_ptr             get_ust_msc;
     present_queue_vblank_ptr            queue_vblank;
@@ -170,10 +171,9 @@ typedef struct present_screen_info {
     present_check_flip_ptr              check_flip;
     present_flip_ptr                    flip;
     present_unflip_ptr                  unflip;
-    present_check_flip2_ptr             check_flip2;
 
-    /* version 2 - Spaghetti */
-    present_flip2_ptr                   flip2;
+    /* Version 1 */
+    present_check_flip2_ptr             check_flip2;
 
 } present_screen_info_rec, *present_screen_info_ptr;
 

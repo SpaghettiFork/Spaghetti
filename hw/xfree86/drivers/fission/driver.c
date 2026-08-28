@@ -937,7 +937,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     if (!crtc->enabled)
         return;
 
-    if (trf->flip_seq || trf->yielded)
+    if (trf->flip_seq)
         return;
 
     if (ms->drmmode.present_flipping)

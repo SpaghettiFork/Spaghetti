@@ -209,7 +209,6 @@ typedef struct {
     uint32_t   flip_seq;   /* DRM queue seq for in-flight TearFree flip */
     PixmapPtr  pixmap[2];  /* pixmap wrappers for blitting */
     RegionRec  stale[2];
-    Bool       yielded;    /* TearFree yielded to a direct commit */
 } drmmode_tearfree_rec, *drmmode_tearfree_ptr;
 
 typedef struct {

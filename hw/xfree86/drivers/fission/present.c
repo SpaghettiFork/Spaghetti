@@ -57,7 +57,6 @@
 
 struct ms_present_vblank_event {
     uint64_t        event_id;
-    xf86CrtcPtr     tearfree_crtc; /* CRTC with TearFree suspended, or NULL */
     Bool            unflip;
 };
 
@@ -191,21 +190,6 @@ ms_present_flush(WindowPtr window)
 }
 
 #if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
-
-/*
- * A Present flip completing means any async-tearing suspension of
- * TearFree is over; clear the flag on all CRTCs so the back-buffer
- * blit loop can resume on the next BlockHandler pass.
- */
-static inline void
-ms_present_stop_tearing(modesettingPtr ms, struct ms_present_vblank_event *event)
-{
-    if (ms->drmmode.tearfree && event->tearfree_crtc) {
-        drmmode_crtc_private_ptr dc = event->tearfree_crtc->driver_private;
-        dc->tearfree.yielded = FALSE;
-    }
-}
-
 /**
  * Callback for the DRM event queue when a flip has completed on all pipes
  *
@@ -224,8 +208,6 @@ ms_present_flip_handler(modesettingPtr ms, uint64_t msc,
     if (event->unflip)
         ms->drmmode.present_flipping = FALSE;
     
-    ms_present_stop_tearing(ms, event);
-
     ms_present_vblank_handler(msc, ust, event);
 }
 
@@ -238,8 +220,6 @@ ms_present_flip_abort(modesettingPtr ms, void *data)
     struct ms_present_vblank_event *event = data;
 
     DebugPresent(("\t\tms:fa %lld\n", (long long) event->event_id));
-
-    ms_present_stop_tearing(ms, event);
 
     free(event);
 }
@@ -389,65 +369,6 @@ no_flip:
  * Queue a flip on 'crtc' to 'pixmap' at 'target_msc'. If 'sync_flip' is true,
  * then wait for vblank. Otherwise, flip immediately
  */
-
-#if PRESENT_SCREEN_INFO_VERSION >= 2
-static Bool
-ms_present_flip2(RRCrtcPtr crtc,
-                 uint64_t event_id,
-                 uint64_t target_msc,
-                 PixmapPtr pixmap,
-                 present_flip_type type)
-{
-    ScreenPtr screen = crtc->pScreen;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
-    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
-    drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-    Bool sync_flip = (type == PRESENT_TYPE_SYNCHRONOUS);
-    Bool yielded = (type == PRESENT_TYPE_ASYNC_TEARING);
-    struct ms_present_vblank_event *event;
-    Bool ret;
-
-    if (!ms_present_check_flip(crtc, ms->flip_window, pixmap, sync_flip, NULL))
-        return FALSE;
-
-    event = calloc(1, sizeof(struct ms_present_vblank_event));
-    if (!event)
-        return FALSE;
-
-    DebugPresent(("\t\tms:pf2 %lld msc %llu type %d\n",
-                  (long long) event_id, (long long) target_msc, (int) type));
-
-    event->event_id = event_id;
-    event->unflip = FALSE;
-
-    if (ms->vrr_support && ms->is_connector_vrr_capable &&
-        ms_window_has_variable_refresh(ms, ms->flip_window))
-        ms_present_set_screen_vrr(scrn, TRUE);
-
-    /*
-     * Suspend TearFree on all active CRTCs for the duration of this flip.
-     * The client has opted into tearing so we must not queue a competing
-     * back-buffer flip on top of the async page flip.
-     */
-    if (yielded && ms->drmmode.tearfree) {
-        drmmode_crtc->tearfree.yielded = TRUE;
-        event->tearfree_crtc = xf86_crtc;
-    }
-
-    ret = ms_do_pageflip(screen, pixmap, event, drmmode_crtc->vblank_pipe,
-                         !sync_flip,
-                         ms_present_flip_handler, ms_present_flip_abort,
-                         "Present-flip2");
-    if (ret) {
-        ms->drmmode.present_flipping = TRUE;
-    } else if (yielded && ms->drmmode.tearfree) {
-        drmmode_crtc->tearfree.yielded = FALSE;
-    }
-
-    return ret;
-}
-#else
 static Bool
 ms_present_flip(RRCrtcPtr crtc,
                 uint64_t event_id,
@@ -489,13 +410,12 @@ ms_present_flip(RRCrtcPtr crtc,
 
     ret = ms_do_pageflip(screen, pixmap, event, drmmode_crtc->vblank_pipe, !sync_flip,
                          ms_present_flip_handler, ms_present_flip_abort,
-                         "Present-flip");
+                         "PRESENT-flip");
     if (ret)
         ms->drmmode.present_flipping = TRUE;
 
     return ret;
 }
-#endif
 
 /*
  * Queue a flip back to the normal frame buffer
@@ -523,7 +443,7 @@ ms_present_unflip(ScreenPtr screen, uint64_t event_id)
 
         if (ms_do_pageflip(screen, pixmap, event, -1, FALSE,
                            ms_present_flip_handler, ms_present_flip_abort,
-                           "Present-unflip")) {
+                           "PRESENT-unflip")) {
             return;
         }
     }
@@ -571,14 +491,8 @@ static present_screen_info_rec ms_present_screen_info = {
     .check_flip = NULL,
     .check_flip2 = ms_present_check_flip,
 
-#if PRESENT_SCREEN_INFO_VERSION >= 2
-    .flip = NULL,
-    .unflip = ms_present_unflip,
-    .flip2 = ms_present_flip2
-#else
     .flip = ms_present_flip,
     .unflip = ms_present_unflip,
-#endif
 #endif
 };
 
@@ -604,8 +518,7 @@ ms_present_screen_init(ScreenPtr screen)
     Bool async_supported = ms_present_async_supported(ms);
     
     if (async_supported && ms->drmmode.glamor) {
-        ms_present_screen_info.capabilities = 
-            (PresentCapabilityAsync | PresentCapabilityAsyncMayTear);
+        ms_present_screen_info.capabilities |= PresentCapabilityAsync;
 
         ms->drmmode.can_async_flip = TRUE;
     } else {

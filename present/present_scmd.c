@@ -134,11 +134,7 @@ present_flip(RRCrtcPtr crtc,
     ScreenPtr                   screen = crtc->pScreen;
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
 
-    if (screen_priv->info->version >= 2 && screen_priv->info->flip2) {
-        return (*screen_priv->info->flip2) (crtc, event_id, target_msc, pixmap, type);
-    } else {
-        return (*screen_priv->info->flip) (crtc, event_id, target_msc, pixmap, (type == PRESENT_TYPE_SYNCHRONOUS));
-    }
+    return (*screen_priv->info->flip) (crtc, event_id, target_msc, pixmap, (type == PRESENT_TYPE_SYNCHRONOUS));
 }
 
 static RRCrtcPtr
@@ -460,8 +456,7 @@ present_scmd_can_window_flip(WindowPtr window)
         return FALSE;
 
     /* Check to see if the driver supports flips at all */
-    if (!screen_priv->info->flip &&
-        (screen_priv->info->version < 2 || !screen_priv->info->flip2))
+    if (!screen_priv->info->flip)
         return FALSE;
 
     /* Make sure the window hasn't been redirected with Composite */
