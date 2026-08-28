@@ -31,14 +31,11 @@ extern _X_EXPORT Bool
 ftrace_enable(Bool enable);
 
 #if FTRACE
-extern _X_EXPORT _X_ATTRIBUTE_PRINTF(1, 2)
-ftrace_print(const char* f, unsigned long ctx, ...);
+extern _X_EXPORT void ftrace_print(const char* f, ...);
 
-extern _X_EXPORT _X_ATTRIBUTE_PRINTF(2, 3)
-ftrace_print_begin (unsigned long ctx, const char *f, ...);
+extern _X_EXPORT void ftrace_print_begin(unsigned long ctx, const char *f, ...);
 
-extern _X_EXPORT _X_ATTRIBUTE_PRINTF(2, 3)
-ftrace_print_end (unsigned long ctx, const char *f, ...);
+extern _X_EXPORT void ftrace_print_end(unsigned long ctx, const char *f, ...);
 #else
 #define ftrace_print(...)       ((void)0)
 #define ftrace_print_begin(...) ((void)0)

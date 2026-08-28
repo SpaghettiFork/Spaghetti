@@ -42,8 +42,7 @@ ftrace_ready(void)
     return trace_marker_file != NULL;
 }
 
-_X_ATTRIBUTE_PRINTF(1, 0);
-static void
+static void _X_ATTRIBUTE_PRINTF(1, 0)
 ftrace_write(const char *f, va_list args)
 {
     char buf[1024];
@@ -56,8 +55,7 @@ ftrace_write(const char *f, va_list args)
 
 }
 
-_X_ATTRIBUTE_PRINTF(1, 2);
-void
+void _X_ATTRIBUTE_PRINTF(1, 2)
 ftrace_print(const char *f, ...)
 {
     va_list args;
@@ -67,8 +65,7 @@ ftrace_print(const char *f, ...)
     va_end(args);
 }
 
-_X_ATTRIBUTE_PRINTF(2, 3);
-void
+void _X_ATTRIBUTE_PRINTF(2, 3)
 ftrace_print_begin(unsigned long ctx, const char *f, ...)
 {
     va_list args;
@@ -84,8 +81,7 @@ ftrace_print_begin(unsigned long ctx, const char *f, ...)
     free(f_ctx);
 }
 
-_X_ATTRIBUTE_PRINTF(2, 3);
-void
+void _X_ATTRIBUTE_PRINTF(2, 3)
 ftrace_print_end(unsigned long ctx, const char *f, ...)
 {
     va_list args;

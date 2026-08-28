@@ -67,6 +67,7 @@ __stdcall unsigned long GetTickCount(void);
 #endif
 #include <X11/Xos.h>
 #include <stdio.h>
+#include "ftrace.h"
 #include <time.h>
 #if !defined(WIN32) || !defined(__MINGW32__)
 #include <sys/time.h>
