@@ -287,7 +287,10 @@ present_set_abort_flip(ScreenPtr screen)
     present_screen_priv_ptr screen_priv = present_screen_priv(screen);
 
     if (!screen_priv->flip_pending->abort_flip) {
-        ftrace_print_end(screen_priv->flip_pending->event_id, "flip-ABORT");
+        ftrace_print_end(screen_priv->flip_pending->event_id, "flip-ABORT mode %d reason %d flip_type %d",
+                         screen_priv->flip_pending->mode,
+                         screen_priv->flip_pending->reason,
+                         screen_priv->flip_pending->flip_type);
         present_restore_screen_pixmap(screen);
         screen_priv->flip_pending->abort_flip = TRUE;
     }
@@ -324,7 +327,8 @@ present_flip_notify(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
                   vblank->pixmap ? vblank->pixmap->drawable.id : 0,
                   vblank->window ? vblank->window->drawable.id : 0));
 
-    ftrace_print_end(vblank->event_id, "flip");
+    ftrace_print_end(vblank->event_id, "flip mode %d reason %d flip_type %d ust %" PRIu64 " msc %" PRIu64,
+                     vblank->mode, vblank->reason, vblank->flip_type, ust, crtc_msc);
     assert (vblank == screen_priv->flip_pending);
 
     present_flip_idle(screen);
@@ -841,7 +845,14 @@ present_scmd_pixmap(WindowPtr window,
 
     present_adjust_exec_msc(vblank, crtc_msc);
 
-    ftrace_print("present %08" PRIx32 " [%lu]", window->drawable.id, vblank->event_id);
+    ftrace_print("present %08" PRIx32 " [%lu] %dx%d+%d+%d valid %s update %s mode %d reason %d flip_type %d target %" PRIu64 " exec %" PRIu64 " crtc %" PRIu64,
+                 window->drawable.id, vblank->event_id,
+                 pixmap ? pixmap->drawable.width : 0, pixmap ? pixmap->drawable.height : 0,
+                 x_off, y_off,
+                 valid ? "yes" : "no",
+                 update ? "yes" : "no",
+                 vblank->mode, vblank->reason, vblank->flip_type,
+                 vblank->target_msc, vblank->exec_msc, crtc_msc);
 
     xorg_list_append(&vblank->event_queue, &present_exec_queue);
     vblank->queued = TRUE;
