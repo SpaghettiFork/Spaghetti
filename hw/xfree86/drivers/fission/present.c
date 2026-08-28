@@ -57,7 +57,7 @@
 
 struct ms_present_vblank_event {
     uint64_t        event_id;
-    xf86CrtcPtr     crtc;
+    xf86CrtcPtr     tearfree_crtc; /* CRTC with TearFree suspended, or NULL */
     Bool            unflip;
 };
 
@@ -192,6 +192,19 @@ ms_present_flush(WindowPtr window)
 
 #if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
 
+/*
+ * A Present commit completing means TearFree yield is over; clear the flag
+ * so the back-buffer blit loop can resume on the next BlockHandler pass.
+ */
+static inline void
+ms_present_stop_tearing(modesettingPtr ms, struct ms_present_vblank_event *event)
+{
+    if (ms->drmmode.tearfree && event->tearfree_crtc) {
+        drmmode_crtc_private_ptr dc = event->tearfree_crtc->driver_private;
+        dc->tearfree.yielded = FALSE;
+    }
+}
+
 /**
  * Callback for the DRM event queue when a flip has completed on all pipes
  *
@@ -208,7 +221,9 @@ ms_present_flip_handler(modesettingPtr ms, uint64_t msc,
                   (long long) msc, (long long) ust));
 
     if (event->unflip)
-        crtc_flip_release(event->crtc, FLIP_OWNER_PRESENT);
+        ms->drmmode.present_flipping = FALSE;
+    
+    ms_present_stop_tearing(ms, event);
 
     ms_present_vblank_handler(msc, ust, event);
 }
@@ -223,7 +238,8 @@ ms_present_flip_abort(modesettingPtr ms, void *data)
 
     DebugPresent(("\t\tms:fa %lld\n", (long long) event->event_id));
 
-    crtc_flip_release(event->crtc, FLIP_OWNER_PRESENT);
+    ms_present_stop_tearing(ms, event);
+
     free(event);
 }
 
@@ -252,7 +268,7 @@ ms_present_check_unflip(RRCrtcPtr crtc,
     if (!ms->drmmode.pageflip)
         return FALSE;
 
-    if (any_crtc_has_flip_owner(screen, FLIP_OWNER_DRI2))
+    if (ms->drmmode.dri2_flipping)
         return FALSE;
 
     if (!scrn->vtSema)
@@ -318,6 +334,21 @@ ms_tearfree_is_active_on_crtc(xf86CrtcPtr crtc)
            xf86_crtc_on(crtc);
 }
 
+/*
+ * Yield or resume TearFree on 'crtc'.
+ */
+static void
+ms_set_tearfree_yielded(RRCrtcPtr crtc, Bool enabled)
+{
+    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
+    drmmode_crtc_private_ptr dc = xf86_crtc->driver_private;
+
+    dc->tearfree.yielded = enabled;
+}
+
+/*
+ * Check if 'pixmap' is suitable for committing to 'window'.
+ */
 static Bool
 ms_present_check_commit(RRCrtcPtr crtc,
                         WindowPtr window,
@@ -330,6 +361,7 @@ ms_present_check_commit(RRCrtcPtr crtc,
     modesettingPtr ms = modesettingPTR(scrn);
     Bool sync_flip = (type == PRESENT_TYPE_SYNCHRONOUS);
     Bool async_flip = !sync_flip;
+    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
 
     if (ms->drmmode.sprites_visible > 0)
         goto no_flip;
@@ -350,30 +382,24 @@ ms_present_check_commit(RRCrtcPtr crtc,
         goto no_flip;
     }
 
+    /* TearFree is active but we can yield... allow the commit */
+    if (ms_tearfree_is_active_on_crtc(xf86_crtc)) {
+        if (reason)
+            *reason = PRESENT_FLIP_REASON_TEARFREE_PREEMPTED;
+    }
+
     ms->flip_window = window;
     return TRUE;
 
 no_flip:
-    /* Export some info about TearFree if Present can't flip anyway */
-    if (reason && *reason == PRESENT_FLIP_REASON_UNKNOWN) {
-        xf86CrtcPtr xf86_crtc = crtc->devPrivate;
-        drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-        drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
-
-        if (ms_tearfree_is_active_on_crtc(xf86_crtc)) {
-            if (trf->flip_seq)
-                /* The driver has a TearFree flip pending */
-                *reason = PRESENT_FLIP_REASON_DRIVER_TEARFREE_FLIPPING;
-            else
-                /* The driver uses TearFree flips and there's no flip pending */
-                *reason = PRESENT_FLIP_REASON_DRIVER_TEARFREE;
-        }
-    }
     return FALSE;
 }
 
 /*
  * Commit a pixmap to 'crtc' at 'target_msc'.
+ *
+ * Yields TearFree if active, allowing a zero-copy direct commit instead of
+ * the copy-then-TearFree-deliver path.
  */
 static Bool
 ms_present_commit(RRCrtcPtr crtc,
@@ -387,6 +413,7 @@ ms_present_commit(RRCrtcPtr crtc,
     modesettingPtr ms = modesettingPTR(scrn);
     xf86CrtcPtr xf86_crtc = crtc->devPrivate;
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
+    Bool sync_flip = (type == PRESENT_TYPE_SYNCHRONOUS);
     struct ms_present_vblank_event *event;
     Bool ret;
 
@@ -401,19 +428,33 @@ ms_present_commit(RRCrtcPtr crtc,
                   (long long) event_id, (long long) target_msc, (int) type));
 
     event->event_id = event_id;
-    event->crtc = xf86_crtc;
     event->unflip = FALSE;
 
     if (ms->vrr_support && ms->is_connector_vrr_capable &&
         ms_window_has_variable_refresh(ms, ms->flip_window))
         ms_present_set_screen_vrr(scrn, TRUE);
 
+    /* Yield TearFree so it doesn't compete with the direct commit */
+    if (ms->drmmode.tearfree) {
+        ms_set_tearfree_yielded(crtc, TRUE);
+        event->tearfree_crtc = xf86_crtc;
+
+        /* If TearFree has a flip in-flight, abort it so DRM can
+         * serialize the new commit without waiting.
+         */
+        if (drmmode_crtc->tearfree.flip_pending) {
+            ms_drm_abort_seq(scrn, drmmode_crtc->tearfree.flip_seq);
+        }
+    }
+
     ret = ms_do_pageflip(screen, pixmap, event,
-                         drmmode_crtc->vblank_pipe, type,
+                         drmmode_crtc->vblank_pipe, !sync_flip,
                          ms_present_flip_handler, ms_present_flip_abort,
                          "PRESENT-commit");
     if (ret) {
-        crtc_flip_claim(xf86_crtc, FLIP_OWNER_PRESENT);
+        ms->drmmode.present_flipping = TRUE;
+    } else if (ms->drmmode.tearfree) {
+        ms_set_tearfree_yielded(crtc, FALSE);
     }
 
     return ret;
@@ -423,11 +464,12 @@ ms_present_commit(RRCrtcPtr crtc,
  * Queue a flip back to the normal frame buffer
  */
 static void
-ms_present_uncommit(ScreenPtr screen, RRCrtcPtr crtc, uint64_t event_id)
+ms_present_unflip(ScreenPtr screen, uint64_t event_id)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    modesettingPtr ms = modesettingPTR(scrn);
     PixmapPtr pixmap = screen->GetScreenPixmap(screen);
-    xf86CrtcPtr xf86_crtc = crtc->devPrivate;
+    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
     int i;
 
     ms_present_set_screen_vrr(scrn, FALSE);
@@ -440,22 +482,22 @@ ms_present_uncommit(ScreenPtr screen, RRCrtcPtr crtc, uint64_t event_id)
             return;
 
         event->event_id = event_id;
-        event->crtc = xf86_crtc;
         event->unflip = TRUE;
 
-        if (ms_do_pageflip(screen, pixmap, event, -1, MS_PAGEFLIP_SYNCHRONOUS,
+        if (ms_do_pageflip(screen, pixmap, event, -1, FALSE,
                            ms_present_flip_handler, ms_present_flip_abort,
-                           "PRESENT-uncommit")) {
+                           "Present-unflip")) {
             return;
         }
     }
 
-    xf86CrtcConfigPtr config = XF86_CRTC_CONFIG_PTR(scrn);
-    for (i = 0; i < config->num_crtc; i++) {
-        xf86CrtcPtr ccrtc = config->crtc[i];
-        drmmode_crtc_private_ptr drmmode_crtc = ccrtc->driver_private;
+    ms->drmmode.present_flipping = FALSE;
 
-        if (!ccrtc->enabled)
+    for (i = 0; i < config->num_crtc; i++) {
+        xf86CrtcPtr crtc = config->crtc[i];
+        drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+        if (!crtc->enabled)
             continue;
 
         /* info->drmmode.fb_id still points to the FB for the last flipped BO.
@@ -468,8 +510,8 @@ ms_present_uncommit(ScreenPtr screen, RRCrtcPtr crtc, uint64_t event_id)
         }
 
         if (drmmode_crtc->dpms_mode == DPMSModeOn)
-            ccrtc->funcs->set_mode_major(ccrtc, &ccrtc->mode,
-                                         ccrtc->rotation, ccrtc->x, ccrtc->y);
+            crtc->funcs->set_mode_major(crtc, &crtc->mode,
+                                        crtc->rotation, crtc->x, crtc->y);
         else
             drmmode_crtc->need_modeset = TRUE;
     }
@@ -491,7 +533,6 @@ static present_screen_info_rec ms_present_screen_info = {
 #if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
     .check_commit = ms_present_check_commit,
     .commit = ms_present_commit,
-    .uncommit = ms_present_uncommit
 #endif
 };
 

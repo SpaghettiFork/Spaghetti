@@ -448,7 +448,7 @@ ms_dri2_flip_abort(modesettingPtr ms, void *data)
 {
     struct ms_dri2_vblank_event *event = data;
 
-    all_crtcs_release(ms->drmmode.scrn->pScreen);
+    ms->drmmode.dri2_flipping = FALSE;
     free(event);
 }
 
@@ -470,7 +470,7 @@ ms_dri2_flip_handler(modesettingPtr ms, uint64_t msc,
                          DRI2_FLIP_COMPLETE, event->event_complete,
                          event->event_data);
 
-    all_crtcs_release(ms->drmmode.scrn->pScreen);
+    ms->drmmode.dri2_flipping = FALSE;
     free(event);
 }
 
@@ -479,6 +479,8 @@ ms_dri2_schedule_flip(ms_dri2_frame_event_ptr info)
 {
     DrawablePtr draw = info->drawable;
     ScreenPtr screen = draw->pScreen;
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    modesettingPtr ms = modesettingPTR(scrn);
     ms_dri2_buffer_private_ptr back_priv = info->back->driverPrivate;
     drmmode_crtc_private_ptr drmmode_crtc = info->crtc->driver_private;
     struct ms_dri2_vblank_event *event;
@@ -493,16 +495,14 @@ ms_dri2_schedule_flip(ms_dri2_frame_event_ptr info)
     event->event_data = info->event_data;
 
     if (ms_do_pageflip(screen, back_priv->pixmap, event,
-                       drmmode_crtc->vblank_pipe,
-                       MS_PAGEFLIP_SYNCHRONOUS,
+                       drmmode_crtc->vblank_pipe, FALSE,
                        ms_dri2_flip_handler,
                        ms_dri2_flip_abort,
                        "DRI2-flip")) {
-        all_crtcs_claim(screen, FLIP_OWNER_DRI2);
+        ms->drmmode.dri2_flipping = TRUE;
         return TRUE;
-    } else {
-        return FALSE;
     }
+    return FALSE;
 }
 
 static Bool
@@ -590,7 +590,7 @@ can_flip(ScrnInfoPtr scrn, DrawablePtr draw,
     return draw->type == DRAWABLE_WINDOW &&
         ms->drmmode.pageflip &&
         !ms->drmmode.sprites_visible &&
-        !any_crtc_has_flip_owner(scrn->pScreen, FLIP_OWNER_PRESENT) &&
+        !ms->drmmode.present_flipping &&
         scrn->vtSema &&
         DRI2CanFlip(draw) && can_exchange(scrn, draw, front, back);
 }

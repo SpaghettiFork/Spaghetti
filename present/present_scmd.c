@@ -79,6 +79,9 @@ present_check_flip(RRCrtcPtr            crtc,
         return FALSE;
     }
 
+    if (!screen_priv->info)
+        return FALSE;
+
     /* Make sure the window hasn't been redirected with Composite */
     window_pixmap = screen->GetWindowPixmap(window);
     if (window_pixmap != screen->GetScreenPixmap(screen) &&
@@ -131,7 +134,7 @@ present_flip(RRCrtcPtr crtc,
     ScreenPtr                   screen = crtc->pScreen;
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
 
-    if (screen_priv->info->version >= 3 && *screen_priv->info->commit) {
+    if (screen_priv->info->version >= 3 && screen_priv->info->commit) {
         return (*screen_priv->info->commit) (crtc, event_id, target_msc, pixmap, type);
     } else {
         return (*screen_priv->info->flip) (crtc, event_id, target_msc, pixmap, (type == PRESENT_TYPE_SYNCHRONOUS));
@@ -297,7 +300,7 @@ present_set_abort_flip(ScreenPtr screen)
 }
 
 static void
-present_unflip(ScreenPtr screen, RRCrtcPtr crtc)
+present_unflip(ScreenPtr screen)
 {
     present_screen_priv_ptr screen_priv = present_screen_priv(screen);
 
@@ -308,12 +311,7 @@ present_unflip(ScreenPtr screen, RRCrtcPtr crtc)
 
     screen_priv->unflip_event_id = ++present_scmd_event_id;
     DebugPresent(("u %" PRIu64 "\n", screen_priv->unflip_event_id));
-
-    if (screen_priv->info->version >= 3 && *screen_priv->info->uncommit) {
-        (*screen_priv->info->uncommit) (screen, crtc, screen_priv->unflip_event_id);
-    } else {
-        (*screen_priv->info->unflip) (screen, screen_priv->unflip_event_id);
-    }
+    (*screen_priv->info->unflip) (screen, screen_priv->unflip_event_id);
 }
 
 static void
@@ -339,7 +337,7 @@ present_flip_notify(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     screen_priv->flip_pending = NULL;
 
     if (vblank->abort_flip)
-        present_unflip(screen, vblank->crtc);
+        present_unflip(screen);
 
     present_vblank_notify(vblank, ust, crtc_msc);
 
@@ -426,7 +424,7 @@ present_check_flip_window (WindowPtr window)
         if (window == flip_active->window) {
             if (!present_check_flip(flip_active->crtc, window, flip_active->pixmap,
                                     flip_active->flip_type, NULL, 0, 0, NULL))
-                present_unflip(screen, flip_active->crtc);
+                present_unflip(screen);
         }
     }
 
@@ -607,7 +605,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             /* Check current flip
              */
             if (screen_priv->flip_active && window == screen_priv->flip_active->window)
-                present_unflip(screen, screen_priv->flip_active->crtc);
+                present_unflip(screen);
         }
 
         present_execute_copy(vblank, pixmap, window, crtc_msc);

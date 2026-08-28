@@ -89,13 +89,6 @@ enum drmmode_crtc_property {
     DRMMODE_CRTC__COUNT
 };
 
-enum drmmode_crtc_flip_owner {
-    FLIP_OWNER_NONE,
-    FLIP_OWNER_TEARFREE,
-    FLIP_OWNER_PRESENT,
-    FLIP_OWNER_DRI2,
-};
-
 typedef struct {
     uint32_t width;
     uint32_t height;
@@ -147,6 +140,8 @@ typedef struct {
 
     PixmapPtr fbcon_pixmap;
 
+    Bool dri2_flipping;
+    Bool present_flipping;
     Bool flip_bo_import_failed;
 
     Bool can_async_flip;
@@ -211,9 +206,11 @@ typedef struct {
     drmmode_bo bo[2];
     uint32_t   fb_id[2];
     int        back_idx;   /* index of the buffer being written to */
+    Bool       flip_pending;
     uint32_t   flip_seq;   /* DRM queue seq for in-flight TearFree flip */
     PixmapPtr  pixmap[2];  /* pixmap wrappers for blitting */
     RegionRec  stale[2];
+    Bool       yielded;    /* TearFree yielded to a direct commit */
 } drmmode_tearfree_rec, *drmmode_tearfree_ptr;
 
 typedef struct {
@@ -251,8 +248,6 @@ typedef struct {
     uint32_t msc_prev;
     uint64_t msc_high;
     /** @} */
-
-    enum drmmode_crtc_flip_owner flip_owner;
 
     Bool need_modeset;
     struct xorg_list mode_list;

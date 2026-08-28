@@ -937,7 +937,10 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     if (!crtc->enabled)
         return;
 
-    if (crtc_flip_owner(crtc) != FLIP_OWNER_NONE)
+    if (trf->flip_pending || trf->yielded)
+        return;
+
+    if (ms->drmmode.present_flipping)
         return;
 
     if (RegionNil(&trf->stale[back]))
@@ -995,7 +998,7 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
      */
     RegionEmpty(&trf->stale[back]);
 
-    crtc_flip_claim(crtc, FLIP_OWNER_TEARFREE);
+    trf->flip_pending = TRUE;
     trf->flip_seq = seq;
 }
 
@@ -1060,10 +1063,8 @@ ms_vrr_property_update(WindowPtr window, Bool variable_refresh)
                                                 &ms->drmmode.vrrPrivateKeyRec);
     priv->variable_refresh = variable_refresh;
 
-    if (ms->flip_window == window) {
-        if (any_crtc_has_flip_owner(scrn->pScreen, FLIP_OWNER_PRESENT))
-            ms_present_set_screen_vrr(scrn, variable_refresh);
-    }
+    if (ms->flip_window == window && ms->drmmode.present_flipping)
+        ms_present_set_screen_vrr(scrn, variable_refresh);
 }
 
 /* Wrapper for xserver/dix/property.c:ProcChangeProperty */
