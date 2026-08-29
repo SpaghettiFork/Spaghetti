@@ -47,6 +47,9 @@ ftrace_write(const char *f, va_list args)
 {
     char buf[1024];
 
+    if (_X_UNLIKELY(!trace_marker_file))
+        return;
+
     if (vsnprintf(buf, sizeof(buf), f, args) < 0)
         return;
 
