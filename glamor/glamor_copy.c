@@ -25,6 +25,8 @@
 #include "glamor_prepare.h"
 #include "glamor_transform.h"
 
+#include "os/ftrace.h"
+
 struct copy_args {
     DrawablePtr         src_drawable;
     glamor_pixmap_fbo   *src;
@@ -813,12 +815,19 @@ glamor_copy(DrawablePtr src,
             Pixel bitplane,
             void *closure)
 {
-    if (nbox == 0)
-	return;
+    if (_X_UNLIKELY(!nbox))
+        return;
+
+    ftrace_print_begin((unsigned long)src, 
+        "glamor_copy nbox %d dx %d dy %d reverse %d upsidedown %d", nbox, dx, dy, reverse, upsidedown);
 
     if (glamor_copy_gl(src, dst, gc, box, nbox, dx, dy, reverse, upsidedown, bitplane, closure))
         return;
+
     glamor_copy_bail(src, dst, gc, box, nbox, dx, dy, reverse, upsidedown, bitplane, closure);
+
+    ftrace_print_end((unsigned long)src, 
+        "glamor_copy nbox %d dx %d dy %d reverse %d upsidedown %d", nbox, dx, dy, reverse, upsidedown);
 }
 
 RegionPtr
