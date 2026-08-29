@@ -66,6 +66,8 @@
 #endif
 #include "driver.h"
 
+#include "os/ftrace.h"
+
 static void AdjustFrame(ScrnInfoPtr pScrn, int x, int y);
 static Bool CloseScreen(ScreenPtr pScreen);
 static Bool EnterVT(ScrnInfoPtr pScrn);
@@ -633,6 +635,8 @@ dispatch_damages(ScrnInfoPtr scrn, xf86CrtcPtr crtc, RegionPtr dirty,
 
         if (!c)
             return 0;
+
+        ftrace_print("dispatch_damages fb_id %d rects %d", fb_id, num_cliprects);
 
         /* TODO query connector property to see if this is needed */
         ret = drmModeDirtyFB(ms->fd, fb_id, clip, c);
