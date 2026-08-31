@@ -930,6 +930,52 @@ present_screen_block(void *data, void *timeout)
     }
 }
 
+void
+present_screen_wakeup(void *data, int result)
+{
+    ScreenPtr screen = data;
+    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+    present_crtc_priv_ptr crtc_priv;
+    present_vblank_ptr vblank;
+    uint64_t ust, crtc_msc;
+    int ret;
+
+    (void) result;
+
+    if (!screen_priv)
+        return;
+
+    xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
+        present_vblank_ptr candidate = NULL;
+        present_vblank_ptr tmp;
+
+        if (xorg_list_is_empty(&crtc_priv->queue))
+            continue;
+
+        ret = present_get_ust_msc(screen, crtc_priv->crtc, &ust, &crtc_msc);
+        if (ret != Success)
+            continue;
+
+        xorg_list_for_each_entry(tmp, &crtc_priv->queue, event_queue) {
+            if (present_execute_wait(tmp, crtc_msc))
+                continue;
+            if (tmp->mode == PresentCompleteModeFlip &&
+                (crtc_priv->flip_pending || crtc_priv->unflip_event_id))
+                continue;
+            if (msc_is_after(tmp->exec_msc, crtc_msc))
+                continue;
+            candidate = tmp;
+            break;
+        }
+
+        if (!candidate)
+            continue;
+
+        vblank = candidate;
+        present_execute(crtc_priv, vblank, ust, crtc_msc);
+    }
+}
+
 static inline void
 present_adjust_exec_msc(present_vblank_ptr vblank, uint64_t crtc_msc)
 {
