@@ -27,12 +27,6 @@
 #include <sys/eventfd.h>
 #endif /* DRI3 */
 
-static Bool
-present_execute_queue_work(ClientPtr client, void *closure)
-{
-    return TRUE;
-}
-
 /*
  * Called when the wait fence is triggered; wake the server so the
  * BlockHandler can re-evaluate the pending present.
@@ -40,7 +34,9 @@ present_execute_queue_work(ClientPtr client, void *closure)
 static void
 present_wait_fence_triggered(void *param)
 {
-    QueueWorkProc(present_execute_queue_work, serverClient, NULL);
+    present_vblank_ptr vblank = param;
+
+    present_vblank_queue_work(vblank);
 }
 
 #ifdef DRI3
@@ -52,7 +48,7 @@ static void present_syncobj_triggered(int fd, int xevents, void *data)
     close(fd);
     vblank->efd = -1;
 
-    QueueWorkProc(present_execute_queue_work, serverClient, NULL);
+    present_vblank_queue_work(vblank);
 }
 #endif /* DRI3 */
 

@@ -168,6 +168,10 @@ typedef void (*present_priv_abort_vblank_ptr)(ScreenPtr screen,
                                               uint64_t msc);
 typedef void (*present_priv_flip_destroy_ptr)(ScreenPtr screen);
 
+#define PRESENT_BLOCK_DELAY_MS          1
+#define PRESENT_QUEUE_RETRY_MS          1
+#define PRESENT_REPLACE_HASH_THRESHOLD  8
+
 struct present_crtc_priv {
     struct xorg_list            list;
     RRCrtcPtr                   crtc;
@@ -175,6 +179,10 @@ struct present_crtc_priv {
     present_vblank_ptr          flip_pending;
     present_vblank_ptr          flip_active;
     uint64_t                    unflip_event_id;
+    uint64_t                    cached_ust;
+    uint64_t                    cached_msc;
+    uint32_t                    cached_generation;
+    Bool                        cached_valid;
 };
 
 /* present state for each CRTC. */
@@ -188,6 +196,9 @@ struct present_screen_priv {
     struct xorg_list            crtcs;
 
     uint32_t                    fake_interval;
+
+    Bool                        work_pending;
+    uint32_t                    present_generation;
 
     present_screen_info_ptr     info;
 
@@ -211,6 +222,7 @@ struct present_screen_priv {
 
     present_priv_abort_vblank_ptr       abort_vblank;
     present_priv_flip_destroy_ptr       flip_destroy;
+
 };
 
 #define wrap(priv,real,mem,func) {\
@@ -473,6 +485,18 @@ present_screen_block(void *data, void *timeout);
 void
 present_screen_wakeup(void *data, int result);
 
+Bool
+present_wakeup_handler(ClientPtr client, void *closure);
+
+void
+present_crtc_queue_work(present_crtc_priv_ptr crtc_priv);
+
+void
+present_screen_queue_work(ScreenPtr screen);
+
+void
+present_vblank_queue_work(present_vblank_ptr vblank);
+
 _X_HIDDEN void
 present_scmd_init_driver_flip(present_screen_priv_ptr screen_priv);
 
@@ -493,6 +517,9 @@ present_crtc_priv_for_crtc(RRCrtcPtr crtc, Bool create);
 
 void
 present_free_crtc_priv(present_crtc_priv_ptr crtc_priv);
+
+present_crtc_priv_ptr
+present_get_crtc_priv_for_vblank(present_vblank_ptr vblank);
 
 /*
  * present_vblank.c

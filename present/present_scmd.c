@@ -42,10 +42,75 @@ static void
 present_execute(present_crtc_priv_ptr crtc_priv,
                 present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
 
-static Bool
+static int
+present_get_ust_msc(ScreenPtr screen, RRCrtcPtr crtc, uint64_t *ust, uint64_t *msc);
+
+Bool
 present_wakeup_handler(ClientPtr client, void *closure)
 {
     return TRUE;
+}
+
+void
+present_vblank_queue_work(present_vblank_ptr vblank)
+{
+    present_crtc_priv_ptr crtc_priv = NULL;
+
+    if (vblank)
+        crtc_priv = present_get_crtc_priv_for_vblank(vblank);
+    if (crtc_priv)
+        present_crtc_queue_work(crtc_priv);
+    if (vblank && vblank->screen)
+        present_screen_queue_work(vblank->screen);
+    else if (!crtc_priv)
+        QueueWorkProc(present_wakeup_handler, serverClient, NULL);
+}
+
+static Bool
+present_screen_work_handler(ClientPtr client, void *closure)
+{
+    ScreenPtr screen = closure;
+    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+
+    if (screen_priv)
+        screen_priv->work_pending = FALSE;
+    return TRUE;
+}
+
+void
+present_screen_queue_work(ScreenPtr screen)
+{
+    present_screen_priv_ptr screen_priv;
+
+    if (!screen)
+        screen = screenInfo.screens[0];
+    screen_priv = present_screen_priv(screen);
+    if (!screen_priv) {
+        QueueWorkProc(present_wakeup_handler, serverClient, NULL);
+        return;
+    }
+    if (screen_priv->work_pending)
+        return;
+    screen_priv->work_pending = TRUE;
+    QueueWorkProc(present_screen_work_handler, serverClient, screen);
+}
+
+void
+present_crtc_queue_work(present_crtc_priv_ptr crtc_priv)
+{
+    ScreenPtr screen = NULL;
+
+    if (crtc_priv && crtc_priv->crtc)
+        screen = crtc_priv->crtc->pScreen;
+    else if (crtc_priv)
+        screen = NULL;
+
+    if (screen)
+        present_screen_queue_work(screen);
+    else if (crtc_priv)
+        QueueWorkProc(present_wakeup_handler, serverClient, NULL);
+    else
+        QueueWorkProc(present_wakeup_handler, serverClient, NULL);
 }
 
 static inline PixmapPtr
@@ -83,7 +148,7 @@ present_flip_pending_pixmap(ScreenPtr screen)
     return NULL;
 }
 
-static inline present_crtc_priv_ptr
+present_crtc_priv_ptr
 present_get_crtc_priv_for_vblank(present_vblank_ptr vblank)
 {
     ScreenPtr screen;
@@ -96,6 +161,45 @@ present_get_crtc_priv_for_vblank(present_vblank_ptr vblank)
 
     screen = vblank->screen;
     return present_get_crtc_priv(screen, NULL, FALSE);
+}
+
+static int
+present_get_ust_msc_cached(ScreenPtr screen, RRCrtcPtr crtc,
+                           present_crtc_priv_ptr crtc_priv,
+                           uint64_t *ust, uint64_t *msc)
+{
+    present_screen_priv_ptr gen_priv = NULL;
+
+    if (crtc_priv) {
+        if (crtc_priv->crtc)
+            gen_priv = present_screen_priv(crtc_priv->crtc->pScreen);
+        else if (screen)
+            gen_priv = present_screen_priv(screen);
+        if (gen_priv && crtc_priv->cached_valid &&
+            crtc_priv->cached_generation == gen_priv->present_generation) {
+            *ust = crtc_priv->cached_ust;
+            *msc = crtc_priv->cached_msc;
+            return Success;
+        }
+    }
+    {
+        int ret = present_get_ust_msc(screen, crtc, ust, msc);
+
+        if (ret == Success && crtc_priv && gen_priv) {
+            crtc_priv->cached_ust = *ust;
+            crtc_priv->cached_msc = *msc;
+            crtc_priv->cached_generation = gen_priv->present_generation;
+            crtc_priv->cached_valid = TRUE;
+        }
+        return ret;
+    }
+}
+
+static inline void
+present_invalidate_ust_cache(present_crtc_priv_ptr crtc_priv)
+{
+    if (crtc_priv)
+        crtc_priv->cached_valid = FALSE;
 }
 
 static Bool
@@ -256,7 +360,7 @@ present_re_execute(present_crtc_priv_ptr crtc_priv, present_vblank_ptr vblank)
         crtc_priv = present_get_crtc_priv_for_vblank(vblank);
 
     if (crtc_priv && crtc_priv->crtc)
-        (void) present_get_ust_msc(vblank->screen, crtc_priv->crtc, &ust, &crtc_msc);
+        (void) present_get_ust_msc_cached(vblank->screen, crtc_priv->crtc, crtc_priv, &ust, &crtc_msc);
     else if (vblank->crtc)
         (void) present_get_ust_msc(vblank->screen, vblank->crtc, &ust, &crtc_msc);
 
@@ -484,7 +588,7 @@ present_event_notify(uint64_t event_id, uint64_t ust, uint64_t msc)
 
             xorg_list_for_each_entry(vblank, &crtc_priv->queue, event_queue) {
                 if (vblank->event_id == event_id) {
-                    QueueWorkProc(present_wakeup_handler, serverClient, NULL);
+                    present_vblank_queue_work(vblank);
                     return;
                 }
             }
@@ -801,28 +905,39 @@ present_execute(present_crtc_priv_ptr crtc_priv,
 }
 
 static void
-present_scmd_update_window_crtc(WindowPtr window, RRCrtcPtr crtc, uint64_t new_msc)
+present_scmd_update_window_crtc(WindowPtr window, RRCrtcPtr crtc, uint64_t new_msc, Bool has_msc)
 {
     present_window_priv_ptr window_priv = present_get_window_priv(window, TRUE);
     uint64_t                old_ust, old_msc;
 
-    /* Crtc unchanged, no offset. */
-    if (crtc == window_priv->crtc)
-        return;
-
-    /* No crtc earlier to offset against, just set the crtc. */
-    if (window_priv->crtc == PresentCrtcNeverSet) {
-        window_priv->crtc = crtc;
+    if (crtc == window_priv->crtc) {
+        if (has_msc)
+            window_priv->msc = new_msc;
         return;
     }
 
-    /* Crtc may have been turned off or be destroyed, just use whatever previous MSC we'd seen from this CRTC. */
+    if (window_priv->crtc == PresentCrtcNeverSet) {
+        window_priv->crtc = crtc;
+        if (has_msc)
+            window_priv->msc = new_msc;
+        else
+            window_priv->msc = 0;
+        return;
+    }
+
     if (!RRCrtcExists(window->drawable.pScreen, window_priv->crtc) ||
         present_get_ust_msc(window->drawable.pScreen, window_priv->crtc, &old_ust, &old_msc) != Success)
         old_msc = window_priv->msc;
+    else
+        window_priv->msc = old_msc;
 
-    window_priv->msc_offset += new_msc - old_msc;
-    window_priv->crtc = crtc;
+    if (has_msc) {
+        window_priv->msc_offset += new_msc - old_msc;
+        window_priv->crtc = crtc;
+        window_priv->msc = new_msc;
+    } else {
+        window_priv->crtc = crtc;
+    }
 }
 
 /*
@@ -833,39 +948,112 @@ present_scmd_update_window_crtc(WindowPtr window, RRCrtcPtr crtc, uint64_t new_m
 static void
 present_scmd_replace_queued_per_crtc(present_crtc_priv_ptr crtc_priv)
 {
-    present_vblank_ptr vblank, tmp, later;
-    Bool has_later;
+    present_vblank_ptr vblank, tmp;
+    int count = 0;
+    int size;
+    struct replace_entry {
+        WindowPtr window;
+        RRCrtcPtr crtc;
+        uint64_t target_msc;
+        present_vblank_ptr last;
+        Bool occupied;
+    } *table = NULL;
 
     if (!crtc_priv)
         return;
 
-    xorg_list_for_each_entry_safe(vblank, tmp, &crtc_priv->queue, event_queue) {
-        if (vblank->update || !vblank->pixmap)
-            continue;
+    xorg_list_for_each_entry(vblank, &crtc_priv->queue, event_queue)
+        count++;
+    if (count < 2)
+        return;
+    if (count <= PRESENT_REPLACE_HASH_THRESHOLD) {
+        present_vblank_ptr later;
+        Bool has_later;
 
-        has_later = FALSE;
-        xorg_list_for_each_entry(later, &crtc_priv->queue, event_queue) {
-            if (later == vblank)
-                continue;
-            if (later->window != vblank->window)
-                continue;
-            if (later->crtc != vblank->crtc)
-                continue;
-            if (later->target_msc != vblank->target_msc)
-                continue;
-            if (later->update || !later->pixmap)
+        xorg_list_for_each_entry_safe(vblank, tmp, &crtc_priv->queue, event_queue) {
+            if (vblank->update || !vblank->pixmap)
                 continue;
             if (vblank->reason >= PRESENT_FLIP_REASON_DRIVER_TEARFREE &&
                 vblank->exec_msc == vblank->target_msc)
                 continue;
-            /* Found later duplicate that will replace this one */
-            has_later = TRUE;
-            break;
+            has_later = FALSE;
+            xorg_list_for_each_entry(later, &crtc_priv->queue, event_queue) {
+                if (later == vblank)
+                    continue;
+                if (later->window != vblank->window)
+                    continue;
+                if (later->crtc != vblank->crtc)
+                    continue;
+                if (later->target_msc != vblank->target_msc)
+                    continue;
+                if (later->update || !later->pixmap)
+                    continue;
+                has_later = TRUE;
+                break;
+            }
+            if (has_later)
+                present_vblank_scrap(vblank);
         }
+        return;
+    }
 
-        if (has_later)
+    size = 1;
+    while (size < count * 2)
+        size <<= 1;
+    table = calloc(size, sizeof(*table));
+    if (!table)
+        return;
+
+    xorg_list_for_each_entry(vblank, &crtc_priv->queue, event_queue) {
+        uint32_t hash;
+
+        if (vblank->update || !vblank->pixmap)
+            continue;
+        if (vblank->reason >= PRESENT_FLIP_REASON_DRIVER_TEARFREE &&
+            vblank->exec_msc == vblank->target_msc)
+            continue;
+        hash = ((uintptr_t) vblank->window >> 3) ^
+               ((uintptr_t) vblank->crtc >> 3) ^
+               (uint32_t) (vblank->target_msc ^ (vblank->target_msc >> 32));
+        hash &= (uint32_t) (size - 1);
+        while (table[hash].occupied) {
+            if (table[hash].window == vblank->window &&
+                table[hash].crtc == vblank->crtc &&
+                table[hash].target_msc == vblank->target_msc)
+                break;
+            hash = (hash + 1) & (uint32_t) (size - 1);
+        }
+        table[hash].window = vblank->window;
+        table[hash].crtc = vblank->crtc;
+        table[hash].target_msc = vblank->target_msc;
+        table[hash].last = vblank;
+        table[hash].occupied = TRUE;
+    }
+
+    xorg_list_for_each_entry_safe(vblank, tmp, &crtc_priv->queue, event_queue) {
+        uint32_t hash;
+
+        if (vblank->update || !vblank->pixmap)
+            continue;
+        if (vblank->reason >= PRESENT_FLIP_REASON_DRIVER_TEARFREE &&
+            vblank->exec_msc == vblank->target_msc)
+            continue;
+        hash = ((uintptr_t) vblank->window >> 3) ^
+               ((uintptr_t) vblank->crtc >> 3) ^
+               (uint32_t) (vblank->target_msc ^ (vblank->target_msc >> 32));
+        hash &= (uint32_t) (size - 1);
+        while (table[hash].occupied) {
+            if (table[hash].window == vblank->window &&
+                table[hash].crtc == vblank->crtc &&
+                table[hash].target_msc == vblank->target_msc)
+                break;
+            hash = (hash + 1) & (uint32_t) (size - 1);
+        }
+        if (table[hash].occupied && table[hash].last != vblank)
             present_vblank_scrap(vblank);
     }
+
+    free(table);
 }
 
 void
@@ -881,6 +1069,9 @@ present_screen_block(void *data, void *timeout)
     if (!screen_priv)
         return;
 
+    if (++screen_priv->present_generation == 0)
+        screen_priv->present_generation = 1;
+
     xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
         present_vblank_ptr candidate = NULL;
         present_vblank_ptr tmp;
@@ -891,7 +1082,7 @@ present_screen_block(void *data, void *timeout)
 
         present_scmd_replace_queued_per_crtc(crtc_priv);
 
-        ret = present_get_ust_msc(screen, crtc_priv->crtc, &ust, &crtc_msc);
+        ret = present_get_ust_msc_cached(screen, crtc_priv->crtc, crtc_priv, &ust, &crtc_msc);
         if (ret != Success) {
             continue;
         }
@@ -908,7 +1099,7 @@ present_screen_block(void *data, void *timeout)
         }
 
         if (!candidate) {
-            AdjustWaitForDelay(timeout, 0);
+            AdjustWaitForDelay(timeout, PRESENT_BLOCK_DELAY_MS);
             continue;
         }
 
@@ -922,7 +1113,7 @@ present_screen_block(void *data, void *timeout)
             if (ret == Success)
                 continue;
             DebugPresent(("present_queue_vblank failed in BlockHandler\n"));
-            AdjustWaitForDelay(timeout, 0);
+            AdjustWaitForDelay(timeout, PRESENT_QUEUE_RETRY_MS);
             continue;
         }
 
@@ -952,7 +1143,7 @@ present_screen_wakeup(void *data, int result)
         if (xorg_list_is_empty(&crtc_priv->queue))
             continue;
 
-        ret = present_get_ust_msc(screen, crtc_priv->crtc, &ust, &crtc_msc);
+        ret = present_get_ust_msc_cached(screen, crtc_priv->crtc, crtc_priv, &ust, &crtc_msc);
         if (ret != Success)
             continue;
 
@@ -1044,7 +1235,7 @@ present_scmd_pixmap(WindowPtr window,
 
     ret = present_get_ust_msc(screen, target_crtc, &ust, &crtc_msc);
 
-    present_scmd_update_window_crtc(window, target_crtc, crtc_msc);
+    present_scmd_update_window_crtc(window, target_crtc, crtc_msc, ret == Success);
 
     if (ret == Success) {
         /* Stash the current MSC away in case we need it later
@@ -1104,7 +1295,7 @@ present_scmd_pixmap(WindowPtr window,
     }
     xorg_list_append(&vblank->event_queue, &crtc_priv->queue);
     vblank->queued = TRUE;
-    QueueWorkProc(present_wakeup_handler, serverClient, NULL);
+    present_vblank_queue_work(vblank);
 
     return Success;
 }

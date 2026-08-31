@@ -22,10 +22,15 @@
 #include <dix-config.h>
 
 #include "present_priv.h"
+#include "resource.h"
+#include "callback.h"
+#include "os.h"
 
 int present_request;
 DevPrivateKeyRec present_screen_private_key;
 DevPrivateKeyRec present_window_private_key;
+
+static Bool present_crtc_destroy_registered = FALSE;
 
 /*
  * Get a pointer to a present window private, creating if necessary
@@ -49,6 +54,12 @@ present_get_window_priv(WindowPtr window, Bool create)
     return window_priv;
 }
 
+static void
+present_drain_crtc_priv(ScreenPtr screen, present_crtc_priv_ptr crtc_priv);
+
+static void
+present_crtc_destroy_notify(CallbackListPtr *pcbl, void *unused, void *call_data);
+
 /*
  * Hook the close screen function to clean up our screen private
  */
@@ -64,8 +75,7 @@ present_close_screen(ScreenPtr screen)
     RemoveBlockAndWakeupHandlers(present_screen_block, present_screen_wakeup, screen);
 
     xorg_list_for_each_entry_safe(crtc_priv, tmp, &screen_priv->crtcs, list) {
-        xorg_list_del(&crtc_priv->list);
-        free(crtc_priv);
+        present_drain_crtc_priv(screen, crtc_priv);
     }
 
     unwrap(screen_priv, screen, CloseScreen);
@@ -211,6 +221,8 @@ present_get_crtc_priv(ScreenPtr screen, RRCrtcPtr crtc, Bool create)
 
     crtc_priv->crtc = crtc;
     xorg_list_init(&crtc_priv->queue);
+    crtc_priv->cached_valid = FALSE;
+    crtc_priv->cached_generation = 0;
     xorg_list_append(&crtc_priv->list, &screen_priv->crtcs);
 
     return crtc_priv;
@@ -237,6 +249,129 @@ present_free_crtc_priv(present_crtc_priv_ptr crtc_priv)
     free(crtc_priv);
 }
 
+static void
+present_drain_crtc_priv(ScreenPtr screen, present_crtc_priv_ptr crtc_priv)
+{
+    present_screen_priv_ptr screen_priv;
+    uint64_t ust = 0;
+    uint64_t msc = 0;
+    present_vblank_ptr vblank, tmp;
+
+    if (!crtc_priv)
+        return;
+
+    if (crtc_priv->crtc)
+        screen = crtc_priv->crtc->pScreen;
+    if (!screen)
+        screen = crtc_priv->crtc ? crtc_priv->crtc->pScreen : NULL;
+    if (screen)
+        screen_priv = present_screen_priv(screen);
+    else
+        screen_priv = NULL;
+
+    if (crtc_priv->crtc && screen_priv && screen_priv->info && screen_priv->info->get_ust_msc) {
+        if ((*screen_priv->info->get_ust_msc)(crtc_priv->crtc, &ust, &msc) != Success) {
+            ust = GetTimeInMicros();
+            msc = 0;
+        }
+    } else if (!crtc_priv->crtc && screen) {
+        if (present_fake_get_ust_msc(screen, &ust, &msc) != Success) {
+            ust = GetTimeInMicros();
+            msc = 0;
+        }
+    } else {
+        ust = GetTimeInMicros();
+        msc = 0;
+    }
+
+    if (crtc_priv->flip_pending) {
+        present_vblank_ptr p = crtc_priv->flip_pending;
+
+        crtc_priv->flip_pending = NULL;
+        if (screen)
+            present_restore_screen_pixmap(screen, crtc_priv->crtc);
+        present_vblank_notify(p, ust, msc);
+        present_vblank_destroy(p);
+    }
+
+    if (crtc_priv->flip_active) {
+        present_vblank_ptr a = crtc_priv->flip_active;
+
+        crtc_priv->flip_active = NULL;
+        present_pixmap_idle(a);
+        present_vblank_destroy(a);
+    }
+
+    crtc_priv->unflip_event_id = 0;
+
+    xorg_list_for_each_entry_safe(vblank, tmp, &crtc_priv->queue, event_queue) {
+        uint64_t event_id = vblank->event_id;
+        uint64_t target_msc = vblank->target_msc;
+
+        if (crtc_priv->crtc) {
+            if (screen_priv && screen_priv->info && screen_priv->info->abort_vblank)
+                (*screen_priv->info->abort_vblank)(crtc_priv->crtc, event_id, target_msc);
+        } else if (screen) {
+            present_fake_abort_vblank(screen, event_id, target_msc);
+        }
+        xorg_list_del(&vblank->event_queue);
+        xorg_list_del(&vblank->window_list);
+        vblank->queued = FALSE;
+        present_vblank_notify(vblank, ust, msc);
+        present_vblank_destroy(vblank);
+    }
+
+    xorg_list_del(&crtc_priv->list);
+    free(crtc_priv);
+}
+
+static void
+present_crtc_destroy_notify(CallbackListPtr *pcbl, void *unused, void *call_data)
+{
+    ResourceStateInfoRec *rec = call_data;
+    RRCrtcPtr crtc;
+    int s;
+
+    if (!rec || rec->state != ResourceStateFreeing)
+        return;
+    if (rec->type != RRCrtcType)
+        return;
+    crtc = rec->value;
+    if (!crtc)
+        return;
+
+    for (s = 0; s < screenInfo.numScreens; s++) {
+        ScreenPtr screen = screenInfo.screens[s];
+        present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+        present_crtc_priv_ptr crtc_priv, tmp;
+
+        if (!screen_priv)
+            continue;
+
+        xorg_list_for_each_entry_safe(crtc_priv, tmp, &screen_priv->crtcs, list) {
+            if (crtc_priv->crtc == crtc) {
+                present_drain_crtc_priv(screen, crtc_priv);
+                return;
+            }
+        }
+    }
+    for (s = 0; s < screenInfo.numGPUScreens; s++) {
+        ScreenPtr screen = screenInfo.gpuscreens[s];
+        present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+        present_crtc_priv_ptr crtc_priv, tmp;
+
+        if (!screen_priv)
+            continue;
+
+        xorg_list_for_each_entry_safe(crtc_priv, tmp, &screen_priv->crtcs, list) {
+            if (crtc_priv->crtc == crtc) {
+                present_drain_crtc_priv(screen, crtc_priv);
+                return;
+            }
+        }
+    }
+}
+
 present_screen_priv_ptr
 present_screen_priv_init(ScreenPtr screen)
 {
@@ -248,12 +383,19 @@ present_screen_priv_init(ScreenPtr screen)
 
     xorg_list_init(&screen_priv->crtcs);
 
+    screen_priv->present_generation = 1;
+
     wrap(screen_priv, screen, CloseScreen, present_close_screen);
     wrap(screen_priv, screen, DestroyWindow, present_destroy_window);
     wrap(screen_priv, screen, ConfigNotify, present_config_notify);
     wrap(screen_priv, screen, ClipNotify, present_clip_notify);
 
     RegisterBlockAndWakeupHandlers(present_screen_block, present_screen_wakeup, screen);
+
+    if (!present_crtc_destroy_registered) {
+        AddCallback(&ResourceStateCallback, present_crtc_destroy_notify, NULL);
+        present_crtc_destroy_registered = TRUE;
+    }
 
     dixSetPrivate(&screen->devPrivates, &present_screen_private_key, screen_priv);
     screen_priv->pScreen = screen;
