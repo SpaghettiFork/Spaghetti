@@ -869,39 +869,36 @@ present_scmd_replace_queued_per_crtc(present_crtc_priv_ptr crtc_priv)
 }
 
 void
-present_scmd_block_handler(ScreenPtr screen, void *timeout)
+present_screen_block(void *data, void *timeout)
 {
+    ScreenPtr screen = data;
     present_screen_priv_ptr screen_priv = present_screen_priv(screen);
-    ScreenBlockHandlerProcPtr saved = NULL;
     present_crtc_priv_ptr crtc_priv;
     present_vblank_ptr vblank;
     uint64_t ust, crtc_msc;
     int ret;
 
-    if (screen_priv)
-        saved = screen_priv->BlockHandler;
-
-    if (!screen_priv) {
-        if (saved)
-            saved(screen, timeout);
+    if (!screen_priv)
         return;
-    }
 
     xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
         present_vblank_ptr candidate = NULL;
         present_vblank_ptr tmp;
 
-        if (xorg_list_is_empty(&crtc_priv->queue))
+        if (xorg_list_is_empty(&crtc_priv->queue)) {
             continue;
+        }
 
         present_scmd_replace_queued_per_crtc(crtc_priv);
 
         ret = present_get_ust_msc(screen, crtc_priv->crtc, &ust, &crtc_msc);
-        if (ret != Success)
+        if (ret != Success) {
             continue;
+        }
 
         xorg_list_for_each_entry(tmp, &crtc_priv->queue, event_queue) {
-            if (present_execute_wait(tmp, crtc_msc))
+            Bool wait = present_execute_wait(tmp, crtc_msc);
+            if (wait)
                 continue;
             if (tmp->mode == PresentCompleteModeFlip &&
                 (crtc_priv->flip_pending || crtc_priv->unflip_event_id))
@@ -931,9 +928,6 @@ present_scmd_block_handler(ScreenPtr screen, void *timeout)
 
         present_execute(crtc_priv, vblank, ust, crtc_msc);
     }
-
-    if (saved)
-        saved(screen, timeout);
 }
 
 static inline void
