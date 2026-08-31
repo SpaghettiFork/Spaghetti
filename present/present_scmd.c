@@ -265,8 +265,8 @@ present_flip_try_ready_for_crtc(present_crtc_priv_ptr crtc_priv)
     if (!crtc_priv)
         return;
 
-    xorg_list_for_each_entry(vblank, &crtc_priv->flip_queue, event_queue) {
-        if (vblank->queued) {
+    xorg_list_for_each_entry(vblank, &crtc_priv->queue, event_queue) {
+        if (vblank->flip_ready) {
             present_re_execute(vblank);
             return;
         }
@@ -319,7 +319,6 @@ present_flip_idle(ScreenPtr screen)
 void
 present_restore_screen_pixmap(ScreenPtr screen, RRCrtcPtr crtc)
 {
-    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
     present_crtc_priv_ptr crtc_priv;
     PixmapPtr screen_pixmap = (*screen->GetScreenPixmap)(screen);
     PixmapPtr flip_pixmap;
@@ -434,8 +433,6 @@ present_flip_notify(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 
     present_flip_idle_for_crtc(crtc_priv);
 
-    xorg_list_del(&vblank->event_queue);
-
     crtc_priv->flip_active = vblank;
     crtc_priv->flip_pending = NULL;
 
@@ -474,20 +471,14 @@ present_event_notify(uint64_t event_id, uint64_t ust, uint64_t msc)
                 return;
             }
 
-            xorg_list_for_each_entry(vblank, &crtc_priv->exec_queue, event_queue) {
-                int64_t match = event_id - vblank->event_id;
-
-                if (match == 0) {
-                    QueueWorkProc(present_wakeup_handler, serverClient, NULL);
-                    return;
-                }
+            if (crtc_priv->flip_pending && event_id == crtc_priv->flip_pending->event_id) {
+                present_flip_notify(crtc_priv->flip_pending, ust, msc);
+                return;
             }
-            xorg_list_for_each_entry(vblank, &crtc_priv->flip_queue, event_queue) {
+
+            xorg_list_for_each_entry(vblank, &crtc_priv->queue, event_queue) {
                 if (vblank->event_id == event_id) {
-                    if (vblank->queued)
-                        QueueWorkProc(present_wakeup_handler, serverClient, NULL);
-                    else
-                        present_flip_notify(vblank, ust, msc);
+                    QueueWorkProc(present_wakeup_handler, serverClient, NULL);
                     return;
                 }
             }
@@ -668,8 +659,6 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
             DebugPresent(("\tr %" PRIu64 " %p (pending %p unflip %" PRIu64 ")\n",
                           vblank->event_id, vblank,
                           crtc_priv->flip_pending, crtc_priv->unflip_event_id));
-            xorg_list_del(&vblank->event_queue);
-            xorg_list_append(&vblank->event_queue, &crtc_priv->flip_queue);
             vblank->flip_ready = TRUE;
             return;
         }
@@ -678,6 +667,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     xorg_list_del(&vblank->event_queue);
     xorg_list_del(&vblank->window_list);
     vblank->queued = FALSE;
+    vblank->flip_ready = FALSE;
 
     if (pixmap && window &&
         (vblank->reason < PRESENT_FLIP_REASON_DRIVER_TEARFREE ||
@@ -695,9 +685,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
              */
             crtc_priv->flip_pending = vblank;
 
-            xorg_list_add(&vblank->event_queue, &crtc_priv->flip_queue);
-            /* Try to flip
-             */
+            /* Try to flip */
             if (present_flip(vblank->crtc, vblank->event_id, vblank->target_msc, pixmap, vblank->flip_type)) {
                 /* Fix window pixmaps:
                  *  1) Restore previous flip window pixmap
@@ -722,7 +710,6 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
                 return;
             }
 
-            xorg_list_del(&vblank->event_queue);
             /* Oops, flip failed. Clear the flip_pending field
               */
             crtc_priv->flip_pending = NULL;
@@ -793,7 +780,7 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
         }
 
         if (vblank->queued) {
-            xorg_list_add(&vblank->event_queue, &crtc_priv->exec_queue);
+            xorg_list_add(&vblank->event_queue, &crtc_priv->queue);
             xorg_list_append(&vblank->window_list,
                              &present_get_window_priv(window, TRUE)->vblank);
             return;
@@ -842,12 +829,12 @@ present_scmd_replace_queued_per_crtc(present_crtc_priv_ptr crtc_priv)
     if (!crtc_priv)
         return;
 
-    xorg_list_for_each_entry_safe(vblank, tmp, &crtc_priv->exec_queue, event_queue) {
+    xorg_list_for_each_entry_safe(vblank, tmp, &crtc_priv->queue, event_queue) {
         if (vblank->update || !vblank->pixmap)
             continue;
 
         has_later = FALSE;
-        xorg_list_for_each_entry(later, &crtc_priv->exec_queue, event_queue) {
+        xorg_list_for_each_entry(later, &crtc_priv->queue, event_queue) {
             if (later == vblank)
                 continue;
             if (later->window != vblank->window)
@@ -891,24 +878,32 @@ present_scmd_block_handler(ScreenPtr screen, void *timeout)
     }
 
     xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
-        if (xorg_list_is_empty(&crtc_priv->exec_queue))
+        present_vblank_ptr candidate = NULL;
+        present_vblank_ptr tmp;
+
+        if (xorg_list_is_empty(&crtc_priv->queue))
             continue;
 
         present_scmd_replace_queued_per_crtc(crtc_priv);
-
-        vblank = xorg_list_first_entry(&crtc_priv->exec_queue,
-                                       present_vblank_rec, event_queue);
 
         ret = present_get_ust_msc(screen, crtc_priv->crtc, &ust, &crtc_msc);
         if (ret != Success)
             continue;
 
-        if (present_execute_wait(vblank, crtc_msc))
+        xorg_list_for_each_entry(tmp, &crtc_priv->queue, event_queue) {
+            if (present_execute_wait(tmp, crtc_msc))
+                continue;
+            if (tmp->mode == PresentCompleteModeFlip &&
+                (crtc_priv->flip_pending || crtc_priv->unflip_event_id))
+                continue;
+            candidate = tmp;
+            break;
+        }
+
+        if (!candidate)
             continue;
 
-        if (vblank->mode == PresentCompleteModeFlip &&
-            (crtc_priv->flip_pending || crtc_priv->unflip_event_id))
-            continue;
+        vblank = candidate;
 
         if (msc_is_after(vblank->exec_msc, crtc_msc)) {
             ret = present_queue_vblank(screen, vblank->window,
@@ -1055,7 +1050,7 @@ present_scmd_pixmap(WindowPtr window,
             return BadAlloc;
         }
 
-        xorg_list_append(&vblank->event_queue, &crtc_priv->exec_queue);
+        xorg_list_append(&vblank->event_queue, &crtc_priv->queue);
     }
     vblank->queued = TRUE;
 
@@ -1083,16 +1078,9 @@ present_scmd_abort_vblank(ScreenPtr screen, WindowPtr window, RRCrtcPtr crtc, ui
         return;
 
     xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
-        xorg_list_for_each_entry(vblank, &crtc_priv->exec_queue, event_queue) {
-            int64_t match = event_id - vblank->event_id;
-
-            if (match == 0) {
-                xorg_list_del(&vblank->event_queue);
-                vblank->queued = FALSE;
-                return;
-            }
-        }
-        xorg_list_for_each_entry(vblank, &crtc_priv->flip_queue, event_queue) {
+        if (crtc_priv->flip_pending && event_id == crtc_priv->flip_pending->event_id)
+            return;
+        xorg_list_for_each_entry(vblank, &crtc_priv->queue, event_queue) {
             if (vblank->event_id == event_id) {
                 xorg_list_del(&vblank->event_queue);
                 vblank->queued = FALSE;

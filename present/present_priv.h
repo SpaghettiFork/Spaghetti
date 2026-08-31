@@ -76,7 +76,7 @@ struct present_vblank {
     int16_t             y_off;
     CARD16              kind;
     CARD16              mode;
-    Bool                queued;         /* on per-CRTC exec queue */
+    Bool                queued;         /* on per-CRTC queue */
     uint64_t            event_id;
     uint64_t            target_msc;     /* target MSC when present should complete */
     uint64_t            exec_msc;       /* MSC at which present can be executed */
@@ -170,8 +170,7 @@ typedef void (*present_priv_flip_destroy_ptr)(ScreenPtr screen);
 struct present_crtc_priv {
     struct xorg_list            list;
     RRCrtcPtr                   crtc;
-    struct xorg_list            exec_queue;
-    struct xorg_list            flip_queue;
+    struct xorg_list            queue;
     present_vblank_ptr          flip_pending;
     present_vblank_ptr          flip_active;
     uint64_t                    unflip_event_id;

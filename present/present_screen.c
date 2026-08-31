@@ -209,8 +209,7 @@ present_get_crtc_priv(ScreenPtr screen, RRCrtcPtr crtc, Bool create)
         return NULL;
 
     crtc_priv->crtc = crtc;
-    xorg_list_init(&crtc_priv->exec_queue);
-    xorg_list_init(&crtc_priv->flip_queue);
+    xorg_list_init(&crtc_priv->queue);
     xorg_list_append(&crtc_priv->list, &screen_priv->crtcs);
 
     return crtc_priv;
