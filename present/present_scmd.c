@@ -47,19 +47,6 @@ present_wakeup_handler(ClientPtr client, void *closure)
     return TRUE;
 }
 
-void
-present_scmd_block_handler(ScreenPtr screen, void *timeout)
-{
-    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
-    ScreenBlockHandlerProcPtr saved = NULL;
-
-    if (screen_priv)
-        saved = screen_priv->BlockHandler;
-
-    if (saved)
-        saved(screen, timeout);
-}
-
 static inline PixmapPtr
 present_crtc_flip_pending_pixmap(RRCrtcPtr crtc)
 {
@@ -844,40 +831,100 @@ present_scmd_update_window_crtc(WindowPtr window, RRCrtcPtr crtc, uint64_t new_m
 /*
  * Look for a matching presentation already on the list and
  * don't bother doing the previous one if this one will overwrite it
- * in the same frame.
+ * in the same frame. Called from BlockHandler.
  */
 static void
-present_scmd_replace_queued(present_vblank_ptr vblank)
+present_scmd_replace_queued_per_crtc(present_crtc_priv_ptr crtc_priv)
 {
-    present_window_priv_ptr window_priv = present_window_priv(vblank->window);
-    present_vblank_ptr      vbl, tmp;
+    present_vblank_ptr vblank, tmp, later;
+    Bool has_later;
 
-    if (vblank->update || !vblank->pixmap)
+    if (!crtc_priv)
         return;
 
-    xorg_list_for_each_entry_safe(vbl, tmp, &window_priv->vblank, window_list) {
-        if (!vbl->pixmap)
+    xorg_list_for_each_entry_safe(vblank, tmp, &crtc_priv->exec_queue, event_queue) {
+        if (vblank->update || !vblank->pixmap)
             continue;
 
-        if (!vbl->queued)
-            continue;
+        has_later = FALSE;
+        xorg_list_for_each_entry(later, &crtc_priv->exec_queue, event_queue) {
+            if (later == vblank)
+                continue;
+            if (later->window != vblank->window)
+                continue;
+            if (later->crtc != vblank->crtc)
+                continue;
+            if (later->target_msc != vblank->target_msc)
+                continue;
+            if (later->update || !later->pixmap)
+                continue;
+            if (vblank->reason >= PRESENT_FLIP_REASON_DRIVER_TEARFREE &&
+                vblank->exec_msc == vblank->target_msc)
+                continue;
+            /* Found later duplicate that will replace this one */
+            has_later = TRUE;
+            break;
+        }
 
-        if (vbl->crtc != vblank->crtc || vbl->target_msc != vblank->target_msc)
-            continue;
-
-        /* Too late to abort now if TearFree execution already happened */
-        if (vblank->reason >= PRESENT_FLIP_REASON_DRIVER_TEARFREE &&
-            vblank->exec_msc == vblank->target_msc)
-            continue;
-
-        if (vbl == vblank)
-            continue;
-
-        present_vblank_scrap(vbl);
-
-        if (vbl->flip_ready)
-            present_re_execute(vbl);
+        if (has_later)
+            present_vblank_scrap(vblank);
     }
+}
+
+void
+present_scmd_block_handler(ScreenPtr screen, void *timeout)
+{
+    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+    ScreenBlockHandlerProcPtr saved = NULL;
+    present_crtc_priv_ptr crtc_priv;
+    present_vblank_ptr vblank;
+    uint64_t ust, crtc_msc;
+    int ret;
+
+    if (screen_priv)
+        saved = screen_priv->BlockHandler;
+
+    if (!screen_priv) {
+        if (saved)
+            saved(screen, timeout);
+        return;
+    }
+
+    xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
+        if (xorg_list_is_empty(&crtc_priv->exec_queue))
+            continue;
+
+        present_scmd_replace_queued_per_crtc(crtc_priv);
+
+        vblank = xorg_list_first_entry(&crtc_priv->exec_queue,
+                                       present_vblank_rec, event_queue);
+
+        ret = present_get_ust_msc(screen, crtc_priv->crtc, &ust, &crtc_msc);
+        if (ret != Success)
+            continue;
+
+        if (present_execute_wait(vblank, crtc_msc))
+            continue;
+
+        if (vblank->mode == PresentCompleteModeFlip &&
+            (crtc_priv->flip_pending || crtc_priv->unflip_event_id))
+            continue;
+
+        if (msc_is_after(vblank->exec_msc, crtc_msc)) {
+            ret = present_queue_vblank(screen, vblank->window,
+                                       crtc_priv->crtc,
+                                       vblank->event_id,
+                                       vblank->exec_msc);
+            if (ret == Success)
+                continue;
+            DebugPresent(("present_queue_vblank failed in BlockHandler\n"));
+        }
+
+        present_execute(vblank, ust, crtc_msc);
+    }
+
+    if (saved)
+        saved(screen, timeout);
 }
 
 static inline void
@@ -987,8 +1034,6 @@ present_scmd_pixmap(WindowPtr window,
     if (!vblank)
         return BadAlloc;
 
-    present_scmd_replace_queued(vblank);
-
     vblank->event_id = ++present_scmd_event_id;
 
     present_adjust_exec_msc(vblank, crtc_msc);
@@ -1013,15 +1058,6 @@ present_scmd_pixmap(WindowPtr window,
         xorg_list_append(&vblank->event_queue, &crtc_priv->exec_queue);
     }
     vblank->queued = TRUE;
-    if (msc_is_after(vblank->exec_msc, crtc_msc)) {
-        ret = present_queue_vblank(screen, window, target_crtc, vblank->event_id, vblank->exec_msc);
-        if (ret == Success)
-            return Success;
-
-        DebugPresent(("present_queue_vblank failed\n"));
-    }
-
-    present_execute(vblank, ust, crtc_msc);
 
     return Success;
 }
