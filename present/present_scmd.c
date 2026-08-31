@@ -910,8 +910,10 @@ present_scmd_block_handler(ScreenPtr screen, void *timeout)
             break;
         }
 
-        if (!candidate)
+        if (!candidate) {
+            AdjustWaitForDelay(timeout, 0);
             continue;
+        }
 
         vblank = candidate;
 
@@ -923,6 +925,8 @@ present_scmd_block_handler(ScreenPtr screen, void *timeout)
             if (ret == Success)
                 continue;
             DebugPresent(("present_queue_vblank failed in BlockHandler\n"));
+            AdjustWaitForDelay(timeout, 0);
+            continue;
         }
 
         present_execute(crtc_priv, vblank, ust, crtc_msc);
