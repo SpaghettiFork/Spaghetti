@@ -207,7 +207,7 @@ ms_present_flip_handler(modesettingPtr ms, uint64_t msc,
 
     if (event->unflip)
         ms->drmmode.present_flipping = FALSE;
-    
+
     ms_present_vblank_handler(msc, ust, event);
 }
 
@@ -381,8 +381,8 @@ ms_present_flip(RRCrtcPtr crtc,
     modesettingPtr ms = modesettingPTR(scrn);
     xf86CrtcPtr xf86_crtc = crtc->devPrivate;
     drmmode_crtc_private_ptr drmmode_crtc = xf86_crtc->driver_private;
-    Bool ret;
     struct ms_present_vblank_event *event;
+    Bool ret;
 
     if (!ms_present_check_flip(crtc, ms->flip_window, pixmap, sync_flip, NULL))
         return FALSE;
@@ -478,7 +478,7 @@ ms_present_unflip(ScreenPtr screen, uint64_t event_id)
 #endif
 
 static present_screen_info_rec ms_present_screen_info = {
-    .version = PRESENT_SCREEN_INFO_VERSION,
+    .version = SPAGHETTI,
 
     .get_crtc = ms_present_get_crtc,
     .get_ust_msc = ms_present_get_ust_msc,

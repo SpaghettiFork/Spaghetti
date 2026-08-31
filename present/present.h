@@ -30,7 +30,7 @@
 #include "presentext.h"
 
 typedef enum {
-    PRESENT_FLIP_REASON_UNKNOWN,
+    PRESENT_FLIP_REASON_UNKNOWN = 0,
     PRESENT_FLIP_REASON_BUFFER_FORMAT,
 
     /* Don't add new flip reasons after the TearFree ones, since it's expected

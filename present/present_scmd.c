@@ -79,9 +79,6 @@ present_check_flip(RRCrtcPtr            crtc,
         return FALSE;
     }
 
-    if (!screen_priv->info)
-        return FALSE;
-
     /* Make sure the window hasn't been redirected with Composite */
     window_pixmap = screen->GetWindowPixmap(window);
     if (window_pixmap != screen->GetScreenPixmap(screen) &&

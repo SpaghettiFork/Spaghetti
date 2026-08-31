@@ -49,8 +49,8 @@
 # include "dri3.h"
 #endif
 
-
 #include "drmmode_display.h"
+
 #define MS_LOGLEVEL_DEBUG 4
 
 struct ms_vrr_priv {
