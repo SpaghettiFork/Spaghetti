@@ -184,11 +184,6 @@ struct present_screen_priv {
     DestroyWindowProcPtr        DestroyWindow;
     ClipNotifyProcPtr           ClipNotify;
 
-    present_vblank_ptr          flip_pending;
-    present_vblank_ptr          flip_active;
-
-    uint64_t                    unflip_event_id;
-
     struct xorg_list            crtcs;
 
     uint32_t                    fake_interval;
@@ -460,10 +455,10 @@ sproc_present_dispatch(ClientPtr client);
  */
 
 void
-present_restore_screen_pixmap(ScreenPtr screen);
+present_restore_screen_pixmap(ScreenPtr screen, RRCrtcPtr crtc);
 
 void
-present_set_abort_flip(ScreenPtr screen);
+present_set_abort_flip(ScreenPtr screen, RRCrtcPtr crtc);
 
 Bool
 present_init(void);
