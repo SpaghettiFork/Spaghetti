@@ -76,7 +76,7 @@ struct present_vblank {
     int16_t             y_off;
     CARD16              kind;
     CARD16              mode;
-    Bool                queued;         /* on present_exec_queue */
+    Bool                queued;         /* on per-CRTC exec queue */
     uint64_t            event_id;
     uint64_t            target_msc;     /* target MSC when present should complete */
     uint64_t            exec_msc;       /* MSC at which present can be executed */
@@ -177,6 +177,7 @@ struct present_crtc_priv {
     uint64_t                    unflip_event_id;
 };
 
+/* present state for each CRTC. */
 struct present_screen_priv {
     ScreenPtr                   pScreen;
     CloseScreenProcPtr          CloseScreen;
