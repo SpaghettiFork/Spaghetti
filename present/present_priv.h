@@ -184,6 +184,7 @@ struct present_screen_priv {
     ConfigNotifyProcPtr         ConfigNotify;
     DestroyWindowProcPtr        DestroyWindow;
     ClipNotifyProcPtr           ClipNotify;
+    ScreenBlockHandlerProcPtr   BlockHandler;
 
     struct xorg_list            crtcs;
 
@@ -466,6 +467,9 @@ present_init(void);
 
 void
 present_scmd_init_mode_hooks(present_screen_priv_ptr screen_priv);
+
+void
+present_scmd_block_handler(ScreenPtr screen, void *timeout);
 
 _X_HIDDEN void
 present_scmd_init_driver_flip(present_screen_priv_ptr screen_priv);

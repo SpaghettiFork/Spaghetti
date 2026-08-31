@@ -25,6 +25,7 @@
 #include <misync.h>
 #include <misyncstr.h>
 
+#include "os.h"
 #include "os/ftrace.h"
 
 /*
@@ -39,6 +40,25 @@ static uint64_t present_scmd_event_id;
 
 static void
 present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
+
+static Bool
+present_wakeup_handler(ClientPtr client, void *closure)
+{
+    return TRUE;
+}
+
+void
+present_scmd_block_handler(ScreenPtr screen, void *timeout)
+{
+    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+    ScreenBlockHandlerProcPtr saved = NULL;
+
+    if (screen_priv)
+        saved = screen_priv->BlockHandler;
+
+    if (saved)
+        saved(screen, timeout);
+}
 
 static inline PixmapPtr
 present_crtc_flip_pending_pixmap(RRCrtcPtr crtc)

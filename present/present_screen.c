@@ -61,6 +61,7 @@ present_close_screen(ScreenPtr screen)
     if (screen_priv->flip_destroy)
         screen_priv->flip_destroy(screen);
 
+    unwrap(screen_priv, screen, BlockHandler);
     xorg_list_for_each_entry_safe(crtc_priv, tmp, &screen_priv->crtcs, list) {
         xorg_list_del(&crtc_priv->list);
         free(crtc_priv);
@@ -251,6 +252,7 @@ present_screen_priv_init(ScreenPtr screen)
     wrap(screen_priv, screen, DestroyWindow, present_destroy_window);
     wrap(screen_priv, screen, ConfigNotify, present_config_notify);
     wrap(screen_priv, screen, ClipNotify, present_clip_notify);
+    wrap(screen_priv, screen, BlockHandler, present_scmd_block_handler);
 
     dixSetPrivate(&screen->devPrivates, &present_screen_private_key, screen_priv);
     screen_priv->pScreen = screen;
