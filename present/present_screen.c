@@ -56,9 +56,15 @@ static Bool
 present_close_screen(ScreenPtr screen)
 {
     present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+    present_crtc_priv_ptr crtc_priv, tmp;
 
     if (screen_priv->flip_destroy)
         screen_priv->flip_destroy(screen);
+
+    xorg_list_for_each_entry_safe(crtc_priv, tmp, &screen_priv->crtcs, list) {
+        xorg_list_del(&crtc_priv->list);
+        free(crtc_priv);
+    }
 
     unwrap(screen_priv, screen, CloseScreen);
     (*screen->CloseScreen) (screen);
@@ -173,6 +179,63 @@ present_screen_register_priv_keys(void)
     return TRUE;
 }
 
+present_crtc_priv_ptr
+present_get_crtc_priv(ScreenPtr screen, RRCrtcPtr crtc, Bool create)
+{
+    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+    present_crtc_priv_ptr crtc_priv;
+
+    if (!screen_priv)
+        return NULL;
+
+    if (crtc)
+        screen = crtc->pScreen;
+
+    screen_priv = present_screen_priv(screen);
+    if (!screen_priv)
+        return NULL;
+
+    xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
+        if (crtc_priv->crtc == crtc)
+            return crtc_priv;
+    }
+
+    if (!create)
+        return NULL;
+
+    crtc_priv = calloc(1, sizeof(present_crtc_priv_rec));
+    if (!crtc_priv)
+        return NULL;
+
+    crtc_priv->crtc = crtc;
+    xorg_list_init(&crtc_priv->exec_queue);
+    xorg_list_init(&crtc_priv->flip_queue);
+    xorg_list_append(&crtc_priv->list, &screen_priv->crtcs);
+
+    return crtc_priv;
+}
+
+present_crtc_priv_ptr
+present_crtc_priv_for_crtc(RRCrtcPtr crtc, Bool create)
+{
+    ScreenPtr screen;
+
+    if (!crtc)
+        return NULL;
+
+    screen = crtc->pScreen;
+    return present_get_crtc_priv(screen, crtc, create);
+}
+
+void
+present_free_crtc_priv(present_crtc_priv_ptr crtc_priv)
+{
+    if (!crtc_priv)
+        return;
+    xorg_list_del(&crtc_priv->list);
+    free(crtc_priv);
+}
+
 present_screen_priv_ptr
 present_screen_priv_init(ScreenPtr screen)
 {
@@ -181,6 +244,8 @@ present_screen_priv_init(ScreenPtr screen)
     screen_priv = calloc(1, sizeof (present_screen_priv_rec));
     if (!screen_priv)
         return NULL;
+
+    xorg_list_init(&screen_priv->crtcs);
 
     wrap(screen_priv, screen, CloseScreen, present_close_screen);
     wrap(screen_priv, screen, DestroyWindow, present_destroy_window);

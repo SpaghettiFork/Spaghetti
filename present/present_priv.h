@@ -101,6 +101,7 @@ struct present_vblank {
 
 typedef struct present_screen_priv present_screen_priv_rec, *present_screen_priv_ptr;
 typedef struct present_window_priv present_window_priv_rec, *present_window_priv_ptr;
+typedef struct present_crtc_priv present_crtc_priv_rec, *present_crtc_priv_ptr;
 
 /*
  * Mode hooks
@@ -166,6 +167,16 @@ typedef void (*present_priv_abort_vblank_ptr)(ScreenPtr screen,
                                               uint64_t msc);
 typedef void (*present_priv_flip_destroy_ptr)(ScreenPtr screen);
 
+struct present_crtc_priv {
+    struct xorg_list            list;
+    RRCrtcPtr                   crtc;
+    struct xorg_list            exec_queue;
+    struct xorg_list            flip_queue;
+    present_vblank_ptr          flip_pending;
+    present_vblank_ptr          flip_active;
+    uint64_t                    unflip_event_id;
+};
+
 struct present_screen_priv {
     ScreenPtr                   pScreen;
     CloseScreenProcPtr          CloseScreen;
@@ -177,6 +188,8 @@ struct present_screen_priv {
     present_vblank_ptr          flip_active;
 
     uint64_t                    unflip_event_id;
+
+    struct xorg_list            crtcs;
 
     uint32_t                    fake_interval;
 
@@ -469,6 +482,15 @@ present_screen_register_priv_keys(void);
 
 present_screen_priv_ptr
 present_screen_priv_init(ScreenPtr screen);
+
+present_crtc_priv_ptr
+present_get_crtc_priv(ScreenPtr screen, RRCrtcPtr crtc, Bool create);
+
+present_crtc_priv_ptr
+present_crtc_priv_for_crtc(RRCrtcPtr crtc, Bool create);
+
+void
+present_free_crtc_priv(present_crtc_priv_ptr crtc_priv);
 
 /*
  * present_vblank.c

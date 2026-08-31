@@ -44,6 +44,24 @@ static void
 present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
 
 static inline PixmapPtr
+present_crtc_flip_pending_pixmap(RRCrtcPtr crtc)
+{
+    present_crtc_priv_ptr crtc_priv;
+
+    if (!crtc)
+        return NULL;
+
+    crtc_priv = present_crtc_priv_for_crtc(crtc, FALSE);
+    if (!crtc_priv)
+        return NULL;
+
+    if (!crtc_priv->flip_pending)
+        return NULL;
+
+    return crtc_priv->flip_pending->pixmap;
+}
+
+static inline PixmapPtr
 present_flip_pending_pixmap(ScreenPtr screen)
 {
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
@@ -55,6 +73,21 @@ present_flip_pending_pixmap(ScreenPtr screen)
         return NULL;
 
     return screen_priv->flip_pending->pixmap;
+}
+
+static inline present_crtc_priv_ptr
+present_get_crtc_priv_for_vblank(present_vblank_ptr vblank)
+{
+    ScreenPtr screen;
+
+    if (!vblank)
+        return NULL;
+
+    if (vblank->crtc)
+        return present_crtc_priv_for_crtc(vblank->crtc, FALSE);
+
+    screen = vblank->screen;
+    return present_get_crtc_priv(screen, NULL, FALSE);
 }
 
 static Bool
