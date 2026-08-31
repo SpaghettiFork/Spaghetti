@@ -1060,6 +1060,7 @@ present_scmd_pixmap(WindowPtr window,
     }
     xorg_list_append(&vblank->event_queue, &crtc_priv->queue);
     vblank->queued = TRUE;
+    QueueWorkProc(present_wakeup_handler, serverClient, NULL);
 
     return Success;
 }
