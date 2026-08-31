@@ -39,7 +39,8 @@
 static uint64_t present_scmd_event_id;
 
 static void
-present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
+present_execute(present_crtc_priv_ptr crtc_priv,
+                present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc);
 
 static Bool
 present_wakeup_handler(ClientPtr client, void *closure)
@@ -247,14 +248,19 @@ present_queue_vblank(ScreenPtr screen,
  * to re-try the request
  */
 static void
-present_re_execute(present_vblank_ptr vblank)
+present_re_execute(present_crtc_priv_ptr crtc_priv, present_vblank_ptr vblank)
 {
     uint64_t            ust = 0, crtc_msc = 0;
 
-    if (vblank->crtc)
+    if (!crtc_priv)
+        crtc_priv = present_get_crtc_priv_for_vblank(vblank);
+
+    if (crtc_priv && crtc_priv->crtc)
+        (void) present_get_ust_msc(vblank->screen, crtc_priv->crtc, &ust, &crtc_msc);
+    else if (vblank->crtc)
         (void) present_get_ust_msc(vblank->screen, vblank->crtc, &ust, &crtc_msc);
 
-    present_execute(vblank, ust, crtc_msc);
+    present_execute(crtc_priv, vblank, ust, crtc_msc);
 }
 
 static void
@@ -267,7 +273,7 @@ present_flip_try_ready_for_crtc(present_crtc_priv_ptr crtc_priv)
 
     xorg_list_for_each_entry(vblank, &crtc_priv->queue, event_queue) {
         if (vblank->flip_ready) {
-            present_re_execute(vblank);
+            present_re_execute(crtc_priv, vblank);
             return;
         }
     }
@@ -633,7 +639,8 @@ present_scmd_clear_window_flip(WindowPtr window)
  */
 
 static void
-present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
+present_execute(present_crtc_priv_ptr crtc_priv,
+                present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
 {
     WindowPtr window = vblank->window;
     PixmapPtr pixmap = vblank->pixmap;
@@ -641,12 +648,15 @@ present_execute(present_vblank_ptr vblank, uint64_t ust, uint64_t crtc_msc)
     ScreenPtr crtc_screen = (vblank->crtc) ? vblank->crtc->pScreen : screen;
     present_screen_priv_ptr screen_priv = (crtc_screen == screen)
         ? present_screen_priv(screen) : present_screen_priv(crtc_screen);
-    present_crtc_priv_ptr crtc_priv;
 
-    if (vblank->crtc)
-        crtc_priv = present_crtc_priv_for_crtc(vblank->crtc, TRUE);
-    else
-        crtc_priv = present_get_crtc_priv(screen, NULL, TRUE);
+    if (!crtc_priv)
+        crtc_priv = present_get_crtc_priv_for_vblank(vblank);
+    if (!crtc_priv) {
+        if (vblank->crtc)
+            crtc_priv = present_crtc_priv_for_crtc(vblank->crtc, TRUE);
+        else
+            crtc_priv = present_get_crtc_priv(screen, NULL, TRUE);
+    }
 
     if (!crtc_priv)
         return;
@@ -915,7 +925,7 @@ present_scmd_block_handler(ScreenPtr screen, void *timeout)
             DebugPresent(("present_queue_vblank failed in BlockHandler\n"));
         }
 
-        present_execute(vblank, ust, crtc_msc);
+        present_execute(crtc_priv, vblank, ust, crtc_msc);
     }
 
     if (saved)
@@ -966,6 +976,7 @@ present_scmd_pixmap(WindowPtr window,
     ScreenPtr                   screen = window->drawable.pScreen;
     present_window_priv_ptr     window_priv = present_get_window_priv(window, TRUE);
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
+    present_crtc_priv_ptr       crtc_priv;
 
 #ifdef DRI3
     if (acquire_syncobj || release_syncobj)
@@ -1042,16 +1053,12 @@ present_scmd_pixmap(WindowPtr window,
                  vblank->mode, vblank->reason, vblank->flip_type,
                  vblank->target_msc, vblank->exec_msc, crtc_msc);
 
-    {
-        present_crtc_priv_ptr crtc_priv = present_get_crtc_priv(screen, target_crtc, TRUE);
-
-        if (!crtc_priv) {
-            present_vblank_destroy(vblank);
-            return BadAlloc;
-        }
-
-        xorg_list_append(&vblank->event_queue, &crtc_priv->queue);
+    crtc_priv = present_get_crtc_priv(screen, target_crtc, TRUE);
+    if (!crtc_priv) {
+        present_vblank_destroy(vblank);
+        return BadAlloc;
     }
+    xorg_list_append(&vblank->event_queue, &crtc_priv->queue);
     vblank->queued = TRUE;
 
     return Success;

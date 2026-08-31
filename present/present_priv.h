@@ -158,7 +158,8 @@ typedef int (*present_priv_queue_vblank_ptr)(ScreenPtr screen,
                                              uint64_t msc);
 typedef void (*present_priv_flush_ptr)(WindowPtr window);
 typedef int (*present_priv_flush_fenced_ptr)(WindowPtr window);
-typedef void (*present_priv_re_execute_ptr)(present_vblank_ptr vblank);
+typedef void (*present_priv_re_execute_ptr)(present_crtc_priv_ptr crtc_priv,
+                                            present_vblank_ptr vblank);
 
 typedef void (*present_priv_abort_vblank_ptr)(ScreenPtr screen,
                                               WindowPtr window,
