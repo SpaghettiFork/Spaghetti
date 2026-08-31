@@ -478,14 +478,14 @@ present_event_notify(uint64_t event_id, uint64_t ust, uint64_t msc)
                 int64_t match = event_id - vblank->event_id;
 
                 if (match == 0) {
-                    present_execute(vblank, ust, msc);
+                    QueueWorkProc(present_wakeup_handler, serverClient, NULL);
                     return;
                 }
             }
             xorg_list_for_each_entry(vblank, &crtc_priv->flip_queue, event_queue) {
                 if (vblank->event_id == event_id) {
                     if (vblank->queued)
-                        present_execute(vblank, ust, msc);
+                        QueueWorkProc(present_wakeup_handler, serverClient, NULL);
                     else
                         present_flip_notify(vblank, ust, msc);
                     return;
