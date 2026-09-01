@@ -221,8 +221,9 @@ present_get_crtc_priv(ScreenPtr screen, RRCrtcPtr crtc, Bool create)
 
     crtc_priv->crtc = crtc;
     xorg_list_init(&crtc_priv->queue);
-    crtc_priv->cached_valid = FALSE;
-    crtc_priv->cached_generation = 0;
+    crtc_priv->has_notify = FALSE;
+    crtc_priv->last_event_ust = 0;
+    crtc_priv->last_event_msc = 0;
     xorg_list_append(&crtc_priv->list, &screen_priv->crtcs);
 
     return crtc_priv;
@@ -382,8 +383,6 @@ present_screen_priv_init(ScreenPtr screen)
         return NULL;
 
     xorg_list_init(&screen_priv->crtcs);
-
-    screen_priv->present_generation = 1;
 
     wrap(screen_priv, screen, CloseScreen, present_close_screen);
     wrap(screen_priv, screen, DestroyWindow, present_destroy_window);

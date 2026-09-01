@@ -163,45 +163,6 @@ present_get_crtc_priv_for_vblank(present_vblank_ptr vblank)
     return present_get_crtc_priv(screen, NULL, FALSE);
 }
 
-static int
-present_get_ust_msc_cached(ScreenPtr screen, RRCrtcPtr crtc,
-                           present_crtc_priv_ptr crtc_priv,
-                           uint64_t *ust, uint64_t *msc)
-{
-    present_screen_priv_ptr gen_priv = NULL;
-
-    if (crtc_priv) {
-        if (crtc_priv->crtc)
-            gen_priv = present_screen_priv(crtc_priv->crtc->pScreen);
-        else if (screen)
-            gen_priv = present_screen_priv(screen);
-        if (gen_priv && crtc_priv->cached_valid &&
-            crtc_priv->cached_generation == gen_priv->present_generation) {
-            *ust = crtc_priv->cached_ust;
-            *msc = crtc_priv->cached_msc;
-            return Success;
-        }
-    }
-    {
-        int ret = present_get_ust_msc(screen, crtc, ust, msc);
-
-        if (ret == Success && crtc_priv && gen_priv) {
-            crtc_priv->cached_ust = *ust;
-            crtc_priv->cached_msc = *msc;
-            crtc_priv->cached_generation = gen_priv->present_generation;
-            crtc_priv->cached_valid = TRUE;
-        }
-        return ret;
-    }
-}
-
-static inline void
-present_invalidate_ust_cache(present_crtc_priv_ptr crtc_priv)
-{
-    if (crtc_priv)
-        crtc_priv->cached_valid = FALSE;
-}
-
 static Bool
 present_check_flip(RRCrtcPtr            crtc,
                    WindowPtr            window,
@@ -360,7 +321,7 @@ present_re_execute(present_crtc_priv_ptr crtc_priv, present_vblank_ptr vblank)
         crtc_priv = present_get_crtc_priv_for_vblank(vblank);
 
     if (crtc_priv && crtc_priv->crtc)
-        (void) present_get_ust_msc_cached(vblank->screen, crtc_priv->crtc, crtc_priv, &ust, &crtc_msc);
+        (void) present_get_ust_msc(vblank->screen, crtc_priv->crtc, &ust, &crtc_msc);
     else if (vblank->crtc)
         (void) present_get_ust_msc(vblank->screen, vblank->crtc, &ust, &crtc_msc);
 
@@ -575,6 +536,13 @@ present_event_notify(uint64_t event_id, uint64_t ust, uint64_t msc)
         xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
             if (event_id == crtc_priv->unflip_event_id) {
                 DebugPresent(("\tun %" PRIu64 "\n", event_id));
+                if (ust != 0 || msc != 0) {
+                    crtc_priv->last_event_ust = ust;
+                    crtc_priv->last_event_msc = msc;
+                    crtc_priv->has_notify = TRUE;
+                } else {
+                    crtc_priv->has_notify = FALSE;
+                }
                 crtc_priv->unflip_event_id = 0;
                 present_flip_idle_for_crtc(crtc_priv);
                 present_flip_try_ready_for_crtc(crtc_priv);
@@ -582,12 +550,20 @@ present_event_notify(uint64_t event_id, uint64_t ust, uint64_t msc)
             }
 
             if (crtc_priv->flip_pending && event_id == crtc_priv->flip_pending->event_id) {
+                if (ust != 0 || msc != 0) {
+                    crtc_priv->last_event_ust = ust;
+                    crtc_priv->last_event_msc = msc;
+                    crtc_priv->has_notify = TRUE;
+                }
                 present_flip_notify(crtc_priv->flip_pending, ust, msc);
                 return;
             }
 
             xorg_list_for_each_entry(vblank, &crtc_priv->queue, event_queue) {
                 if (vblank->event_id == event_id) {
+                    crtc_priv->last_event_ust = ust;
+                    crtc_priv->last_event_msc = msc;
+                    crtc_priv->has_notify = TRUE;
                     present_vblank_queue_work(vblank);
                     return;
                 }
@@ -1069,9 +1045,6 @@ present_screen_block(void *data, void *timeout)
     if (!screen_priv)
         return;
 
-    if (++screen_priv->present_generation == 0)
-        screen_priv->present_generation = 1;
-
     xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
         present_vblank_ptr candidate = NULL;
         present_vblank_ptr tmp;
@@ -1082,11 +1055,32 @@ present_screen_block(void *data, void *timeout)
 
         present_scmd_replace_queued_per_crtc(crtc_priv);
 
-        ret = present_get_ust_msc_cached(screen, crtc_priv->crtc, crtc_priv, &ust, &crtc_msc);
+        tmp = NULL;
+        xorg_list_for_each_entry(tmp, &crtc_priv->queue, event_queue) {
+            if (tmp->mode == PresentCompleteModeFlip &&
+                (crtc_priv->flip_pending || crtc_priv->unflip_event_id))
+                continue;
+            if (tmp->wait_fence && !present_fence_check_triggered(tmp->wait_fence))
+                continue;
+#ifdef DRI3
+            if (tmp->mode != PresentCompleteModeFlip && tmp->acquire_syncobj &&
+                !tmp->acquire_syncobj->is_signaled(tmp->acquire_syncobj, tmp->acquire_point))
+                continue;
+#endif
+            candidate = tmp;
+            break;
+        }
+        if (!candidate) {
+            AdjustWaitForDelay(timeout, PRESENT_BLOCK_DELAY_MS);
+            continue;
+        }
+
+        ret = present_get_ust_msc(screen, crtc_priv->crtc, &ust, &crtc_msc);
         if (ret != Success) {
             continue;
         }
 
+        candidate = NULL;
         xorg_list_for_each_entry(tmp, &crtc_priv->queue, event_queue) {
             Bool wait = present_execute_wait(tmp, crtc_msc);
             if (wait)
@@ -1139,13 +1133,20 @@ present_screen_wakeup(void *data, int result)
     xorg_list_for_each_entry(crtc_priv, &screen_priv->crtcs, list) {
         present_vblank_ptr candidate = NULL;
         present_vblank_ptr tmp;
+        Bool use_event = crtc_priv->has_notify;
 
         if (xorg_list_is_empty(&crtc_priv->queue))
             continue;
 
-        ret = present_get_ust_msc_cached(screen, crtc_priv->crtc, crtc_priv, &ust, &crtc_msc);
-        if (ret != Success)
-            continue;
+        if (use_event) {
+            ust = crtc_priv->last_event_ust;
+            crtc_msc = crtc_priv->last_event_msc;
+            ret = Success;
+        } else {
+            ret = present_get_ust_msc(screen, crtc_priv->crtc, &ust, &crtc_msc);
+            if (ret != Success)
+                continue;
+        }
 
         xorg_list_for_each_entry(tmp, &crtc_priv->queue, event_queue) {
             if (present_execute_wait(tmp, crtc_msc))
@@ -1157,6 +1158,23 @@ present_screen_wakeup(void *data, int result)
                 continue;
             candidate = tmp;
             break;
+        }
+
+        if (!candidate && use_event) {
+            ret = present_get_ust_msc(screen, crtc_priv->crtc, &ust, &crtc_msc);
+            if (ret != Success)
+                continue;
+            xorg_list_for_each_entry(tmp, &crtc_priv->queue, event_queue) {
+                if (present_execute_wait(tmp, crtc_msc))
+                    continue;
+                if (tmp->mode == PresentCompleteModeFlip &&
+                    (crtc_priv->flip_pending || crtc_priv->unflip_event_id))
+                    continue;
+                if (msc_is_after(tmp->exec_msc, crtc_msc))
+                    continue;
+                candidate = tmp;
+                break;
+            }
         }
 
         if (!candidate)

@@ -179,10 +179,9 @@ struct present_crtc_priv {
     present_vblank_ptr          flip_pending;
     present_vblank_ptr          flip_active;
     uint64_t                    unflip_event_id;
-    uint64_t                    cached_ust;
-    uint64_t                    cached_msc;
-    uint32_t                    cached_generation;
-    Bool                        cached_valid;
+    uint64_t                    last_event_ust;
+    uint64_t                    last_event_msc;
+    Bool                        has_notify;
 };
 
 /* present state for each CRTC. */
@@ -198,7 +197,6 @@ struct present_screen_priv {
     uint32_t                    fake_interval;
 
     Bool                        work_pending;
-    uint32_t                    present_generation;
 
     present_screen_info_ptr     info;
 
