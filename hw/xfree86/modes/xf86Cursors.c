@@ -129,6 +129,55 @@ xf86_crtc_rotate_coord_back(Rotation rotation,
     *y_src = y_dst;
 }
 
+void
+xf86_crtc_transform_box(Rotation rotation, int width, int height,
+                        int box_width, int box_height,
+                        int *x, int *y, int *w, int *h)
+{
+    int xs[4];
+    int ys[4];
+    int min_x;
+    int max_x;
+    int min_y;
+    int max_y;
+    int i;
+
+    xf86_crtc_rotate_coord_back(rotation, width, height, 0, 0, &xs[0], &ys[0]);
+    xf86_crtc_rotate_coord_back(rotation, width, height, box_width - 1, 0, &xs[1], &ys[1]);
+    xf86_crtc_rotate_coord_back(rotation, width, height, 0, box_height - 1, &xs[2], &ys[2]);
+    xf86_crtc_rotate_coord_back(rotation, width, height, box_width - 1, box_height - 1, &xs[3], &ys[3]);
+
+    min_x = xs[0];
+    max_x = xs[0];
+    min_y = ys[0];
+    max_y = ys[0];
+
+    for (i = 1; i < 4; i++) {
+        if (xs[i] < min_x)
+            min_x = xs[i];
+        if (xs[i] > max_x)
+            max_x = xs[i];
+        if (ys[i] < min_y)
+            min_y = ys[i];
+        if (ys[i] > max_y)
+            max_y = ys[i];
+    }
+
+    if (min_x < 0)
+        min_x = 0;
+    if (min_y < 0)
+        min_y = 0;
+    if (max_x >= width)
+        max_x = width - 1;
+    if (max_y >= height)
+        max_y = height - 1;
+
+    *x = min_x;
+    *y = min_y;
+    *w = max_x - min_x + 1;
+    *h = max_y - min_y + 1;
+}
+
 struct cursor_bit {
     CARD8 *byte;
     char bitpos;

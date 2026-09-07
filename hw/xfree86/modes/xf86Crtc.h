@@ -1140,6 +1140,11 @@ extern _X_EXPORT void
 extern _X_EXPORT void
  xf86_crtc_notify(ScreenPtr pScreen);
 
+extern _X_EXPORT void
+ xf86_crtc_transform_box(Rotation rotation, int width, int height,
+                         int box_width, int box_height,
+                         int *x, int *y, int *w, int *h);
+
 /**
  * Gamma
  */
