@@ -223,6 +223,8 @@ ftrace_enable(Bool enable)
 Bool
 ftrace_enable(Bool enable)
 {
+    if (enable)
+        LogMessage(X_ERROR, "ftrace not enabled, build is missing ftrace support.");
     return FALSE;
 }
 #endif // __linux__

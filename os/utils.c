@@ -561,9 +561,7 @@ UseMsg(void)
     ErrorF("-fakescreenfps #       fake screen default fps (1-600)\n");
 #endif
     ErrorF("-fp string             default font path\n");
-#if FTRACE
     ErrorF("-ftrace                turns on Ftrace marking\n");
-#endif
     ErrorF("+fontserverconnections Allow font server connections in the font path\n");
     ErrorF("-fontserverconnections Prohibit font server connections in the font path (default)\n");
     ErrorF("-help                  prints message with these options\n");
@@ -836,11 +834,9 @@ ProcessCommandLine(int argc, char *argv[])
             else
                 UseMsg();
         }
-#if FTRACE
         else if (strcmp(argv[i], "-ftrace") == 0) {
             ftrace_enable(TRUE);
         }
-#endif
         else if (strcmp(argv[i], "-help") == 0) {
             UseMsg();
             exit(0);
