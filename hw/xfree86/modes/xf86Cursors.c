@@ -94,7 +94,7 @@ xf86_crtc_rotate_coord(Rotation rotation,
 /*
  * Given a cursor source  coordinate, rotate to a screen coordinate
  */
-static void
+static inline void
 xf86_crtc_rotate_coord_back(Rotation rotation,
                             int width,
                             int height,
