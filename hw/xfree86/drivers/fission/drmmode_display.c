@@ -2065,7 +2065,9 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_cursor_rec drmmode_cursor = drmmode_crtc->cursor;
     int width, height, x, y, i;
+    int glyph_x, glyph_y, glyph_width, glyph_height;
     int max_width, max_height;
+    const Rotation rotation = crtc->rotation;
     uint32_t *ptr;
 
     /* cursor should be mapped already */
@@ -2075,40 +2077,48 @@ drmmode_load_cursor_argb_check(xf86CrtcPtr crtc, CARD32 *image)
     max_width  = get_maximum_cursor_size(drmmode_cursor, FALSE);
     max_height = get_maximum_cursor_size(drmmode_cursor, TRUE);
 
+    /* Find where the cursor glyph is located in the rotated buffer */
+    xf86_crtc_transform_box(rotation, max_width, max_height,
+                            cursor->bits->width, cursor->bits->height,
+                            &glyph_x, &glyph_y, &glyph_width, &glyph_height);
+
     /* Find the most compatiable size. */
     for (i = 0; i < drmmode_cursor.num_dimensions; i++) {
         drmmode_cursor_dim_rec dimensions = drmmode_cursor.dimensions[i];
 
-        if (dimensions.width >= cursor->bits->width)
+        if (dimensions.width >= glyph_width)
             break;
-        
-        if (dimensions.height >= cursor->bits->height)
+
+        if (dimensions.height >= glyph_height)
             break;
     }
-
-    /* Get the resolution of the cursor. */
-    width  = drmmode_cursor.dimensions[i].width;
-    height = drmmode_cursor.dimensions[i].height;
 
     /* If we cannot get a cursor dimension then fallback to SWcursor. */
     if (i >= drmmode_cursor.num_dimensions)
         return FALSE;
 
+    /* Get the resolution of the cursor. */
+    width  = drmmode_cursor.dimensions[i].width;
+    height = drmmode_cursor.dimensions[i].height;
+
     /* Copy the cursor image over. */
     i = 0;
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
-            ptr[i++] = cpu_to_le32(image[y * max_width + x]);
+            if (x < glyph_width && y < glyph_height)
+                ptr[i++] =
+                    cpu_to_le32(image[(glyph_y + y) * max_width + (glyph_x + x)]);
+            else
+                ptr[i++] = 0;
         }
     }
 
     /* Clear the remainder for good measure. */
-    while (i < max_width * max_height)
-        ptr[i++] = 0;
+    for (; i < max_width * max_height; i++)
+        ptr[i] = 0;
 
     if (drmmode_crtc->cursor.up)
-        return drmmode_set_cursor(crtc, width, height,
-                                  cursor->bits->xhot, cursor->bits->yhot);
+        return drmmode_set_cursor(crtc, width, height, glyph_x, glyph_y);
     else
         return TRUE;
 }
