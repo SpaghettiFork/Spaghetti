@@ -493,7 +493,6 @@ ms_vblank_screen_init(ScreenPtr screen)
     xorg_list_init(&ms_drm_queue);
 
     ms->event_context.version = 4;
-    ms->event_context.vblank_handler = ms_drm_handler;
     ms->event_context.page_flip_handler = ms_drm_handler;
     ms->event_context.sequence_handler = ms_drm_sequence_handler_64bit;
 
