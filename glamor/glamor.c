@@ -747,16 +747,16 @@ glamor_init(ScreenPtr screen, unsigned int flags)
     glamor_priv->has_nv_texture_barrier =
         epoxy_has_gl_extension("GL_NV_texture_barrier");
     glamor_priv->has_framebuffer_blit =
-        epoxy_gl_version() >= 30 ||
+        gl_version >= 30 ||
         epoxy_has_gl_extension("GL_EXT_framebuffer_blit") ||
         epoxy_has_gl_extension("GL_NV_framebuffer_blit");
     glamor_priv->has_unpack_subimage =
         !glamor_priv->is_gles ||
-        epoxy_gl_version() >= 30 ||
+        gl_version >= 30 ||
         epoxy_has_gl_extension("GL_EXT_unpack_subimage");
     glamor_priv->has_pack_subimage =
         !glamor_priv->is_gles ||
-        epoxy_gl_version() >= 30 ||
+        gl_version >= 30 ||
         epoxy_has_gl_extension("GL_NV_pack_subimage");
     glamor_priv->has_dual_blend =
         (epoxy_has_gl_extension("GL_ARB_blend_func_extended") &&
@@ -764,13 +764,13 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         epoxy_has_gl_extension("GL_ARB_ES2_compatibility"))) ||
         epoxy_has_gl_extension("GL_EXT_blend_func_extended");
     glamor_priv->has_clear_texture =
-        epoxy_gl_version() >= 44 ||
+        gl_version >= 44 ||
         epoxy_has_gl_extension("GL_ARB_clear_texture") ||
         epoxy_has_gl_extension("GL_EXT_clear_texture");
 
     /* GL_EXT_texture_rg is part of GLES3 core */
     Bool has_rg =
-        (glamor_priv->is_gles && epoxy_gl_version() >= 30) ||
+        (glamor_priv->is_gles && gl_version >= 30) ||
         epoxy_has_gl_extension("GL_EXT_texture_rg") ||
         epoxy_has_gl_extension("GL_ARB_texture_rg");
 
