@@ -296,18 +296,17 @@ ms_drm_set_seq_queued(uint32_t seq, uint64_t msc)
     }
 }
 
-static Bool
-ms_queue_coalesce(xf86CrtcPtr crtc, uint32_t seq, uint64_t msc)
+static inline Bool
+ms_queue_coalesce(drmmode_crtc_private_ptr drmmode_crtc, uint32_t seq, uint64_t msc)
 {
-    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-
     /* If the next MSC is too late, then this event can't be coalesced */
-    if (msc < drmmode_crtc->next_msc)
+    if (msc < drmmode_crtc->next_msc) {
         return FALSE;
-
-    /* Set the target MSC on this sequence number */
-    ms_drm_set_seq_msc(seq, msc);
-    return TRUE;
+    } else {
+        /* Set the target MSC on this sequence number */
+        ms_drm_set_seq_msc(seq, msc);
+        return TRUE;
+    }
 }
 
 Bool
@@ -322,7 +321,7 @@ ms_queue_vblank(xf86CrtcPtr crtc, ms_queue_flag flags,
     int ret;
 
     /* Try coalescing this event into another to avoid event queue exhaustion */
-    if (flags == MS_QUEUE_ABSOLUTE && ms_queue_coalesce(crtc, seq, msc))
+    if (flags == MS_QUEUE_ABSOLUTE && ms_queue_coalesce(drmmode_crtc, seq, msc))
         return TRUE;
 
     for (;;) {
