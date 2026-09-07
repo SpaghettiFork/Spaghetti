@@ -737,7 +737,7 @@ compPaintWindowToParent(WindowPtr pWin)
     if (pWin->redirectDraw != RedirectDrawNone) {
         CompWindowPtr cw = GetCompWindow(pWin);
 
-        if (cw->damaged && cw->update == CompositeRedirectAutomatic) {
+        if (cw->damaged) {
             compWindowUpdateAutomatic(pWin);
             cw->damaged = FALSE;
         }
