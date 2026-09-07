@@ -22,6 +22,7 @@ extern _X_EXPORT Bool screenSaverSuspended;
 
 extern _X_EXPORT const char *defaultFontPath;
 extern _X_EXPORT int monitorResolution;
+extern _X_EXPORT Bool autosetDPI;
 extern _X_EXPORT int defaultColorVisualClass;
 
 extern _X_EXPORT int GrabInProgress;

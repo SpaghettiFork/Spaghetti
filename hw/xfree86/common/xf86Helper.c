@@ -56,6 +56,7 @@
 #include "xf86DDC.h"
 #include "xf86Xinput.h"
 #include "xf86InPriv.h"
+#include "xf86Crtc.h"
 #include "mivalidate.h"
 
 /* For xf86GetClocks */
@@ -852,6 +853,7 @@ void
 xf86SetDpi(ScrnInfoPtr pScrn, int x, int y)
 {
     MessageType from = X_DEFAULT;
+    xf86OutputPtr compat = xf86CompatOutput(pScrn);
     xf86MonPtr DDC = (xf86MonPtr) (pScrn->monitor->DDC);
     int ddcWidthmm, ddcHeightmm;
     int widthErr, heightErr;
@@ -866,6 +868,10 @@ xf86SetDpi(ScrnInfoPtr pScrn, int x, int y)
          */
         ddcWidthmm = DDC->features.hsize * 10;  /* 10mm in 1cm */
         ddcHeightmm = DDC->features.vsize * 10; /* 10mm in 1cm */
+    }
+    else if (autosetDPI && compat && compat->mm_width > 0 && compat->mm_height > 0) {
+        ddcWidthmm = compat->mm_width;
+        ddcHeightmm = compat->mm_height;
     }
     else {
         ddcWidthmm = ddcHeightmm = 0;

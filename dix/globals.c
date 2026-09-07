@@ -113,6 +113,7 @@ TimeStamp currentTime;
 
 int defaultColorVisualClass = -1;
 int monitorResolution = 0;
+Bool autosetDPI = FALSE;
 
 const char *display;
 int displayfd = -1;
