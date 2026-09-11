@@ -230,6 +230,7 @@ if build_xorg
         'xi2/protocol-xiwarppointer.c',
         'xi2/protocol-eventconvert.c',
         'xi2/xi2.c',
+        'xkb/protocol-xkbgetkbdbyname.c',
        ]
        unit_c_args += ['-DLDWRAP_TESTS']
        unit_includes += [include_directories('xi1', 'xi2')]
@@ -241,6 +242,7 @@ if build_xorg
         '-Wl,-wrap,XISetEventMask',
         '-Wl,-wrap,AddResource',
         '-Wl,-wrap,GrabButton',
+        '-Wl,-wrap,SrvXkbAllocClientMap',
        ]
     else
        ldwraps = []
