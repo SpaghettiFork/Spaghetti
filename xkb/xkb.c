@@ -6139,9 +6139,9 @@ ProcXkbGetKbdByName(ClientPtr client)
     if (new == NULL)
         rep.reported = 0;
     else {
-        if (stuff->load)
+        if (stuff->load && ((rep.found & fneed) == fneed))
             rep.loaded = TRUE;
-        if (stuff->load ||
+        if (rep.loaded ||
             ((rep.reported & XkbGBN_SymbolsMask) && (new->compat))) {
             XkbChangesRec changes;
 
