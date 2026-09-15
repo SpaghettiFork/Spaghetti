@@ -113,6 +113,9 @@ static const ExtensionModule staticExtensions[] = {
 #ifdef XCSECURITY
     {SecurityExtensionInit, "SECURITY", &noSecurityExtension},
 #endif
+#ifdef SPAGHETTI_NS
+    {xNSExtensionInit, "SPAGHETTI-NS", NULL},
+#endif
 #ifdef PANORAMIX
     {PanoramiXExtensionInit, "XINERAMA", &noPanoramiXExtension},
 #endif
