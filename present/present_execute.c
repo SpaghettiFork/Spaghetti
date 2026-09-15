@@ -28,32 +28,27 @@
 #endif /* DRI3 */
 
 /*
- * Called when the wait fence is triggered; just gets the current msc/ust and
- * calls the proper execute again. That will re-check the fence and pend the
- * request again if it's still not actually ready
+ * Called when the wait fence is triggered; wake the server so the
+ * BlockHandler can re-evaluate the pending present.
  */
 static void
 present_wait_fence_triggered(void *param)
 {
-    present_vblank_ptr      vblank = param;
-    ScreenPtr               screen = vblank->screen;
-    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
+    present_vblank_ptr vblank = param;
 
-    screen_priv->re_execute(vblank);
+    present_vblank_queue_work(vblank);
 }
 
 #ifdef DRI3
 static void present_syncobj_triggered(int fd, int xevents, void *data)
 {
     present_vblank_ptr vblank = data;
-    ScreenPtr screen = vblank->screen;
-    present_screen_priv_ptr screen_priv = present_screen_priv(screen);
 
     SetNotifyFd(fd, NULL, 0, NULL);
     close(fd);
     vblank->efd = -1;
 
-    screen_priv->re_execute(vblank);
+    present_vblank_queue_work(vblank);
 }
 #endif /* DRI3 */
 
