@@ -373,6 +373,67 @@ shm_access(ClientPtr client, SHMPERM_TYPE * perm, int readonly)
     return (SHMPERM_MODE(perm) & mask) == mask ? 0 : -1;
 }
 
+PixmapPtr
+shm_create_pixmap_from_fd(ScreenPtr pScreen, int fd, CARD16 width, CARD16 height,
+                          CARD8 depth, CARD8 bpp, CARD16 stride, CARD32 offset)
+{
+#ifdef SHM_FD_PASSING
+    struct stat st;
+    void *addr;
+    ShmDescPtr shmdesc;
+    PixmapPtr pMap;
+    ShmScrPrivateRec *priv;
+    size_t size;
+    unsigned long pixSize;
+
+    if (fstat(fd, &st) < 0 || st.st_size == 0)
+        return NULL;
+
+    size = st.st_size;
+    if (offset + (unsigned long)stride * height > size)
+        return NULL;
+
+    addr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (addr == MAP_FAILED)
+        return NULL;
+
+    pixSize = (unsigned long)stride * height;
+    if (offset + pixSize < pixSize) {
+        munmap(addr, size);
+        return NULL;
+    }
+
+    shmdesc = calloc(1, sizeof(ShmDescRec));
+    if (!shmdesc) { 
+        munmap(addr, size);
+        return NULL;
+    }
+
+    shmdesc->addr = addr;
+    shmdesc->size = size;
+    shmdesc->is_fd = TRUE;
+    shmdesc->refcnt = 0;
+    shmdesc->busfault = busfault_register(addr, size, ShmBusfaultNotify, shmdesc);
+
+    priv = ShmGetScreenPriv(pScreen);
+    pMap = (*priv->shmFuncs->CreatePixmap)(pScreen, width, height, depth,
+                                          (char *)addr + offset);
+    if (!pMap) {
+        if (shmdesc->busfault)
+            busfault_unregister(shmdesc->busfault);
+        munmap(addr, size);
+        free(shmdesc);
+        return NULL;
+    }
+
+    dixSetPrivate(&pMap->devPrivates, shmPixmapPrivateKey, shmdesc);
+    shmdesc->refcnt++;
+    return pMap;
+#else
+    return NULL;
+#endif
+}
+
 static int
 ProcShmAttach(ClientPtr client)
 {

@@ -51,6 +51,11 @@ extern int XFixesErrorBase;
 extern RegionPtr
  XFixesRegionCopy(RegionPtr pRegion);
 
+extern _X_EXPORT int
+ XFixesCreatePointerBarrier(ClientPtr client, WindowPtr window, XID barrier,
+							INT16 x1, INT16 y1, INT16 x2, INT16 y2,
+							CARD32 directions, int num_devices, CARD16 *devices);
+
 #include "xibarriers.h"
 
 #endif                          /* _XFIXES_H_ */

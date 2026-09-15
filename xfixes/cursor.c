@@ -990,6 +990,37 @@ CursorFreeWindow(void *data, XID id)
 }
 
 int
+XFixesCreatePointerBarrier(ClientPtr client, WindowPtr window, XID barrier,
+                           INT16 x1, INT16 y1, INT16 x2, INT16 y2,
+                           CARD32 directions, int num_devices, CARD16 *devices)
+{
+    int size = pad_to_int32(sizeof(xXFixesCreatePointerBarrierReq) + num_devices * sizeof(CARD16));
+    xXFixesCreatePointerBarrierReq *req = malloc(size);
+
+    if (!req)
+        return BadAlloc;
+
+    req->reqType = 0; /* This isn't checked. */
+    req->xfixesReqType = X_XFixesCreatePointerBarrier;
+    req->length = bytes_to_int32(size);
+    req->barrier = barrier;
+    req->window = window->drawable.id;
+    req->x1 = x1;
+    req->y1 = y1;
+    req->x2 = x2;
+    req->y2 = y2;
+    req->directions = directions;
+    req->num_devices = num_devices;
+
+    if (num_devices && devices)
+        memcpy((char *)(req+1), devices, num_devices * sizeof(CARD16));
+
+    int rc = XICreatePointerBarrier(client, req);
+    free(req);
+    return rc;
+}
+
+int
 ProcXFixesCreatePointerBarrier(ClientPtr client)
 {
     REQUEST(xXFixesCreatePointerBarrierReq);

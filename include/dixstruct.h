@@ -87,7 +87,7 @@ typedef struct _Client {
     unsigned int clientGone:1;
     unsigned int closeDownMode:2;
     unsigned int clientState:2;
-    _X_UNUSED char unused;
+    char external;                /* this client uses a non-X11 protocol */
     short noClientException;      /* this client died or needs to be killed */
     int ignoreCount;              /* count for Attend/IgnoreClient */
     ReplySwapPtr pSwapReplyFunc;

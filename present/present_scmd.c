@@ -771,11 +771,6 @@ present_scmd_pixmap(WindowPtr window,
     present_window_priv_ptr     window_priv = present_get_window_priv(window, TRUE);
     present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
 
-#ifdef DRI3
-    if (acquire_syncobj || release_syncobj)
-        return BadValue;
-#endif /* DRI3 */
-
     if (!window_priv)
         return BadAlloc;
 

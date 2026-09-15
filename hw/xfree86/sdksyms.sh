@@ -207,6 +207,9 @@ cat > sdksyms.c << EOF
 #include "randrstr.h"
 #include "rrtransform.h"
 
+/* present/Makefile.am */
+#include "present.h"
+#include "presentext.h"
 
 /* exa/Makefile.am -- module */
 /*

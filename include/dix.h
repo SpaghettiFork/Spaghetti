@@ -69,6 +69,8 @@ SOFTWARE.
 #define XORG_EXCHANGE(a, b) \
     { typeof(a) __tmp; __tmp = a; a = b; b = __tmp; }
 
+#define CLIENT_IS_EXTERNAL(client) (((ClientPtr)client)->external)
+
 #define REQUEST_SIZE_MATCH(req)                                         \
     do {                                                                \
         if ((sizeof(req) >> 2) != client->req_len)                      \
@@ -502,7 +504,7 @@ SetInputFocus(ClientPtr /* client */ ,
               Time /* ctime */ ,
               Bool /* followOK */ );
 
-extern int
+extern _X_EXPORT int
 GrabDevice(ClientPtr /* client */ ,
            DeviceIntPtr /* dev */ ,
            unsigned /* this_mode */ ,

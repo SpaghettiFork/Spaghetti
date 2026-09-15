@@ -1572,7 +1572,10 @@ ChangeAccessControl(ClientPtr client, int fEnabled)
 int
 GetClientFd(ClientPtr client)
 {
-    return ((OsCommPtr) client->osPrivate)->fd;
+    if (_X_LIKELY(!client->external))
+        return ((OsCommPtr) client->osPrivate)->fd;
+    else
+        return -1;
 }
 
 Bool

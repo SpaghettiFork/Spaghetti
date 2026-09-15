@@ -136,12 +136,6 @@ extern void SyncDestroySystemCounter(void *pCounter);
 extern SyncCounter *SyncInitDeviceIdleTime(DeviceIntPtr dev);
 extern void SyncRemoveDeviceIdleTime(SyncCounter *counter);
 
-int
-SyncCreateFenceFromFD(ClientPtr client, DrawablePtr pDraw, XID id, int fd, BOOL initially_triggered);
-
-int
-SyncFDFromFence(ClientPtr client, DrawablePtr pDraw, SyncFence *fence);
-
 void
 SyncDeleteTriggerFromSyncObject(SyncTrigger * pTrigger);
 
