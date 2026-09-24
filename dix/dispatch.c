@@ -3478,11 +3478,9 @@ CloseDownClient(ClientPtr client)
             FreeClientNeverRetainResources(client);
             client->clientState = ClientStateRetained;
             if (ClientStateCallback) {
-                NewClientInfoRec clientinfo;
-
-                clientinfo.client = client;
-                clientinfo.prefix = (xConnSetupPrefix *) NULL;
-                clientinfo.setup = (xConnSetup *) NULL;
+                NewClientInfoRec clientinfo = {
+                    .client = client,
+                };
                 CallCallbacks((&ClientStateCallback), (void *) &clientinfo);
             }
         }
@@ -3510,11 +3508,9 @@ CloseDownClient(ClientPtr client)
 
         client->clientState = ClientStateGone;
         if (ClientStateCallback) {
-            NewClientInfoRec clientinfo;
-
-            clientinfo.client = client;
-            clientinfo.prefix = (xConnSetupPrefix *) NULL;
-            clientinfo.setup = (xConnSetup *) NULL;
+            NewClientInfoRec clientinfo = {
+                .client = client,
+            };
             CallCallbacks((&ClientStateCallback), (void *) &clientinfo);
         }
         TouchListenerGone(client->clientAsMask);
@@ -3629,11 +3625,9 @@ NextAvailableClient(void *ospriv)
     ReserveClientIds(client);
 
     if (ClientStateCallback) {
-        NewClientInfoRec clientinfo;
-
-        clientinfo.client = client;
-        clientinfo.prefix = (xConnSetupPrefix *) NULL;
-        clientinfo.setup = (xConnSetup *) NULL;
+        NewClientInfoRec clientinfo = {
+            .client = client,
+        };
         CallCallbacks((&ClientStateCallback), (void *) &clientinfo);
     }
     return client;
@@ -3749,11 +3743,11 @@ SendConnSetup(ClientPtr client, const char *reason)
     }
     client->clientState = ClientStateRunning;
     if (ClientStateCallback) {
-        NewClientInfoRec clientinfo;
-
-        clientinfo.client = client;
-        clientinfo.prefix = lconnSetupPrefix;
-        clientinfo.setup = (xConnSetup *) lConnectionInfo;
+        NewClientInfoRec clientinfo = {
+            .client = client,
+            .prefix = lconnSetupPrefix,
+            .setup = (xConnSetup *) lConnectionInfo,
+        };
         CallCallbacks((&ClientStateCallback), (void *) &clientinfo);
     }
     CancelDispatchExceptionTimer();
