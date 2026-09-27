@@ -189,10 +189,11 @@ glamor_put_image_xybitmap_gl(DrawablePtr drawable, GCPtr gc, int x, int y,
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glamor_priv->suppress_gl_out_of_memory_logging = true;
+    glGetError(); /* clear any prior errors before the allocation we're about to check */
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, byte_stride, h,
                                 0, GL_RED, GL_UNSIGNED_BYTE, bits);
     glamor_priv->suppress_gl_out_of_memory_logging = false;
-    if (glGetError() == GL_OUT_OF_MEMORY)
+    if (_X_UNLIKELY(glGetError() != GL_NO_ERROR))
         goto bail_tex;
 
     /* Set bitmap_size uniform for the fragment shader */

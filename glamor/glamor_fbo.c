@@ -121,6 +121,7 @@ _glamor_create_tex(glamor_screen_private *glamor_priv,
 {
     const struct glamor_format *f = glamor_format_for_pixmap(pixmap);
     unsigned int tex;
+    GLenum error;
 
     glamor_make_current(glamor_priv);
     glGenTextures(1, &tex);
@@ -135,8 +136,10 @@ _glamor_create_tex(glamor_screen_private *glamor_priv,
                  f->format, f->type, NULL);
     glamor_priv->suppress_gl_out_of_memory_logging = false;
 
-    if (glGetError() == GL_OUT_OF_MEMORY) {
-        if (!glamor_priv->logged_any_fbo_allocation_failure) {
+    error = glGetError();
+    if (error != GL_NO_ERROR) {
+        if (error == GL_OUT_OF_MEMORY &&
+            !glamor_priv->logged_any_fbo_allocation_failure) {
             LogMessageVerb(X_WARNING, 0, "glamor: Failed to allocate %dx%d "
                            "FBO due to GL_OUT_OF_MEMORY.\n", w, h);
             LogMessageVerb(X_WARNING, 0,

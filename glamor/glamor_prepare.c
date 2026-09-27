@@ -54,6 +54,7 @@ glamor_prep_drawable_box(DrawablePtr drawable, glamor_access_t access, BoxPtr bo
     int                         gl_access, gl_usage;
     RegionRec                   region;
     int                         off_x, off_y;
+    GLenum                      error;
 
     if (priv->type == GLAMOR_DRM_ONLY)
         return FALSE;
@@ -110,6 +111,7 @@ glamor_prep_drawable_box(DrawablePtr drawable, glamor_access_t access, BoxPtr bo
             gl_usage = GL_STREAM_READ;
 
             glamor_priv->suppress_gl_out_of_memory_logging = true;
+            glGetError(); /* clear any prior errors before the allocation we're about to check */
 
             glBindBuffer(GL_PIXEL_PACK_BUFFER, priv->pbo);
             glBufferData(GL_PIXEL_PACK_BUFFER,
@@ -118,8 +120,10 @@ glamor_prep_drawable_box(DrawablePtr drawable, glamor_access_t access, BoxPtr bo
 
             glamor_priv->suppress_gl_out_of_memory_logging = false;
 
-            if (glGetError() == GL_OUT_OF_MEMORY) {
-                if (!glamor_priv->logged_any_pbo_allocation_failure) {
+            error = glGetError();
+            if (error != GL_NO_ERROR) {
+                if (error == GL_OUT_OF_MEMORY &&
+                    !glamor_priv->logged_any_pbo_allocation_failure) {
                     LogMessageVerb(X_WARNING, 0, "glamor: Failed to allocate %d "
                                    "bytes PBO due to GL_OUT_OF_MEMORY.\n",
                                    pixmap->devKind * pixmap->drawable.height);
