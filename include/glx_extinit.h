@@ -26,6 +26,8 @@
 #ifndef GLX_EXT_INIT_H
 #define GLX_EXT_INIT_H
 
+#include <X11/Xfuncproto.h>
+
 /* this is separate due to sdksyms pulling in extinit.h */
 /* XXX this comment no longer makes sense i think */
 #ifdef GLXEXT
@@ -38,8 +40,8 @@ struct __GLXprovider {
 };
 extern __GLXprovider __glXDRISWRastProvider;
 
-void GlxPushProvider(__GLXprovider * provider);
-Bool xorgGlxCreateVendor(void);
+extern _X_EXPORT void GlxPushProvider(__GLXprovider * provider);
+extern _X_EXPORT Bool xorgGlxCreateVendor(void);
 #else
 static inline Bool xorgGlxCreateVendor(void) { return TRUE; }
 #endif
