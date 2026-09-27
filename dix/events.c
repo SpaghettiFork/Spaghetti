@@ -4442,7 +4442,7 @@ FreezeThisEventIfNeededForSyncGrab(DeviceIntPtr thisDev, InternalEvent *event)
             else
                 dev->deviceGrab.sync.other = grab;
         }
-        /* fall through */
+        _X_FALLTHROUGH; /* fall through */
     case FREEZE_NEXT_EVENT:
         grabinfo->sync.state = FROZEN_WITH_EVENT;
         FreezeThaw(thisDev, TRUE);

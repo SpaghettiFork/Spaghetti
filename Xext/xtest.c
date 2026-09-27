@@ -290,19 +290,19 @@ ProcXTestFakeInput(ClientPtr client)
             switch (dv->num_valuators) {
             case 6:
                 valuators[base + 5] = dv->valuator5;
-                /* fallthrough */
+                _X_FALLTHROUGH; /* fallthrough */
             case 5:
                 valuators[base + 4] = dv->valuator4;
-                /* fallthrough */
+                _X_FALLTHROUGH; /* fallthrough */
             case 4:
                 valuators[base + 3] = dv->valuator3;
-                /* fallthrough */
+                _X_FALLTHROUGH; /* fallthrough */
             case 3:
                 valuators[base + 2] = dv->valuator2;
-                /* fallthrough */
+                _X_FALLTHROUGH; /* fallthrough */
             case 2:
                 valuators[base + 1] = dv->valuator1;
-                /* fallthrough */
+                _X_FALLTHROUGH; /* fallthrough */
             case 1:
                 valuators[base] = dv->valuator0;
                 break;

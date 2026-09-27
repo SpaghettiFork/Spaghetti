@@ -1136,7 +1136,7 @@ FakeAllocColor(ColormapPtr pmap, xColorItem * item)
             item->pixel = temp;
             break;
         }
-        /* fall through ... */
+        _X_FALLTHROUGH; /* fall through ... */
     case StaticColor:
     case StaticGray:
         item->pixel = FindBestPixel(pmap->red, entries, &rgb, PSEUDOMAP);

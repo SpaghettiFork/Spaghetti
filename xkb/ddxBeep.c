@@ -142,7 +142,7 @@ _XkbDDXBeepExpire(OsTimerPtr timer, CARD32 now, void *arg)
     switch (xkbInfo->beepType) {
     default:
         ErrorF("[xkb] Unknown beep type %d\n", xkbInfo->beepType);
-        /* fallthrough */
+        _X_FALLTHROUGH; /* fallthrough */
     case _BEEP_NONE:
         duration = 0;
         break;
@@ -211,7 +211,7 @@ _XkbDDXBeepExpire(OsTimerPtr timer, CARD32 now, void *arg)
     case _BEEP_LED_CHANGE:
         if (name == None)
             name = ledChange;
-        /* fallthrough */
+        _X_FALLTHROUGH; /* fallthrough */
     case _BEEP_FEATURE_CHANGE:
         if (name == None)
             name = featureChange;
@@ -242,11 +242,11 @@ _XkbDDXBeepExpire(OsTimerPtr timer, CARD32 now, void *arg)
     case _BEEP_SLOW_PRESS:
         if (name == None)
             name = slowPress;
-        /* fallthrough */
+        _X_FALLTHROUGH; /* fallthrough */
     case _BEEP_SLOW_ACCEPT:
         if (name == None)
             name = slowAccept;
-        /* fallthrough */
+        _X_FALLTHROUGH; /* fallthrough */
     case _BEEP_SLOW_RELEASE:
         if (name == None)
             name = slowRelease;
@@ -256,7 +256,7 @@ _XkbDDXBeepExpire(OsTimerPtr timer, CARD32 now, void *arg)
     case _BEEP_BOUNCE_REJECT:
         if (name == None)
             name = bounceReject;
-        /* fallthrough */
+        _X_FALLTHROUGH; /* fallthrough */
     case _BEEP_SLOW_REJECT:
         if (name == None)
             name = slowReject;

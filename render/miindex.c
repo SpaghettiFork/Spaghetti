@@ -126,7 +126,7 @@ miBuildRenderColormap(ColormapPtr pColormap, Pixel * pixels, int *nump)
 
     case PictureCmapPolicyColor:
         cube = NUM_CUBE_LEVELS;
-        /* fall through ... */
+        _X_FALLTHROUGH; /* fall through ... */
     case PictureCmapPolicyGray:
         gray = NUM_GRAY_LEVELS;
         break;

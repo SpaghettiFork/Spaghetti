@@ -519,7 +519,7 @@ miInitVisuals(VisualPtr * visualp, DepthPtr * depthp, int *nvisualp,
             case DirectColor:
             case TrueColor:
                 visual->ColormapEntries = _CE(d);
-                /* fall through */
+                _X_FALLTHROUGH; /* fall through */
             case StaticColor:
                 visual->redMask = visuals->redMask;
                 visual->greenMask = visuals->greenMask;

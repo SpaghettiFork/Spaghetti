@@ -217,7 +217,7 @@ xf86parseInputClassSection(void)
             break;
         case NOMATCH_PRODUCT:
             matchtype = MATCH_NEGATED;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case MATCH_PRODUCT:
             if (xf86getSubToken(&(ptr->comment)) != STRING)
                 Error(QUOTE_MSG, "MatchProduct");
@@ -228,7 +228,7 @@ xf86parseInputClassSection(void)
             break;
         case NOMATCH_VENDOR:
             matchtype = MATCH_NEGATED;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case MATCH_VENDOR:
             if (xf86getSubToken(&(ptr->comment)) != STRING)
                 Error(QUOTE_MSG, "MatchVendor");
@@ -239,7 +239,7 @@ xf86parseInputClassSection(void)
             break;
         case NOMATCH_DEVICE_PATH:
             matchtype = MATCH_NEGATED;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case MATCH_DEVICE_PATH:
             if (xf86getSubToken(&(ptr->comment)) != STRING)
                 Error(QUOTE_MSG, "MatchDevicePath");
@@ -250,7 +250,7 @@ xf86parseInputClassSection(void)
             break;
         case NOMATCH_OS:
             matchtype = MATCH_NEGATED;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case MATCH_OS:
             if (xf86getSubToken(&(ptr->comment)) != STRING)
                 Error(QUOTE_MSG, "MatchOS");
@@ -261,7 +261,7 @@ xf86parseInputClassSection(void)
             break;
         case NOMATCH_PNPID:
             matchtype = MATCH_NEGATED;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case MATCH_PNPID:
             if (xf86getSubToken(&(ptr->comment)) != STRING)
                 Error(QUOTE_MSG, "MatchPnPID");
@@ -272,7 +272,7 @@ xf86parseInputClassSection(void)
             break;
         case NOMATCH_USBID:
             matchtype = MATCH_NEGATED;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case MATCH_USBID:
             if (xf86getSubToken(&(ptr->comment)) != STRING)
                 Error(QUOTE_MSG, "MatchUSBID");
@@ -283,7 +283,7 @@ xf86parseInputClassSection(void)
             break;
         case NOMATCH_DRIVER:
             matchtype = MATCH_NEGATED;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case MATCH_DRIVER:
             if (xf86getSubToken(&(ptr->comment)) != STRING)
                 Error(QUOTE_MSG, "MatchDriver");
@@ -294,7 +294,7 @@ xf86parseInputClassSection(void)
             break;
         case NOMATCH_TAG:
             matchtype = MATCH_NEGATED;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case MATCH_TAG:
             if (xf86getSubToken(&(ptr->comment)) != STRING)
                 Error(QUOTE_MSG, "MatchTag");
@@ -305,7 +305,7 @@ xf86parseInputClassSection(void)
             break;
         case NOMATCH_LAYOUT:
             matchtype = MATCH_NEGATED;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case MATCH_LAYOUT:
             if (xf86getSubToken(&(ptr->comment)) != STRING)
                 Error(QUOTE_MSG, "MatchLayout");

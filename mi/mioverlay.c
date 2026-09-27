@@ -552,7 +552,7 @@ miOverlayComputeClips(WindowPtr pParent,
             }
             return;
         }
-        /* fall through */
+        _X_FALLTHROUGH; /* fall through */
     default:
         if (dx || dy) {
             RegionTranslate(&tParent->borderClip, dx, dy);
@@ -796,7 +796,7 @@ miOverlayValidateTree(WindowPtr pParent, WindowPtr pChild,      /* first child e
         if (!((*pPriv->InOverlay) (newParent)))
             RegionSubtract(&tParent->valdata->exposed, &totalClip,
                            &tParent->clipList);
-        /* fall through */
+        _X_FALLTHROUGH; /* fall through */
     case VTMap:
         RegionCopy(&tParent->clipList, &totalClip);
         if (!((*pPriv->InOverlay) (newParent)))

@@ -2425,7 +2425,7 @@ __glXDisp_QueryServerString(__GLXclientState * cl, GLbyte * pc)
     case GLX_VENDOR:
         ptr = GLXServerVendorName;
         break;
-    case GLX_VERSION:
+    case GLX_VERSION:   
         ptr = "1.4";
         break;
     case GLX_EXTENSIONS:
@@ -2436,7 +2436,7 @@ __glXDisp_QueryServerString(__GLXclientState * cl, GLbyte * pc)
             ptr = pGlxScreen->glvnd;
             break;
         }
-        /* else fall through */
+        _X_FALLTHROUGH; /* else fall through */
     default:
         return BadValue;
     }
