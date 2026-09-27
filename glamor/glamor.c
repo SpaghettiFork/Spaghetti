@@ -459,6 +459,8 @@ glamor_add_format(ScreenPtr screen, int depth, CARD32 render_format,
         glBindTexture(GL_TEXTURE_2D, tex);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexImage2D(GL_TEXTURE_2D, 0, internalformat, 1, 1, 0,
                      format, type, NULL);
         if (glGetError() != GL_NO_ERROR)
@@ -804,6 +806,11 @@ glamor_init(ScreenPtr screen, unsigned int flags)
         (epoxy_has_gl_extension("GL_ARB_texture_swizzle") ||
         (epoxy_has_gl_extension("GL_EXT_texture_swizzle") ||
          (glamor_priv->is_gles && gl_version >= 30)));
+
+    glamor_priv->has_texture_npot =
+        epoxy_has_gl_extension("GL_ARB_texture_non_power_of_two") ||
+        (glamor_priv->is_gles && gl_version >= 30) ||
+        epoxy_has_gl_extension("GL_OES_texture_npot");
 
     glamor_setup_formats(screen, has_rg);
 

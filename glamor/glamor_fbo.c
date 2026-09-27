@@ -104,6 +104,7 @@ glamor_create_fbo_from_tex(glamor_screen_private *glamor_priv,
     fbo->width = w;
     fbo->height = h;
     fbo->is_red = f->format == GL_RED;
+    fbo->is_npot = ((w & (w - 1)) != 0 || (h & (h - 1)) != 0);
 
     if (flag != GLAMOR_CREATE_FBO_NO_FBO) {
         if (glamor_pixmap_ensure_fb(glamor_priv, fbo) != 0) {
@@ -128,6 +129,8 @@ _glamor_create_tex(glamor_screen_private *glamor_priv,
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     if (f->format == GL_RED)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED);
     glamor_priv->suppress_gl_out_of_memory_logging = true;

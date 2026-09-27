@@ -231,6 +231,7 @@ typedef struct glamor_screen_private {
     Bool use_gpu_shader4;
     Bool can_copyplane;
     Bool enable_gradient_shader;
+    Bool has_texture_npot;
     Bool has_map_buffer_range;
     Bool has_buffer_storage;
     Bool has_khr_debug;
@@ -366,6 +367,7 @@ typedef struct glamor_pixmap_fbo {
     int width; /**< width in pixels */
     int height; /**< height in pixels */
     Bool is_red;
+    Bool is_npot;
 } glamor_pixmap_fbo;
 
 typedef struct glamor_pixmap_clipped_regions {
