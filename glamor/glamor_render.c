@@ -578,6 +578,7 @@ glamor_set_composite_texture(glamor_screen_private *glamor_priv, int unit,
     glamor_pixmap_fbo *fbo = pixmap_priv->fbo;
     float wh[4];
     int repeat_type;
+    Bool npot_fallback;
 
     glamor_make_current(glamor_priv);
 
@@ -590,23 +591,30 @@ glamor_set_composite_texture(glamor_screen_private *glamor_priv, int unit,
     glamor_bind_texture(glamor_priv, GL_TEXTURE0 + unit, fbo,
                         dest_priv->fbo->is_red);
     repeat_type = picture->repeatType;
-    switch (picture->repeatType) {
-    case RepeatNone:
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        break;
-    case RepeatNormal:
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        break;
-    case RepeatPad:
+    npot_fallback = !glamor_priv->has_texture_npot && fbo->is_npot &&
+        repeat_type != RepeatPad;
+    if (_X_UNLIKELY(npot_fallback)) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        break;
-    case RepeatReflect:
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-        break;
+    } else {
+        switch (picture->repeatType) {
+        case RepeatNone:
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+            break;
+        case RepeatNormal:
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            break;
+        case RepeatPad:
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            break;
+        case RepeatReflect:
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+            break;
+        }
     }
 
     switch (picture->filter) {
@@ -628,7 +636,8 @@ glamor_set_composite_texture(glamor_screen_private *glamor_priv, int unit,
      * alpha channel, as GL will return an alpha for 1 if the texture
      * is RGB (no alpha), which we use for 16bpp textures.
      */
-    if (glamor_pixmap_priv_is_large(pixmap_priv) ||
+    if (_X_UNLIKELY(npot_fallback) ||
+        glamor_pixmap_priv_is_large(pixmap_priv) ||
         (!PICT_FORMAT_A(picture->format) &&
          repeat_type == RepeatNone && picture->transform)) {
         glamor_pixmap_fbo_fix_wh_ratio(wh, pixmap, pixmap_priv);
