@@ -350,6 +350,7 @@ glamor_upload_picture_to_texture(PicturePtr picture)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     glamor_priv->suppress_gl_out_of_memory_logging = true;
+    glGetError(); /* clear any prior errors before the allocation we're about to check */
 
     /* We can't use glamor_pixmap_loop() because GLAMOR_MEMORY pixmaps
      * don't have initialized boxes.
@@ -367,7 +368,7 @@ glamor_upload_picture_to_texture(PicturePtr picture)
     }
 
     glamor_priv->suppress_gl_out_of_memory_logging = false;
-    if (glGetError() == GL_OUT_OF_MEMORY) {
+    if (_X_UNLIKELY(glGetError() != GL_NO_ERROR)) {
         ret = FALSE;
     }
 
