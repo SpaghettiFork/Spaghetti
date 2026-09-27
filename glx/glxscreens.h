@@ -35,6 +35,7 @@
  * Silicon Graphics, Inc.
  */
 
+#include <X11/Xfuncproto.h>
 #include "extension_string.h"
 #include "glxvndabi.h"
 
@@ -153,6 +154,6 @@ struct __GLXscreen {
     Bool (*CloseScreen) (ScreenPtr pScreen);
 };
 
-void __glXScreenInit(__GLXscreen * screen, ScreenPtr pScreen);
+extern _X_EXPORT void __glXScreenInit(__GLXscreen * screen, ScreenPtr pScreen);
 
 #endif                          /* !__GLX_screens_h__ */
