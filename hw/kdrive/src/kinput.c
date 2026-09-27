@@ -254,25 +254,25 @@ KdPointerProc(DeviceIntPtr pDevice, int onoff)
         default:
         case 7:
             btn_labels[6] = XIGetKnownProperty(BTN_LABEL_PROP_BTN_HWHEEL_RIGHT);
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case 6:
             btn_labels[5] = XIGetKnownProperty(BTN_LABEL_PROP_BTN_HWHEEL_LEFT);
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case 5:
             btn_labels[4] = XIGetKnownProperty(BTN_LABEL_PROP_BTN_WHEEL_DOWN);
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case 4:
             btn_labels[3] = XIGetKnownProperty(BTN_LABEL_PROP_BTN_WHEEL_UP);
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case 3:
             btn_labels[2] = XIGetKnownProperty(BTN_LABEL_PROP_BTN_RIGHT);
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case 2:
             btn_labels[1] = XIGetKnownProperty(BTN_LABEL_PROP_BTN_MIDDLE);
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case 1:
             btn_labels[0] = XIGetKnownProperty(BTN_LABEL_PROP_BTN_LEFT);
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case 0:
             break;
         }

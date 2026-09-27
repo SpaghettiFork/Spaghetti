@@ -244,7 +244,7 @@ RootlessComputeClips(WindowPtr pParent, ScreenPtr pScreen,
             }
             return;
         }
-        /* fall through */
+        _X_FALLTHROUGH; /* fall through */
     default:
         /*
          * To calculate exposures correctly, we have to translate the old

@@ -113,13 +113,13 @@ xf86parseFlagsSection(XF86ConfFlagsPtr ptr)
              */
         case DEFAULTLAYOUT:
             strvalue = TRUE;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case BLANKTIME:
         case STANDBYTIME:
         case SUSPENDTIME:
         case OFFTIME:
             hasvalue = TRUE;
-            /* fallthrough */
+            _X_FALLTHROUGH; /* fallthrough */
         case DONTZAP:
         case DONTZOOM:
         case DISABLEVIDMODE:
