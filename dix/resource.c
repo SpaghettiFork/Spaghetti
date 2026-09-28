@@ -154,6 +154,11 @@ static void RebuildTable(int    /*client */
 
 #define SERVER_MINID 32
 
+#define VISUAL_ID_BASE (SERVER_BIT >> 2)
+#define VISUAL_ID_MAX  (SERVER_BIT - 1)
+
+static XID nextVisualID = VISUAL_ID_BASE;
+
 #define INITBUCKETS 64
 #define INITHASHSIZE 6
 #define MAXHASHSIZE 16
@@ -798,6 +803,25 @@ FakeClientID(int client)
     }
     clientTable[client].fakeID = id + 1;
     clientTable[client].endFakeID = maxid + 1;
+    return id;
+}
+
+/*
+ * Return the next ID for the visual and GLX FBConfig namespace.
+ *
+ * Visual IDs and FBConfig IDs share one namespace that is distinct from
+ * the XID resource namespace. They are never entered in the resource
+ * database, they are only compared for equality, and they must never
+ * alias each other. A single monotonic counter keeps that property
+ * without consuming server client XIDs.
+ */
+XID
+FakeVisualID(void)
+{
+    XID id = nextVisualID++;
+
+    if (id > VISUAL_ID_MAX || id == INVALID)
+        FatalError("FakeVisualID: visual ids exhausted\n");
     return id;
 }
 
