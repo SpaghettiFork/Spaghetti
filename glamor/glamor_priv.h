@@ -95,9 +95,11 @@ typedef struct {
 
 typedef struct glamor_composite_shader {
     GLuint prog;
-    
+
     glamor_composite_shader_priv source;
     glamor_composite_shader_priv mask;
+    glamor_composite_shader_priv source_alpha;
+    glamor_composite_shader_priv mask_alpha;
 } glamor_composite_shader;
 
 enum ca_state {
@@ -133,6 +135,9 @@ struct shader_key {
     enum shader_mask mask;
     glamor_program_alpha in;
     enum shader_dest_swizzle dest_swizzle;
+    Bool src_alpha_map;
+    Bool mask_alpha_map;
+    Bool dst_alpha_map;
 };
 
 struct blendinfo {
@@ -156,7 +161,23 @@ typedef struct {
 enum glamor_vertex_type {
     GLAMOR_VERTEX_POS,
     GLAMOR_VERTEX_SOURCE,
-    GLAMOR_VERTEX_MASK
+    GLAMOR_VERTEX_MASK,
+    GLAMOR_VERTEX_SOURCE_ALPHA,
+    GLAMOR_VERTEX_MASK_ALPHA
+};
+
+enum glamor_coord_mask {
+    GLAMOR_COORD_SOURCE = 1 << 0,
+    GLAMOR_COORD_MASK = 1 << 1,
+    GLAMOR_COORD_SOURCE_ALPHA = 1 << 2,
+    GLAMOR_COORD_MASK_ALPHA = 1 << 3
+};
+
+enum glamor_composite_unit {
+    GLAMOR_COMPOSITE_SOURCE_UNIT = 0,
+    GLAMOR_COMPOSITE_MASK_UNIT = 1,
+    GLAMOR_COMPOSITE_SOURCE_ALPHA_UNIT = 2,
+    GLAMOR_COMPOSITE_MASK_ALPHA_UNIT = 3
 };
 
 enum gradient_shader {
@@ -320,11 +341,11 @@ typedef struct glamor_screen_private {
     /** Number of quads the index buffer has indices for. */
     unsigned ib_size;
 
-    Bool has_source_coords, has_mask_coords;
+    unsigned int coord_mask;
     glamor_composite_shader composite_shader[SHADER_SOURCE_COUNT]
         [SHADER_MASK_COUNT]
         [glamor_program_alpha_count]
-        [SHADER_DEST_SWIZZLE_COUNT];
+        [SHADER_DEST_SWIZZLE_COUNT][2][2][2];
 
     /* glamor gradient, 0 for small nstops, 1 for
        large nstops and 2 for dynamic generate. */
