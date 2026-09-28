@@ -53,6 +53,7 @@
 #include "edid.h"
 #include "xf86i2c.h"
 #include "xf86Crtc.h"
+#include "xf86RandR12.h"
 #include "miscstruct.h"
 #include "dixstruct.h"
 #include "xf86xv.h"
@@ -2304,7 +2305,7 @@ LeaveVT(ScrnInfoPtr pScrn)
 }
 
 /*
- * This gets called when gaining control of the VT, and from ScreenInit().
+ * This gets called when gaining control of the VT.
  */
 static Bool
 EnterVT(ScrnInfoPtr pScrn)
@@ -2331,8 +2332,7 @@ EnterVT(ScrnInfoPtr pScrn)
         /* Tell the desktop environment that something changed, so that they
          * can hopefully correct the situation
          */
-        RRSetChanged(xf86ScrnToScreen(pScrn));
-        RRTellChanged(xf86ScrnToScreen(pScrn));
+        xf86RandR12TellChanged(xf86ScrnToScreen(pScrn));
     }
 
     return TRUE;
