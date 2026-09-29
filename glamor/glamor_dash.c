@@ -39,12 +39,14 @@ static const char dash_fs_vars[] =
     "in float dash_offset;\n";
 
 static const char on_off_fs_exec[] =
-    "       float pattern = texture(dash, vec2(dash_offset, 0.5)).w;\n"
+    "       float repeat_doff = mix(dash_offset, fract(dash_offset), dash_repeat_fract);\n"
+    "       float pattern = texture(dash, vec2(repeat_doff, 0.5)).w;\n"
     "       if (pattern == 0.0)\n"
     "               discard;\n";
 
 static const char double_fs_exec[] =
-    "       float pattern = texture(dash, vec2(dash_offset, 0.5)).w;\n"
+    "       float repeat_doff = mix(dash_offset, fract(dash_offset), dash_repeat_fract);\n"
+    "       float pattern = texture(dash, vec2(repeat_doff, 0.5)).w;\n"
     "       if (pattern == 0.0)\n"
     "               frag_color = bg;\n"
     "       else\n"
@@ -63,8 +65,10 @@ static const char stippled_dash_fs_vars[] =
     "in float dash_offset;\n";
 
 static const char stippled_double_fs_exec[] =
-    "       float pattern = texture(dash, vec2(dash_offset, 0.5)).w;\n"
-    "       float a = texture(sampler, fill_pos).w;\n"
+    "       float repeat_doff = mix(dash_offset, fract(dash_offset), dash_repeat_fract);\n"
+    "       float pattern = texture(dash, vec2(repeat_doff, 0.5)).w;\n"
+    "       vec2 repeat_tc = mix(fill_pos, fract(fill_pos), fill_repeat_fract);\n"
+    "       float a = texture(sampler, repeat_tc).w;\n"
     "       if (a == 0.0)\n"
     "               discard;\n"
     "       if (pattern == 0.0)\n"
@@ -73,8 +77,10 @@ static const char stippled_double_fs_exec[] =
     "               frag_color = fg;\n";
 
 static const char stippled_opaque_double_fs_exec[] =
-    "       float pattern = texture(dash, vec2(dash_offset, 0.5)).w;\n"
-    "       float a = texture(sampler, fill_pos).w;\n"
+    "       float repeat_doff = mix(dash_offset, fract(dash_offset), dash_repeat_fract);\n"
+    "       float pattern = texture(dash, vec2(repeat_doff, 0.5)).w;\n"
+    "       vec2 repeat_tc = mix(fill_pos, fract(fill_pos), fill_repeat_fract);\n"
+    "       float a = texture(sampler, repeat_tc).w;\n"
     "       if (a == 0.0 || pattern == 0.0)\n"
     "               frag_color = bg;\n"
     "       else\n"
@@ -83,9 +89,7 @@ static const char stippled_opaque_double_fs_exec[] =
 static Bool
 use_stippled_double_dash(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
-    if (!glamor_set_stippled(drawable, gc, prog->fg_uniform,
-                             prog->fill_offset_uniform,
-                             prog->fill_size_inv_uniform))
+    if (!glamor_set_stippled(drawable, gc, prog))
         return FALSE;
     glamor_set_color(drawable, gc->bgPixel, prog->bg_uniform);
     return TRUE;
@@ -290,6 +294,18 @@ glamor_dash_setup(DrawablePtr drawable, GCPtr gc)
     glamor_bind_texture(glamor_priv, GL_TEXTURE1, dash_priv->fbo, FALSE);
     glUniform1i(prog->dash_uniform, 1);
     glUniform1f(prog->dash_length_uniform, dash_pixmap->drawable.width);
+
+    if (_X_UNLIKELY(!glamor_priv->has_texture_npot && dash_priv->fbo->is_npot)) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        if (prog->dash_repeat_fract_uniform >= 0)
+            glUniform1f(prog->dash_repeat_fract_uniform, 1.0f);
+    } else {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        if (prog->dash_repeat_fract_uniform >= 0)
+            glUniform1f(prog->dash_repeat_fract_uniform, 0.0f);
+    }
 
     return prog;
 

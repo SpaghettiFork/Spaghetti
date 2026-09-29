@@ -40,13 +40,14 @@ const glamor_facet glamor_fill_solid = {
 static Bool
 use_tile(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
-    return glamor_set_tiled(drawable, gc, prog->fill_offset_uniform, prog->fill_size_inv_uniform);
+    return glamor_set_tiled(drawable, gc, prog);
 }
 
 static const glamor_facet glamor_fill_tile = {
     .name = "tile",
     .vs_exec =  "       fill_pos = (fill_offset + primitive.xy + pos) * fill_size_inv;\n",
-    .fs_exec =  "       frag_color = texture(sampler, fill_pos);\n",
+    .fs_exec = ("       vec2 repeat_tc = mix(fill_pos, fract(fill_pos), fill_repeat_fract);\n"
+                "       frag_color = texture(sampler, repeat_tc);\n"),
     .locations = glamor_program_location_fillsamp | glamor_program_location_fillpos,
     .use = use_tile,
 };
@@ -54,15 +55,14 @@ static const glamor_facet glamor_fill_tile = {
 static Bool
 use_stipple(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *arg)
 {
-    return glamor_set_stippled(drawable, gc, prog->fg_uniform,
-                               prog->fill_offset_uniform,
-                               prog->fill_size_inv_uniform);
+    return glamor_set_stippled(drawable, gc, prog);
 }
 
 static const glamor_facet glamor_fill_stipple = {
     .name = "stipple",
     .vs_exec =  "       fill_pos = (fill_offset + primitive.xy + pos) * fill_size_inv;\n",
-    .fs_exec = ("       float a = texture(sampler, fill_pos).w;\n"
+    .fs_exec = ("       vec2 repeat_tc = mix(fill_pos, fract(fill_pos), fill_repeat_fract);\n"
+                "       float a = texture(sampler, repeat_tc).w;\n"
                 "       if (a < 0.5)\n"
                 "               discard;\n"
                 "       frag_color = fg;\n"),
@@ -82,7 +82,8 @@ use_opaque_stipple(DrawablePtr drawable, GCPtr gc, glamor_program *prog, void *a
 static const glamor_facet glamor_fill_opaque_stipple = {
     .name = "opaque_stipple",
     .vs_exec =  "       fill_pos = (fill_offset + primitive.xy + pos) * fill_size_inv;\n",
-    .fs_exec = ("       float a = texture(sampler, fill_pos).w;\n"
+    .fs_exec = ("       vec2 repeat_tc = mix(fill_pos, fract(fill_pos), fill_repeat_fract);\n"
+                "       float a = texture(sampler, repeat_tc).w;\n"
                 "       if (a < 0.5)\n"
                 "               frag_color = bg;\n"
                 "       else\n"
@@ -122,7 +123,8 @@ static glamor_location_var location_vars[] = {
         .vs_vars = ("uniform vec2 fill_offset;\n"
                     "uniform vec2 fill_size_inv;\n"
                     "out vec2 fill_pos;\n"),
-        .fs_vars = ("in vec2 fill_pos;\n")
+        .fs_vars = ("in vec2 fill_pos;\n"
+                    "uniform float fill_repeat_fract;\n")
     },
     {
         .location = glamor_program_location_font,
@@ -139,7 +141,8 @@ static glamor_location_var location_vars[] = {
     {
         .location = glamor_program_location_dash,
         .vs_vars = "uniform float dash_length;\n",
-        .fs_vars = "uniform sampler2D dash;\n",
+        .fs_vars = ("uniform sampler2D dash;\n"
+                    "uniform float dash_repeat_fract;\n"),
     },
     {
         .location = glamor_program_location_atlas,
@@ -389,6 +392,8 @@ glamor_build_program(ScreenPtr          screen,
     prog->bitmul_uniform = glamor_get_uniform(prog, glamor_program_location_bitplane, "bitmul");
     prog->dash_uniform = glamor_get_uniform(prog, glamor_program_location_dash, "dash");
     prog->dash_length_uniform = glamor_get_uniform(prog, glamor_program_location_dash, "dash_length");
+    prog->fill_repeat_fract_uniform = glamor_get_uniform(prog, glamor_program_location_fillpos, "fill_repeat_fract");
+    prog->dash_repeat_fract_uniform = glamor_get_uniform(prog, glamor_program_location_dash, "dash_repeat_fract");
     prog->atlas_uniform = glamor_get_uniform(prog, glamor_program_location_atlas, "atlas");
 
     free(version_string);

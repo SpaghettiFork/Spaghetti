@@ -69,15 +69,12 @@ glamor_set_solid(DrawablePtr    drawable,
 Bool
 glamor_set_tiled(DrawablePtr    drawable,
                  GCPtr          gc,
-                 GLint          offset_uniform,
-                 GLint          size_uniform);
+                 struct _glamor_program *prog);
 
 Bool
 glamor_set_stippled(DrawablePtr    drawable,
                     GCPtr          gc,
-                    GLint          fg_uniform,
-                    GLint          offset_uniform,
-                    GLint          size_uniform);
+                    struct _glamor_program *prog);
 
 /*
  * Vertex shader bits that transform X coordinates to pixmap

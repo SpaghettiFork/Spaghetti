@@ -206,21 +206,39 @@ glamor_set_texture(PixmapPtr    texture,
 Bool
 glamor_set_tiled(DrawablePtr    drawable,
                  GCPtr          gc,
-                 GLint          offset_uniform,
-                 GLint          size_inv_uniform)
+                 glamor_program *prog)
 {
+    glamor_screen_private *glamor_priv = glamor_get_screen_private(drawable->pScreen);
+    glamor_pixmap_private *texture_priv;
+    Bool fallback;
+
     if (!glamor_set_alu(drawable, gc->alu))
         return FALSE;
 
     if (!glamor_set_planemask(gc->depth, gc->planemask))
         return FALSE;
 
-    return glamor_set_texture(gc->tile.pixmap,
-                              TRUE,
-                              -gc->patOrg.x,
-                              -gc->patOrg.y,
-                              offset_uniform,
-                              size_inv_uniform);
+    if (!glamor_set_texture(gc->tile.pixmap,
+                            TRUE,
+                            -gc->patOrg.x,
+                            -gc->patOrg.y,
+                            prog->fill_offset_uniform,
+                            prog->fill_size_inv_uniform))
+        return FALSE;
+
+    texture_priv = glamor_get_pixmap_private(gc->tile.pixmap);
+    fallback = !glamor_priv->has_texture_npot && texture_priv->fbo->is_npot;
+    if (_X_UNLIKELY(fallback)) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    } else {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    }
+    if (prog->fill_repeat_fract_uniform >= 0)
+        glUniform1f(prog->fill_repeat_fract_uniform, fallback ? 1.0f : 0.0f);
+
+    return TRUE;
 }
 
 static PixmapPtr
@@ -284,23 +302,39 @@ bail:
 Bool
 glamor_set_stippled(DrawablePtr    drawable,
                     GCPtr          gc,
-                    GLint          fg_uniform,
-                    GLint          offset_uniform,
-                    GLint          size_uniform)
+                    glamor_program *prog)
 {
+    glamor_screen_private *glamor_priv = glamor_get_screen_private(drawable->pScreen);
+    glamor_pixmap_private *texture_priv;
     PixmapPtr   stipple;
+    Bool fallback;
 
     stipple = glamor_get_stipple_pixmap(gc);
     if (!stipple)
         return FALSE;
 
-    if (!glamor_set_solid(drawable, gc, TRUE, fg_uniform))
+    if (!glamor_set_solid(drawable, gc, TRUE, prog->fg_uniform))
         return FALSE;
 
-    return glamor_set_texture(stipple,
-                              FALSE,
-                              -gc->patOrg.x,
-                              -gc->patOrg.y,
-                              offset_uniform,
-                              size_uniform);
+    if (!glamor_set_texture(stipple,
+                            FALSE,
+                            -gc->patOrg.x,
+                            -gc->patOrg.y,
+                            prog->fill_offset_uniform,
+                            prog->fill_size_inv_uniform))
+        return FALSE;
+
+    texture_priv = glamor_get_pixmap_private(stipple);
+    fallback = !glamor_priv->has_texture_npot && texture_priv->fbo->is_npot;
+    if (_X_UNLIKELY(fallback)) {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    } else {
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    }
+    if (prog->fill_repeat_fract_uniform >= 0)
+        glUniform1f(prog->fill_repeat_fract_uniform, fallback ? 1.0f : 0.0f);
+
+    return TRUE;
 }
