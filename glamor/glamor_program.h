@@ -83,6 +83,8 @@ struct _glamor_program {
     GLint                       bitmul_uniform;
     GLint                       dash_uniform;
     GLint                       dash_length_uniform;
+    GLint                       fill_repeat_fract_uniform;
+    GLint                       dash_repeat_fract_uniform;
     GLint                       atlas_uniform;
     glamor_program_location     locations;
     glamor_program_flag         flags;
