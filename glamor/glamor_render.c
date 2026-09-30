@@ -59,7 +59,125 @@ static struct blendinfo composite_op_info[] = {
     [PictOpAdd] = {0, 0, GL_ONE, GL_ONE},
 };
 
-#define RepeatFix			10
+#define RepeatFix			            10
+#define GLAMOR_PI                       3.14159265358979323846
+#define GLAMOR_GRADIENT_LUT_SOURCE_UNIT 2
+#define GLAMOR_GRADIENT_LUT_MASK_UNIT   3
+
+static inline void
+glamor_set_gradient_coords(float *vertices, int stride,
+                           int x1, int y1, int x2, int y2)
+{
+    vertices[0] = (float) x1;
+    vertices[1 * stride] = (float) x2;
+    vertices[2 * stride] = (float) x2;
+    vertices[3 * stride] = (float) x1;
+    vertices[1] = (float) y1;
+    vertices[1 * stride + 1] = (float) y1;
+    vertices[2 * stride + 1] = (float) y2;
+    vertices[3 * stride + 1] = (float) y2;
+}
+
+static char *
+glamor_create_gradient_fetch(const char *varying, const char *prefix,
+                             const char *getter)
+{
+    char *fetch;
+
+    XNFasprintf(&fetch,
+                "uniform sampler2D %s_gradient_lut;\n"
+                "uniform int %s_gradient_type;\n"
+                "uniform int %s_gradient_repeat;\n"
+                "uniform mat3 %s_gradient_transform;\n"
+                "uniform vec2 %s_gradient_p1;\n"
+                "uniform vec2 %s_gradient_p2;\n"
+                "uniform vec2 %s_gradient_c1;\n"
+                "uniform float %s_gradient_r1;\n"
+                "uniform vec2 %s_gradient_c2;\n"
+                "uniform float %s_gradient_r2;\n"
+                "uniform float %s_gradient_a;\n"
+                "uniform vec2 %s_gradient_center;\n"
+                "uniform float %s_gradient_angle;\n"
+                "in vec2 %s;\n"
+                "vec4 %s()\n"
+                "{\n"
+                "    vec3 tmp = vec3(%s, 1.0);\n"
+                "    vec3 pos = %s_gradient_transform * tmp;\n"
+                "    float t = 0.0;\n"
+                "    pos.xy = pos.xy / pos.z;\n"
+                "    if (%s_gradient_type == %d) {\n"
+                "        vec2 axis = %s_gradient_p2 - %s_gradient_p1;\n"
+                "        float denom = dot(axis, axis);\n"
+                "        if (denom < 0.000001)\n"
+                "            t = 0.0;\n"
+                "        else\n"
+                "            t = dot(pos.xy - %s_gradient_p1, axis) / denom;\n"
+                "    } else if (%s_gradient_type == %d) {\n"
+                "        float b_val = (pos.x - %s_gradient_c1.x) * (%s_gradient_c2.x - %s_gradient_c1.x)\n"
+                "                    + (pos.y - %s_gradient_c1.y) * (%s_gradient_c2.y - %s_gradient_c1.y)\n"
+                "                    + %s_gradient_r1 * (%s_gradient_r2 - %s_gradient_r1);\n"
+                "        float c_val = (pos.x - %s_gradient_c1.x) * (pos.x - %s_gradient_c1.x)\n"
+                "                    + (pos.y - %s_gradient_c1.y) * (pos.y - %s_gradient_c1.y)\n"
+                "                    - %s_gradient_r1 * %s_gradient_r1;\n"
+                "        float sqrt_val = 0.0;\n"
+                "        if (abs(%s_gradient_a) < 0.00001) {\n"
+                "            if (b_val == 0.0)\n"
+                "                return vec4(0.0, 0.0, 0.0, 0.0);\n"
+                "            t = 0.5 * c_val / b_val;\n"
+                "        } else {\n"
+                "            sqrt_val = b_val * b_val - %s_gradient_a * c_val;\n"
+                "            if (sqrt_val < 0.0)\n"
+                "                return vec4(0.0, 0.0, 0.0, 0.0);\n"
+                "            sqrt_val = sqrt(sqrt_val);\n"
+                "            t = (b_val + sqrt_val) / %s_gradient_a;\n"
+                "        }\n"
+                "        if (%s_gradient_repeat == %d) {\n"
+                "            if ((t <= 0.0) || (t > 1.0))\n"
+                "                t = (b_val - sqrt_val) / %s_gradient_a;\n"
+                "            if ((t <= 0.0) || (t > 1.0))\n"
+                "                return vec4(0.0, 0.0, 0.0, 0.0);\n"
+                "        } else {\n"
+                "            if (t * (%s_gradient_r2 - %s_gradient_r1) <= -1.0 * %s_gradient_r1)\n"
+                "                t = (b_val - sqrt_val) / %s_gradient_a;\n"
+                "            if (t * (%s_gradient_r2 - %s_gradient_r1) <= -1.0 * %s_gradient_r1)\n"
+                "                return vec4(0.0, 0.0, 0.0, 0.0);\n"
+                "        }\n"
+                "    } else {\n"
+                "        vec2 grad_d = pos.xy - %s_gradient_center;\n"
+                "        float grad_a = atan(grad_d.y, grad_d.x) + %s_gradient_angle;\n"
+                "        grad_a = grad_a - %f * floor(grad_a / %f);\n"
+                "        t = 1.0 - grad_a / %f;\n"
+                "    }\n"
+                "    if (%s_gradient_repeat == %d) {\n"
+                "        if ((t < 0.0) || (t > 1.0))\n"
+                "            return vec4(0.0, 0.0, 0.0, 0.0);\n"
+                "    } else if (%s_gradient_repeat == %d) {\n"
+                "        t = fract(t);\n"
+                "    } else if (%s_gradient_repeat == %d) {\n"
+                "        t = abs(fract(t * 0.5 + 0.5) * 2.0 - 1.0);\n"
+                "    } else {\n"
+                "        t = clamp(t, 0.0, 1.0);\n"
+                "    }\n"
+                "    return texture(%s_gradient_lut, vec2(t, 0.5));\n"
+                "}\n",
+                prefix, prefix, prefix, prefix, prefix, prefix,
+                prefix, prefix, prefix, prefix, prefix, prefix,
+                prefix, varying, getter, varying, prefix,
+                prefix, SourcePictTypeLinear, prefix, prefix,
+                prefix, prefix, SourcePictTypeRadial,
+                prefix, prefix, prefix, prefix, prefix, prefix,
+                prefix, prefix, prefix, prefix, prefix, prefix,
+                prefix, prefix, prefix, prefix, prefix, prefix,
+                prefix, RepeatNone, prefix, prefix,
+                prefix, prefix, prefix, prefix, prefix, prefix,
+                prefix, prefix,
+                2.0 * GLAMOR_PI, 2.0 * GLAMOR_PI, 2.0 * GLAMOR_PI,
+                prefix, RepeatNone, prefix, RepeatNormal,
+                prefix, RepeatReflect, prefix);
+
+    return fetch;
+}
+
 static GLuint
 glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key *key, Bool enable_rel_sampler)
 {
@@ -243,6 +361,8 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
     char *source;
     const char *source_fetch;
     const char *mask_fetch = "";
+    char *source_fetch_alloc = NULL;
+    char *mask_fetch_alloc = NULL;
     const char *in;
     const char *header;
     const char *header_norm = glamor_priv->glsl_version > 120 ?
@@ -264,6 +384,12 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
     case SHADER_SOURCE_TEXTURE:
         source_fetch = source_pixmap_fetch;
         break;
+    case SHADER_SOURCE_GRADIENT:
+        source_fetch_alloc =
+            glamor_create_gradient_fetch("source_texture", "source",
+                                         "get_source");
+        source_fetch = source_fetch_alloc;
+        break;
     default:
         FatalError("Bad composite shader source");
     }
@@ -280,6 +406,12 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         break;
     case SHADER_MASK_TEXTURE:
         mask_fetch = mask_pixmap_fetch;
+        break;
+    case SHADER_MASK_GRADIENT:
+        mask_fetch_alloc =
+            glamor_create_gradient_fetch("mask_texture", "mask",
+                                         "get_mask");
+        mask_fetch = mask_fetch_alloc;
         break;
     default:
         FatalError("Bad composite shader mask");
@@ -335,6 +467,8 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
 
     prog = glamor_compile_glsl_prog(GL_FRAGMENT_SHADER, source);
     free(source);
+    free(source_fetch_alloc);
+    free(mask_fetch_alloc);
 
     return prog;
 }
@@ -386,6 +520,108 @@ glamor_create_composite_vs(glamor_screen_private* priv, struct shader_key *key)
     free(source);
 
     return prog;
+}
+
+static void
+glamor_init_gradient_uniform_locations(GLuint prog, const char *prefix,
+                                       glamor_composite_shader_priv *priv,
+                                       int unit)
+{
+    char name[64];
+
+    snprintf(name, sizeof(name), "%s_gradient_lut", prefix);
+    priv->gradient.lut = glGetUniformLocation(prog, name);
+    glUniform1i(priv->gradient.lut, unit);
+    snprintf(name, sizeof(name), "%s_gradient_type", prefix);
+    priv->gradient.type = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_repeat", prefix);
+    priv->gradient.repeat = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_transform", prefix);
+    priv->gradient.transform = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_p1", prefix);
+    priv->gradient.p1 = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_p2", prefix);
+    priv->gradient.p2 = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_c1", prefix);
+    priv->gradient.c1 = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_r1", prefix);
+    priv->gradient.r1 = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_c2", prefix);
+    priv->gradient.c2 = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_r2", prefix);
+    priv->gradient.r2 = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_a", prefix);
+    priv->gradient.radial_a = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_center", prefix);
+    priv->gradient.center = glGetUniformLocation(prog, name);
+    snprintf(name, sizeof(name), "%s_gradient_angle", prefix);
+    priv->gradient.angle = glGetUniformLocation(prog, name);
+}
+
+static Bool
+glamor_set_composite_gradient(glamor_screen_private *glamor_priv,
+                              ScreenPtr screen, PicturePtr picture, int unit,
+                              glamor_composite_shader_priv *shader)
+{
+    SourcePictPtr sp = picture->pSourcePict;
+    GLuint lut;
+    float transform[3][3];
+    float v0[2], v1[2];
+    float f0, f1, fa;
+
+    lut = glamor_gradient_get_lut(screen, &sp->gradient);
+    if (lut == 0)
+        return FALSE;
+
+    glamor_make_current(glamor_priv);
+    glActiveTexture(GL_TEXTURE0 + unit);
+    glBindTexture(GL_TEXTURE_2D, lut);
+    glUniform1i(shader->gradient.lut, unit);
+    glUniform1i(shader->gradient.type, sp->type);
+    glUniform1i(shader->gradient.repeat, picture->repeatType);
+
+    glamor_gradient_get_transform(picture, transform);
+    glUniformMatrix3fv(shader->gradient.transform, 1, GL_FALSE,
+                       &transform[0][0]);
+
+    switch (sp->type) {
+    case SourcePictTypeLinear:
+        v0[0] = (float) pixman_fixed_to_double(sp->linear.p1.x);
+        v0[1] = (float) pixman_fixed_to_double(sp->linear.p1.y);
+        v1[0] = (float) pixman_fixed_to_double(sp->linear.p2.x);
+        v1[1] = (float) pixman_fixed_to_double(sp->linear.p2.y);
+        glUniform2fv(shader->gradient.p1, 1, v0);
+        glUniform2fv(shader->gradient.p2, 1, v1);
+        break;
+    case SourcePictTypeRadial:
+        v0[0] = (float) pixman_fixed_to_double(sp->radial.c1.x);
+        v0[1] = (float) pixman_fixed_to_double(sp->radial.c1.y);
+        f0 = (float) pixman_fixed_to_double(sp->radial.c1.radius);
+        v1[0] = (float) pixman_fixed_to_double(sp->radial.c2.x);
+        v1[1] = (float) pixman_fixed_to_double(sp->radial.c2.y);
+        f1 = (float) pixman_fixed_to_double(sp->radial.c2.radius);
+        fa = (v1[0] - v0[0]) * (v1[0] - v0[0]) +
+            (v1[1] - v0[1]) * (v1[1] - v0[1]) - (f1 - f0) * (f1 - f0);
+        glUniform2fv(shader->gradient.c1, 1, v0);
+        glUniform1f(shader->gradient.r1, f0);
+        glUniform2fv(shader->gradient.c2, 1, v1);
+        glUniform1f(shader->gradient.r2, f1);
+        glUniform1f(shader->gradient.radial_a, fa);
+        break;
+    case SourcePictTypeConical:
+        v0[0] = (float) pixman_fixed_to_double(sp->conical.center.x);
+        v0[1] = (float) pixman_fixed_to_double(sp->conical.center.y);
+        f0 = (float) (pixman_fixed_to_double(sp->conical.angle) *
+                      GLAMOR_PI / 180.0);
+        glUniform2fv(shader->gradient.center, 1, v0);
+        glUniform1f(shader->gradient.angle, f0);
+        break;
+    default:
+        break;
+    }
+
+    glActiveTexture(GL_TEXTURE0);
+    return TRUE;
 }
 
 static void
@@ -443,6 +679,11 @@ glamor_create_composite_shader(ScreenPtr screen, struct shader_key *key,
     if (key->source == SHADER_SOURCE_SOLID) {
         shader->source.uniform_location = glGetUniformLocation(prog, "source");
     }
+    else if (key->source == SHADER_SOURCE_GRADIENT) {
+        glamor_init_gradient_uniform_locations(prog, "source",
+                                               &shader->source,
+                                               GLAMOR_GRADIENT_LUT_SOURCE_UNIT);
+    }
     else {
         source_sampler_uniform_location =
             glGetUniformLocation(prog, "source_sampler");
@@ -455,6 +696,11 @@ glamor_create_composite_shader(ScreenPtr screen, struct shader_key *key,
     if (key->mask != SHADER_MASK_NONE) {
         if (key->mask == SHADER_MASK_SOLID) {
             shader->mask.uniform_location = glGetUniformLocation(prog, "mask");
+        }
+        else if (key->mask == SHADER_MASK_GRADIENT) {
+            glamor_init_gradient_uniform_locations(prog, "mask",
+                                                   &shader->mask,
+                                                   GLAMOR_GRADIENT_LUT_MASK_UNIT);
         }
         else {
             mask_sampler_uniform_location =
@@ -660,6 +906,8 @@ glamor_get_picture_location(PicturePtr picture)
             return 'l';
         case SourcePictTypeRadial:
             return 'r';
+        case SourcePictTypeConical:
+            return 'C';
         default:
             return '?';
         }
@@ -943,6 +1191,11 @@ glamor_composite_choose_shader(CARD8 op,
             glamor_get_rgba_from_color(&sp->solidFill.fullcolor,
                                        source_solid_color);
         }
+        else if (sp->type == SourcePictTypeLinear ||
+                 sp->type == SourcePictTypeRadial ||
+                 sp->type == SourcePictTypeConical) {
+            key.source = SHADER_SOURCE_GRADIENT;
+        }
         else
             goto fail;
     }
@@ -967,6 +1220,11 @@ glamor_composite_choose_shader(CARD8 op,
                 key.mask = SHADER_MASK_SOLID;
                 glamor_get_rgba_from_color(&sp->solidFill.fullcolor,
                                            mask_solid_color);
+            }
+            else if (sp->type == SourcePictTypeLinear ||
+                     sp->type == SourcePictTypeRadial ||
+                     sp->type == SourcePictTypeConical) {
+                key.mask = SHADER_MASK_GRADIENT;
             }
             else
                 goto fail;
@@ -1172,8 +1430,9 @@ glamor_composite_choose_shader(CARD8 op,
     return ret;
 }
 
-static void
-glamor_composite_set_shader_blend(glamor_screen_private *glamor_priv,
+static Bool
+glamor_composite_set_shader_blend(ScreenPtr screen,
+                                  glamor_screen_private *glamor_priv,
                                   glamor_pixmap_private *dest_priv,
                                   struct shader_key *key,
                                   glamor_composite_shader *shader,
@@ -1185,6 +1444,13 @@ glamor_composite_set_shader_blend(glamor_screen_private *glamor_priv,
     if (key->source == SHADER_SOURCE_SOLID) {
         glamor_set_composite_solid(shader->source.solid_color,
                                    shader->source.uniform_location);
+    }
+    else if (key->source == SHADER_SOURCE_GRADIENT) {
+        if (!glamor_set_composite_gradient(glamor_priv, screen,
+                                           shader->source.pict.picture,
+                                           GLAMOR_GRADIENT_LUT_SOURCE_UNIT,
+                                           &shader->source))
+            return FALSE;
     }
     else {
         glamor_set_composite_texture(glamor_priv, 0,
@@ -1199,6 +1465,13 @@ glamor_composite_set_shader_blend(glamor_screen_private *glamor_priv,
         if (key->mask == SHADER_MASK_SOLID) {
             glamor_set_composite_solid(shader->mask.solid_color,
                                        shader->mask.uniform_location);
+        }
+        else if (key->mask == SHADER_MASK_GRADIENT) {
+            if (!glamor_set_composite_gradient(glamor_priv, screen,
+                                               shader->mask.pict.picture,
+                                               GLAMOR_GRADIENT_LUT_MASK_UNIT,
+                                               &shader->mask))
+                return FALSE;
         }
         else {
             glamor_set_composite_texture(glamor_priv, 1,
@@ -1220,6 +1493,8 @@ glamor_composite_set_shader_blend(glamor_screen_private *glamor_priv,
         glEnable(GL_BLEND);
         glBlendFunc(op_info->source_blend, op_info->dest_blend);
     }
+
+    return TRUE;
 }
 
 static Bool
@@ -1285,7 +1560,12 @@ glamor_composite_with_shader(CARD8 op,
     }
 
     glamor_set_destination_pixmap_priv_nc(glamor_priv, dest_pixmap, dest_pixmap_priv);
-    glamor_composite_set_shader_blend(glamor_priv, dest_pixmap_priv, &key, shader, &op_info);
+    if (!glamor_composite_set_shader_blend(screen, glamor_priv,
+                                           dest_pixmap_priv, &key, shader,
+                                           &op_info)) {
+        glamor_fallback("glamor_composite_set_shader_blend failed\n");
+        goto fail;
+    }
     glamor_set_alu(dest->pDrawable, GXcopy);
 
     glamor_priv->has_source_coords = key.source != SHADER_SOURCE_SOLID;
@@ -1299,22 +1579,37 @@ glamor_composite_with_shader(CARD8 op,
     pixmap_priv_get_dest_scale(dest_pixmap, dest_pixmap_priv, &dst_xscale, &dst_yscale);
 
     if (glamor_priv->has_source_coords) {
-        glamor_get_drawable_deltas(source->pDrawable,
-                                   source_pixmap, &source_x_off, &source_y_off);
-        pixmap_priv_get_scale(source_pixmap_priv, &src_xscale, &src_yscale);
-        if (source->transform) {
-            psrc_matrix = src_matrix;
-            glamor_picture_get_matrixf(source, psrc_matrix);
+        if (key.source == SHADER_SOURCE_GRADIENT) {
+            source_x_off = 0;
+            source_y_off = 0;
+        }
+        else {
+            glamor_get_drawable_deltas(source->pDrawable,
+                                       source_pixmap, &source_x_off,
+                                       &source_y_off);
+            pixmap_priv_get_scale(source_pixmap_priv, &src_xscale,
+                                  &src_yscale);
+            if (source->transform) {
+                psrc_matrix = src_matrix;
+                glamor_picture_get_matrixf(source, psrc_matrix);
+            }
         }
     }
 
     if (glamor_priv->has_mask_coords) {
-        glamor_get_drawable_deltas(mask->pDrawable, mask_pixmap,
-                                   &mask_x_off, &mask_y_off);
-        pixmap_priv_get_scale(mask_pixmap_priv, &mask_xscale, &mask_yscale);
-        if (mask->transform) {
-            pmask_matrix = mask_matrix;
-            glamor_picture_get_matrixf(mask, pmask_matrix);
+        if (key.mask == SHADER_MASK_GRADIENT) {
+            mask_x_off = 0;
+            mask_y_off = 0;
+        }
+        else {
+            glamor_get_drawable_deltas(mask->pDrawable, mask_pixmap,
+                                       &mask_x_off, &mask_y_off);
+            pixmap_priv_get_scale(mask_pixmap_priv, &mask_xscale,
+                                  &mask_yscale);
+            if (mask->transform) {
+                pmask_matrix = mask_matrix;
+                glamor_picture_get_matrixf(mask, pmask_matrix);
+            }
         }
     }
 
@@ -1387,26 +1682,45 @@ glamor_composite_with_shader(CARD8 op,
                                              vb_stride);
             vertices += 2;
             if (key.source != SHADER_SOURCE_SOLID) {
-                glamor_set_normalize_tcoords_generic(source_pixmap,
-                                                     source_pixmap_priv,
-                                                     source->repeatType,
-                                                     psrc_matrix, src_xscale,
-                                                     src_yscale, x_source,
-                                                     y_source, x_source + width,
-                                                     y_source + height,
-                                                     vertices, vb_stride);
+                if (key.source == SHADER_SOURCE_GRADIENT) {
+                    glamor_set_gradient_coords(vertices, vb_stride,
+                                               x_source, y_source,
+                                               x_source + width,
+                                               y_source + height);
+                }
+                else {
+                    glamor_set_normalize_tcoords_generic(source_pixmap,
+                                                         source_pixmap_priv,
+                                                         source->repeatType,
+                                                         psrc_matrix,
+                                                         src_xscale,
+                                                         src_yscale, x_source,
+                                                         y_source,
+                                                         x_source + width,
+                                                         y_source + height,
+                                                         vertices, vb_stride);
+                }
                 vertices += 2;
             }
 
             if (key.mask != SHADER_MASK_NONE && key.mask != SHADER_MASK_SOLID) {
-                glamor_set_normalize_tcoords_generic(mask_pixmap,
-                                                     mask_pixmap_priv,
-                                                     mask->repeatType,
-                                                     pmask_matrix, mask_xscale,
-                                                     mask_yscale, x_mask,
-                                                     y_mask, x_mask + width,
-                                                     y_mask + height,
-                                                     vertices, vb_stride);
+                if (key.mask == SHADER_MASK_GRADIENT) {
+                    glamor_set_gradient_coords(vertices, vb_stride,
+                                               x_mask, y_mask,
+                                               x_mask + width,
+                                               y_mask + height);
+                }
+                else {
+                    glamor_set_normalize_tcoords_generic(mask_pixmap,
+                                                         mask_pixmap_priv,
+                                                         mask->repeatType,
+                                                         pmask_matrix,
+                                                         mask_xscale,
+                                                         mask_yscale, x_mask,
+                                                         y_mask, x_mask + width,
+                                                         y_mask + height,
+                                                         vertices, vb_stride);
+                }
                 vertices += 2;
             }
             glamor_priv->render_nr_quads++;
@@ -1419,12 +1733,19 @@ glamor_composite_with_shader(CARD8 op,
         glamor_flush_composite_rects(screen);
         nrect -= rect_processed;
         if (ca_state == CA_TWO_PASS) {
-            glamor_composite_set_shader_blend(glamor_priv, dest_pixmap_priv,
-                                              &key_ca, shader_ca, &op_info_ca);
+            if (!glamor_composite_set_shader_blend(screen, glamor_priv,
+                                                   dest_pixmap_priv,
+                                                   &key_ca, shader_ca,
+                                                   &op_info_ca))
+                goto fail;
             glamor_flush_composite_rects(screen);
-            if (nrect)
-                glamor_composite_set_shader_blend(glamor_priv, dest_pixmap_priv,
-                                                  &key, shader, &op_info);
+            if (nrect) {
+                if (!glamor_composite_set_shader_blend(screen, glamor_priv,
+                                                       dest_pixmap_priv,
+                                                       &key, shader,
+                                                       &op_info))
+                    goto fail;
+            }
         }
     }
 
@@ -1451,68 +1772,6 @@ fail:
     return ret;
 }
 
-static PicturePtr
-glamor_convert_gradient_picture(ScreenPtr screen,
-                                PicturePtr source,
-                                int x_source,
-                                int y_source, int width, int height)
-{
-    PixmapPtr pixmap;
-    PicturePtr dst = NULL;
-    int error;
-    PictFormatPtr pFormat;
-    PictFormatShort format;
-    glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
-
-    if (source->pDrawable) {
-        pFormat = source->pFormat;
-        format = pFormat->format;
-    } else {
-        format = PICT_a8r8g8b8;
-        pFormat = PictureMatchFormat(screen, 32, format);
-    }
-
-    if (glamor_priv->enable_gradient_shader && !source->pDrawable) {
-        if (source->pSourcePict->type == SourcePictTypeLinear) {
-            dst = glamor_generate_linear_gradient_picture(screen,
-                                                          source, x_source,
-                                                          y_source, width,
-                                                          height, format);
-        }
-        else if (source->pSourcePict->type == SourcePictTypeRadial) {
-            dst = glamor_generate_radial_gradient_picture(screen,
-                                                          source, x_source,
-                                                          y_source, width,
-                                                          height, format);
-        }
-
-        if (dst) {
-            return dst;
-        }
-    }
-
-    pixmap = glamor_create_pixmap(screen,
-                                  width,
-                                  height,
-                                  PIXMAN_FORMAT_DEPTH(format),
-                                  GLAMOR_CREATE_PIXMAP_CPU);
-
-    if (!pixmap)
-        return NULL;
-
-    dst = CreatePicture(0,
-                        &pixmap->drawable, pFormat, 0, 0, serverClient, &error);
-    glamor_destroy_pixmap(pixmap);
-    if (!dst)
-        return NULL;
-
-    ValidatePicture(dst);
-
-    fbComposite(PictOpSrc, source, NULL, dst, x_source, y_source,
-                0, 0, 0, 0, width, height);
-    return dst;
-}
-
 Bool
 glamor_composite_clipped_region(CARD8 op,
                                 PicturePtr source,
@@ -1530,13 +1789,6 @@ glamor_composite_clipped_region(CARD8 op,
     glamor_pixmap_private *mask_pixmap_priv = glamor_get_pixmap_private(mask_pixmap);
     glamor_pixmap_private *dest_pixmap_priv = glamor_get_pixmap_private(dest_pixmap);
     glamor_screen_private *glamor_priv = glamor_get_screen_private(dest_pixmap->drawable.pScreen);
-    ScreenPtr screen = dest->pDrawable->pScreen;
-    PicturePtr temp_src = source, temp_mask = mask;
-    PixmapPtr temp_src_pixmap = source_pixmap;
-    PixmapPtr temp_mask_pixmap = mask_pixmap;
-    glamor_pixmap_private *temp_src_priv = source_pixmap_priv;
-    glamor_pixmap_private *temp_mask_priv = mask_pixmap_priv;
-    int x_temp_src, y_temp_src, x_temp_mask, y_temp_mask;
     BoxPtr extent;
     glamor_composite_rect_t rect[10];
     glamor_composite_rect_t *prect = rect;
@@ -1554,11 +1806,6 @@ glamor_composite_clipped_region(CARD8 op,
     nbox = RegionNumRects(region);
     width = extent->x2 - extent->x1;
     height = extent->y2 - extent->y1;
-
-    x_temp_src = x_source;
-    y_temp_src = y_source;
-    x_temp_mask = x_mask;
-    y_temp_mask = y_mask;
 
     DEBUGF("clipped (%d %d) (%d %d) (%d %d) width %d height %d \n",
            x_source, y_source, x_mask, y_mask, x_dest, y_dest, width, height);
@@ -1596,41 +1843,6 @@ glamor_composite_clipped_region(CARD8 op,
         goto out;
     }
 
-    /* XXX is it possible source mask have non-zero drawable.x/y? */
-    if (source && source->pSourcePict && source->pSourcePict->type != SourcePictTypeSolidFill) {
-        temp_src =
-            glamor_convert_gradient_picture(screen, source,
-                                            extent->x1 + x_source - x_dest - dest->pDrawable->x,
-                                            extent->y1 + y_source - y_dest - dest->pDrawable->y,
-                                            width, height);
-        if (!temp_src) {
-            temp_src = source;
-            goto out;
-        }
-        temp_src_pixmap = (PixmapPtr) (temp_src->pDrawable);
-        temp_src_priv = glamor_get_pixmap_private(temp_src_pixmap);
-        x_temp_src = -extent->x1 + x_dest + dest->pDrawable->x;
-        y_temp_src = -extent->y1 + y_dest + dest->pDrawable->y;
-    }
-
-    if (mask && mask->pSourcePict && mask->pSourcePict->type != SourcePictTypeSolidFill) {
-        /* XXX if mask->pDrawable is the same as source->pDrawable, we have an opportunity
-         * to do reduce one conversion. */
-        temp_mask =
-            glamor_convert_gradient_picture(screen, mask,
-                                            extent->x1 + x_mask - x_dest - dest->pDrawable->x,
-                                            extent->y1 + y_mask - y_dest - dest->pDrawable->y,
-                                            width, height);
-        if (!temp_mask) {
-            temp_mask = mask;
-            goto out;
-        }
-        temp_mask_pixmap = (PixmapPtr) (temp_mask->pDrawable);
-        temp_mask_priv = glamor_get_pixmap_private(temp_mask_pixmap);
-        x_temp_mask = -extent->x1 + x_dest + dest->pDrawable->x;
-        y_temp_mask = -extent->y1 + y_dest + dest->pDrawable->y;
-    }
-
     if (mask && mask->componentAlpha) {
         if (glamor_priv->has_dual_blend) {
             ca_state = CA_DUAL_BLEND;
@@ -1646,24 +1858,24 @@ glamor_composite_clipped_region(CARD8 op,
         }
     }
 
-    if (temp_src_pixmap == dest_pixmap) {
+    if (source_pixmap == dest_pixmap) {
         glamor_fallback("source and dest pixmaps are the same\n");
         goto out;
     }
-    if (temp_mask_pixmap == dest_pixmap) {
+    if (mask_pixmap == dest_pixmap) {
         glamor_fallback("mask and dest pixmaps are the same\n");
         goto out;
     }
 
     x_dest += dest->pDrawable->x;
     y_dest += dest->pDrawable->y;
-    if (temp_src && temp_src->pDrawable) {
-        x_temp_src += temp_src->pDrawable->x;
-        y_temp_src += temp_src->pDrawable->y;
+    if (source && source->pDrawable) {
+        x_source += source->pDrawable->x;
+        y_source += source->pDrawable->y;
     }
-    if (temp_mask && temp_mask->pDrawable) {
-        x_temp_mask += temp_mask->pDrawable->x;
-        y_temp_mask += temp_mask->pDrawable->y;
+    if (mask && mask->pDrawable) {
+        x_mask += mask->pDrawable->x;
+        y_mask += mask->pDrawable->y;
     }
 
     if (nbox > ARRAY_SIZE(rect)) {
@@ -1680,19 +1892,19 @@ glamor_composite_clipped_region(CARD8 op,
 
         box_cnt = nbox > prect_size ? prect_size : nbox;
         for (i = 0; i < box_cnt; i++) {
-            prect[i].x_src = box[i].x1 + x_temp_src - x_dest;
-            prect[i].y_src = box[i].y1 + y_temp_src - y_dest;
-            prect[i].x_mask = box[i].x1 + x_temp_mask - x_dest;
-            prect[i].y_mask = box[i].y1 + y_temp_mask - y_dest;
+            prect[i].x_src = box[i].x1 + x_source - x_dest;
+            prect[i].y_src = box[i].y1 + y_source - y_dest;
+            prect[i].x_mask = box[i].x1 + x_mask - x_dest;
+            prect[i].y_mask = box[i].y1 + y_mask - y_dest;
             prect[i].x_dst = box[i].x1;
             prect[i].y_dst = box[i].y1;
             prect[i].width = box[i].x2 - box[i].x1;
             prect[i].height = box[i].y2 - box[i].y1;
             DEBUGF("dest %d %d \n", prect[i].x_dst, prect[i].y_dst);
         }
-        ok = glamor_composite_with_shader(op, temp_src, temp_mask, dest,
-                                          temp_src_pixmap, temp_mask_pixmap, dest_pixmap,
-                                          temp_src_priv, temp_mask_priv,
+        ok = glamor_composite_with_shader(op, source, mask, dest,
+                                          source_pixmap, mask_pixmap, dest_pixmap,
+                                          source_pixmap_priv, mask_pixmap_priv,
                                           dest_pixmap_priv,
                                           box_cnt, prect, ca_state);
         if (!ok)
@@ -1704,11 +1916,6 @@ glamor_composite_clipped_region(CARD8 op,
     if (prect != rect)
         free(prect);
  out:
-    if (temp_src != source)
-        FreePicture(temp_src, 0);
-    if (temp_mask != mask)
-        FreePicture(temp_mask, 0);
-
     return ok;
 }
 

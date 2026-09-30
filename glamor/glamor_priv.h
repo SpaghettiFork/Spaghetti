@@ -91,6 +91,23 @@ typedef struct {
     GLint wh;
     GLint repeat_mode;
     GLint uniform_location;
+
+    /* Valid when the corresponding shader key selects GRADIENT. */
+    struct {
+        GLint lut;
+        GLint type;
+        GLint repeat;
+        GLint transform;
+        GLint p1;
+        GLint p2;
+        GLint c1;
+        GLint r1;
+        GLint c2;
+        GLint r2;
+        GLint radial_a;
+        GLint center;
+        GLint angle;
+    } gradient;
 } glamor_composite_shader_priv;
 
 typedef struct glamor_composite_shader {
@@ -110,6 +127,7 @@ enum shader_source {
     SHADER_SOURCE_SOLID,
     SHADER_SOURCE_TEXTURE,
     SHADER_SOURCE_TEXTURE_ALPHA,
+    SHADER_SOURCE_GRADIENT,
     SHADER_SOURCE_COUNT,
 };
 
@@ -118,6 +136,7 @@ enum shader_mask {
     SHADER_MASK_SOLID,
     SHADER_MASK_TEXTURE,
     SHADER_MASK_TEXTURE_ALPHA,
+    SHADER_MASK_GRADIENT,
     SHADER_MASK_COUNT,
 };
 
@@ -159,12 +178,16 @@ enum glamor_vertex_type {
     GLAMOR_VERTEX_MASK
 };
 
-enum gradient_shader {
-    SHADER_GRADIENT_LINEAR,
-    SHADER_GRADIENT_RADIAL,
-    SHADER_GRADIENT_CONICAL,
-    SHADER_GRADIENT_COUNT,
-};
+#define GLAMOR_GRADIENT_LUT_SIZE 4096
+#define GLAMOR_GRADIENT_LUT_CACHE_SIZE 16
+
+typedef struct glamor_gradient_lut {
+    CARD32 hash;
+    int nstops;
+    PictGradientStopPtr stops;
+    GLuint tex;
+    unsigned last_used;
+} glamor_gradient_lut_t;
 
 struct glamor_screen_private;
 struct glamor_pixmap_private;
@@ -230,7 +253,6 @@ typedef struct glamor_screen_private {
     Bool use_quads;
     Bool use_gpu_shader4;
     Bool can_copyplane;
-    Bool enable_gradient_shader;
     Bool has_map_buffer_range;
     Bool has_buffer_storage;
     Bool has_khr_debug;
@@ -325,11 +347,9 @@ typedef struct glamor_screen_private {
         [glamor_program_alpha_count]
         [SHADER_DEST_SWIZZLE_COUNT];
 
-    /* glamor gradient, 0 for small nstops, 1 for
-       large nstops and 2 for dynamic generate. */
-    GLint gradient_prog[SHADER_GRADIENT_COUNT][3];
-    int linear_max_nstops;
-    int radial_max_nstops;
+    /* Content-keyed cache of pre-rendered gradient LUT textures. */
+    glamor_gradient_lut_t gradient_lut_cache[GLAMOR_GRADIENT_LUT_CACHE_SIZE];
+    unsigned gradient_lut_clock;
 
     struct glamor_saved_procs saved_procs;
     GetDrawableModifiersFuncPtr get_drawable_modifiers;
@@ -710,17 +730,10 @@ void glamor_trapezoids(CARD8 op,
                        int ntrap, xTrapezoid *traps);
 
 /* glamor_gradient.c */
-Bool glamor_init_gradient_shader(ScreenPtr screen);
-PicturePtr glamor_generate_linear_gradient_picture(ScreenPtr screen,
-                                                   PicturePtr src_picture,
-                                                   int x_source, int y_source,
-                                                   int width, int height,
-                                                   PictFormatShort format);
-PicturePtr glamor_generate_radial_gradient_picture(ScreenPtr screen,
-                                                   PicturePtr src_picture,
-                                                   int x_source, int y_source,
-                                                   int width, int height,
-                                                   PictFormatShort format);
+GLuint glamor_gradient_get_lut(ScreenPtr screen, PictGradientPtr gradient);
+void glamor_gradient_lut_fini(ScreenPtr screen);
+void glamor_gradient_get_transform(PicturePtr picture,
+                                   float transform[3][3]);
 
 /* glamor_triangles.c */
 void glamor_triangles(CARD8 op,

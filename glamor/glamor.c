@@ -864,15 +864,6 @@ glamor_init(ScreenPtr screen, unsigned int flags)
 
     glamor_init_vbo(screen);
 
-    glamor_priv->enable_gradient_shader = TRUE;
-
-    if (!glamor_init_gradient_shader(screen)) {
-        LogMessage(X_WARNING,
-                   "glamor%d: Cannot initialize gradient shader, falling back to software rendering for gradients\n",
-                   screen->myNum);
-        glamor_priv->enable_gradient_shader = FALSE;
-    }
-
     glamor_pixmap_init(screen);
     glamor_sync_init(screen);
 
@@ -912,6 +903,7 @@ glamor_close_screen(ScreenPtr screen)
     glamor_priv = glamor_get_screen_private(screen);
     glamor_sync_close(screen);
     glamor_composite_glyphs_fini(screen);
+    glamor_gradient_lut_fini(screen);
     glamor_set_glvnd_vendor(screen, NULL);
 
     screen->CloseScreen = glamor_priv->saved_procs.close_screen;
