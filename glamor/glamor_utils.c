@@ -53,27 +53,3 @@ glamor_solid_boxes(DrawablePtr drawable,
     }
     free(rect);
 }
-
-void
-glamor_solid(PixmapPtr pixmap, int x, int y, int width, int height,
-             unsigned long fg_pixel)
-{
-    DrawablePtr drawable = &pixmap->drawable;
-    GCPtr gc;
-    ChangeGCVal vals[1];
-    xRectangle rect;
-
-    vals[0].val = fg_pixel;
-    gc = GetScratchGC(drawable->depth, drawable->pScreen);
-    if (!gc)
-        return;
-    ChangeGC(NullClient, gc, GCForeground, vals);
-    ValidateGC(drawable, gc);
-    rect.x = x;
-    rect.y = y;
-    rect.width = width;
-    rect.height = height;
-    gc->ops->PolyFillRect(drawable, gc, 1, &rect);
-    FreeScratchGC(gc);
-}
-

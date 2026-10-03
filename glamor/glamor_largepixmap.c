@@ -830,8 +830,6 @@ glamor_merge_clipped_regions(PixmapPtr pixmap,
         glamor_copy(&pixmap->drawable,
                     &temp_pixmap->drawable,
                     NULL, &copy_box, 1, dx, dy, 0, 0, 0, NULL);
-//              glamor_solid(temp_pixmap, 0, 0, temp_pixmap->drawable.width,
-//                             temp_pixmap->drawable.height, GXcopy, 0xffffffff, 0xff00);
     }
     else {
         for (i = 0; i < *n_regions; i++) {
@@ -866,8 +864,6 @@ glamor_merge_clipped_regions(PixmapPtr pixmap,
                 box++;
             }
         }
-        //glamor_solid(temp_pixmap, 0, 0, temp_pixmap->drawable.width,
-        //             temp_pixmap->drawable.height, GXcopy, 0xffffffff, 0xff);
     }
     /* The first region will be released at caller side. */
     for (i = 1; i < *n_regions; i++)
