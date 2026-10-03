@@ -8,7 +8,7 @@ fission_srcs = [
     'vblank.c',
 ]
 
-shared_module(
+fission_drv_lib = shared_module(
     'fission_drv',
     fission_srcs,
     name_prefix: '',
@@ -29,18 +29,18 @@ shared_module(
 # Test that we don't have any unresolved symbols from our module to Xorg.
 xorg_build_root = join_paths(meson.project_build_root(), 'hw', 'xfree86')
 symbol_test_args = []
-symbol_test_args += join_paths(xorg_build_root, 'libxorgserver.so')
-symbol_test_args += join_paths(xorg_build_root, 'dixmods', 'libshadow.so')
+symbol_test_args += xorgserver_lib.full_path()
+symbol_test_args += shadow_lib.full_path()
 if build_glx
-    symbol_test_args += join_paths(xorg_build_root, 'dixmods', 'libglx.so')
+    symbol_test_args += glx_lib.full_path()
 endif
 if gbm_dep.found()
-    symbol_test_args += join_paths(xorg_build_root, 'glamor_egl', 'libglamoregl.so')
+    symbol_test_args += glamoregl_lib.full_path()
 endif
 if build_soft2d
-    symbol_test_args += join_paths(xorg_build_root, 'soft2d', 'libsoft2d.so')
+    symbol_test_args += soft2d_lib.full_path()
 endif
-symbol_test_args += join_paths(xorg_build_root, 'drivers', 'fission', 'fission_drv.so')
+symbol_test_args += fission_drv_lib.full_path()
 
 install_man(configure_file(
     input: 'fission.man',
