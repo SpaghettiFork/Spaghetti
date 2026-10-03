@@ -5,7 +5,7 @@ soft2d_src = [
     'soft2d_module.c',
 ]
 
-shared_module(
+soft2d_lib = shared_module(
     'soft2d',
     soft2d_src,
     include_directories: [inc, xorg_inc],
