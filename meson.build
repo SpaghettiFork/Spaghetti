@@ -716,7 +716,7 @@ libxserver += libxserver_dri3
 
 subdir('hw')
 
-if host_machine.system() != 'windows'
+if get_option('tests') and host_machine.system() != 'windows'
     subdir('test')
 endif
 
