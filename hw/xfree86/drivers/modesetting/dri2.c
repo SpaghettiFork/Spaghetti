@@ -37,7 +37,6 @@
 #endif
 
 #include <errno.h>
-#include <time.h>
 
 #include "list.h"
 #include "xf86.h"
@@ -334,17 +333,6 @@ ms_dri2_copy_region(DrawablePtr drawable, RegionPtr pRegion,
                          sourceBuffer);
 }
 
-static uint64_t
-gettime_us(void)
-{
-    struct timespec tv;
-
-    if (clock_gettime(CLOCK_MONOTONIC, &tv))
-        return 0;
-
-    return (uint64_t)tv.tv_sec * 1000000 + tv.tv_nsec / 1000;
-}
-
 /**
  * Get current frame count and frame count timestamp, based on drawable's
  * crtc.
@@ -357,7 +345,7 @@ ms_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 
     /* Drawable not displayed, make up a *monotonic* value */
     if (crtc == NULL) {
-        *ust = gettime_us();
+        *ust = GetTimeInMicros();
         *msc = 0;
         return TRUE;
     }
