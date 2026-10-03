@@ -340,7 +340,6 @@ ms_dri2_copy_region(DrawablePtr drawable, RegionPtr pRegion,
 static int
 ms_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
 {
-    int ret;
     xf86CrtcPtr crtc = ms_dri2_crtc_covering_drawable(draw);
 
     /* Drawable not displayed, make up a *monotonic* value */
@@ -348,14 +347,9 @@ ms_dri2_get_msc(DrawablePtr draw, CARD64 *ust, CARD64 *msc)
         *ust = GetTimeInMicros();
         *msc = 0;
         return TRUE;
+    } else {
+        return ms_get_crtc_ust_msc(crtc, ust, msc) == 0;
     }
-
-    ret = ms_get_crtc_ust_msc(crtc, ust, msc);
-
-    if (ret)
-        return FALSE;
-
-    return TRUE;
 }
 
 static XID
