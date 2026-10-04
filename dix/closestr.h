@@ -43,15 +43,15 @@ typedef struct _OFclosure {
     ClientPtr client;
     short current_fpe;
     short num_fpes;
+    XID fontid;
     FontPathElementPtr *fpe_list;
     Mask flags;
 
 /* XXX -- get these from request buffer instead? */
     const char *origFontName;
     int origFontNameLen;
-    XID fontid;
-    char *fontname;
     int fnamelen;
+    char *fontname;
     FontPtr non_cachable_font;
 } OFclosureRec;
 
