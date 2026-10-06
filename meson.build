@@ -110,6 +110,9 @@ xkbcomp_dep = dependency('xkbcomp', required: false)
 xkbfile_dep = dependency('xkbfile')
 xfont2_dep = dependency('xfont2', version: '>= 2.0')
 
+gbm_dep = dependency('gbm', version: gbm_req, required: false)
+epoxy_dep = dependency('epoxy', required: false)
+
 dbus_required = get_option('systemd_logind') == 'true'
 dbus_dep = dependency('dbus-1', version: '>= 1.0', required: dbus_required)
 
@@ -353,13 +356,6 @@ if glamor_option == 'auto'
     build_glamor = build_xorg
 else
     build_glamor = glamor_option == 'true'
-endif
-
-gbm_dep = dependency('', required: false)
-epoxy_dep = dependency('', required: false)
-if build_glamor
-    gbm_dep = dependency('gbm', version: gbm_req, required: false)
-    epoxy_dep = dependency('epoxy', required: false)
 endif
 
 xdmcp_dep = dependency('', required : false)
