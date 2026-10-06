@@ -795,7 +795,7 @@ Bool
 glamor_get_formats(ScreenPtr screen,
                    CARD32 *num_formats, CARD32 **formats)
 {
-#ifdef GLAMOR_HAS_EGL_QUERY_DMABUF
+#ifdef HAVE_EGL_QUERY_DMABUF
     struct glamor_egl_screen_private *glamor_egl;
     EGLint num;
 
@@ -835,7 +835,7 @@ Bool
 glamor_get_modifiers(ScreenPtr screen, uint32_t format,
                      uint32_t *num_modifiers, uint64_t **modifiers)
 {
-#ifdef GLAMOR_HAS_EGL_QUERY_DMABUF
+#ifdef HAVE_EGL_QUERY_DMABUF
     struct glamor_egl_screen_private *glamor_egl;
     EGLint num;
 
@@ -876,7 +876,7 @@ glamor_get_modifiers(ScreenPtr screen, uint32_t format,
 const char *
 glamor_egl_get_driver_name(ScreenPtr screen)
 {
-#ifdef GLAMOR_HAS_EGL_QUERY_DRIVER
+#ifdef HAVE_EGL_QUERY_DRIVER
     struct glamor_egl_screen_private *glamor_egl;
 
     glamor_egl = glamor_egl_get_screen_private(xf86ScreenToScrn(screen));
