@@ -281,7 +281,7 @@ check_outputs(int fd, int *count)
         *count = res->count_connectors;
 
     ret = res->count_connectors > 0;
-#if defined(GLAMOR_HAS_GBM_LINEAR) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM_LINEAR) || defined(FISSION_SOFT2D)
     if (ret == FALSE) {
         uint64_t value = 0;
         if (drmGetCap(fd, DRM_CAP_PRIME, &value) == 0 &&
@@ -1566,7 +1566,7 @@ PreInit(ScrnInfoPtr pScrn, int flags)
             pScrn->capabilities |= RR_Capability_SinkOutput;
             pScrn->capabilities |= RR_Capability_SinkOffload;
         }
-#if defined(GLAMOR_HAS_GBM_LINEAR) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM_LINEAR) || defined(FISSION_SOFT2D)
         if (value & DRM_PRIME_CAP_EXPORT)
             pScrn->capabilities |= RR_Capability_SourceOutput | RR_Capability_SourceOffload;
 #endif
