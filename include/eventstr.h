@@ -239,12 +239,14 @@ struct _RawDeviceEvent {
         uint32_t button;  /**< Button number */
         uint32_t key;     /**< Key code */
     } detail;
+
+    uint32_t flags;       /**< Flags to be copied into the generated event */
+
     struct {
         uint8_t mask[(MAX_VALUATORS + 7) / 8];/**< Valuator mask */
         double data[MAX_VALUATORS];           /**< Valuator data */
         double data_raw[MAX_VALUATORS];       /**< Valuator data as posted */
     } valuators;
-    uint32_t flags;       /**< Flags to be copied into the generated event */
 };
 
 struct _BarrierEvent {
