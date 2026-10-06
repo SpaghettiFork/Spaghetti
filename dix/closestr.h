@@ -75,10 +75,10 @@ typedef struct _LFWIstate {
 
 typedef struct _LFWIclosure {
     ClientPtr client;
+    int length;
     int num_fpes;
     FontPathElementPtr *fpe_list;
     xListFontsWithInfoReply *reply;
-    int length;
     LFWIstateRec current;
     LFWIstateRec saved;
     int savedNumFonts;
