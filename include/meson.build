@@ -112,14 +112,14 @@ conf_data.set('GLAMOR_HAS_EGL_QUERY_DRIVER',
               epoxy_dep.found() and epoxy_dep.version().version_compare('>= 1.5.4') ? '1' : false)
 conf_data.set('GLXEXT', build_glx ? '1' : false)
 conf_data.set('GLAMOR', build_glamor ? '1' : false)
-conf_data.set('GLAMOR_HAS_GBM_LINEAR',
+conf_data.set('HAVE_GBM_LINEAR',
               build_glamor and gbm_dep.found() and gbm_dep.version().version_compare('>= 10.6') ? '1' : false)
 conf_data.set('GBM_BO_WITH_MODIFIERS',
-              build_glamor and gbm_dep.found() and gbm_dep.version().version_compare('>= 17.1') ? '1' : false)
+              gbm_dep.found() and gbm_dep.version().version_compare('>= 17.1') ? '1' : false)
 conf_data.set('GBM_BO_FD_FOR_PLANE',
-              build_glamor and gbm_dep.found() and gbm_dep.version().version_compare('>= 21.1') ? '1' : false)
+              gbm_dep.found() and gbm_dep.version().version_compare('>= 21.1') ? '1' : false)
 conf_data.set('GBM_BO_WITH_MODIFIERS2',
-              build_glamor and gbm_dep.found() and gbm_dep.version().version_compare('>= 21.3') ? '1' : false)
+              gbm_dep.found() and gbm_dep.version().version_compare('>= 21.3') ? '1' : false)
 
 conf_data.set('FISSION_SOFT2D',
               build_soft2d ? '1' : false)
