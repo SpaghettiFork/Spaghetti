@@ -1176,7 +1176,7 @@ doPolyText(ClientPtr client, PTclosurePtr c)
                    the fid somehow becomes valid before we come through
                    again to actually execute the polytext, which would
                    then mess up our refcounting scheme badly.  */
-                c->err = err;
+                c->err = (CARD16) err;
                 c->endReq = c->pElt;
 
                 goto bail;
@@ -1375,7 +1375,7 @@ PolyText(ClientPtr client, DrawablePtr pDraw, GC * pGC, unsigned char *pElt,
         .endReq = endReq,
         .xorg = xorg,
         .yorg = yorg,
-        .reqType = reqType,
+        .reqType = (CARD16) reqType,
         .did = did,
         .err = Success
     };
