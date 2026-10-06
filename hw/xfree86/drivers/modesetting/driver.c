@@ -2197,7 +2197,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
     xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
-#ifdef GLAMOR_HAS_GBM
+#if defined(GLAMOR) && defined(XV)
     if (ms->drmmode.glamor) {
         ms->glamor_adaptor = ms->glamor.xv_init(pScreen, 16);
         if (ms->glamor_adaptor)
@@ -2219,10 +2219,12 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
 
 #ifdef GLAMOR_HAS_GBM
     if (ms->drmmode.glamor) {
+#ifdef DRI2
         if (!(ms->drmmode.dri2_enable = ms_dri2_screen_init(pScreen))) {
             xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
                        "Failed to initialize the DRI2 extension.\n");
         }
+#endif
 
         /* enable reverse prime if we are a GPU screen, and accelerated, and not
          * i915, evdi or udl. i915 is happy scanning out from sysmem.
@@ -2354,11 +2356,13 @@ CloseScreen(ScreenPtr pScreen)
     /* Clear mask of assigned crtc's in this generation */
     ms_ent->assigned_crtcs = 0;
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef DRI2
     if (ms->drmmode.dri2_enable) {
         ms_dri2_close_screen(pScreen);
     }
+#endif
 
+#if defined(GLAMOR) && defined(XV)
     if (ms->glamor_adaptor)
         free(ms->glamor_adaptor);
 #endif
