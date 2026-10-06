@@ -125,6 +125,49 @@ class TestXvShmPutImage:
             libc.shmctl(shmid, IPC_RMID, None)
 
 
+class TestXvPutImage:
+    def test_negative_size(self, xserver, xv_port):
+        """
+        When ddQueryImageAttributes() returns a negative size, adding the
+        PutImage header size can make the length check accept a request
+        that contains no image payload (e.g. size=-1 → required length 10).
+
+        Reject negative sizes with BadValue before length validation.
+        """
+        xclient, opcode, port = xv_port
+        wid = xclient.create_window(width=64, height=64)
+        gcid = xclient.alloc_id()
+        xclient.send_request(x11.CreateGCRequest(cid=gcid, drawable=wid))
+        xclient.flush_responses(timeout=0.2)
+
+        # Header-only PutImage (40 bytes / 10 words) — the pre-fix
+        # overflow path accepted this for NV12 43690x65534.
+        xclient.send_request(
+            xv.PutImageRequest(
+                opcode=opcode,
+                port=port,
+                drawable=wid,
+                gc=gcid,
+                id=xv.FOURCC_NV12,
+                width=xv.OVERFLOW_WIDTH,
+                height=xv.OVERFLOW_HEIGHT,
+                src_w=1,
+                src_h=1,
+                drw_w=1,
+                drw_h=1,
+                data=b"",
+                length_override=10,
+            )
+        )
+        resp = xclient.recv_response(timeout=5.0)
+
+        assert xserver.is_alive, "Server crashed on XvPutImage size overflow"
+        assert isinstance(resp, X11Error), f"Expected BadValue, got {resp}"
+        assert resp.error_code == BadValue, (
+            f"Expected BadValue ({BadValue}), got {resp.error_code}"
+        )
+
+
 class TestXvQueryImageAttributes:
     def test_yv12_size_overflow(self, xserver, xv_port):
         """
