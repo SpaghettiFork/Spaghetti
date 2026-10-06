@@ -708,7 +708,7 @@ ms_tearfree_update_damages(ScreenPtr pScreen)
 static void
 ms_tearfree_do_flips(ScreenPtr pScreen)
 {
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     modesettingPtr ms = modesettingPTR(scrn);
@@ -829,7 +829,7 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty, int *timeout)
     PixmapSyncDirtyHelper(dirty);
 
     if (!screen->isGPU) {
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
         modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(screen));
         /*
          * When copying from the primary framebuffer to the shared pixmap,
@@ -1142,7 +1142,7 @@ FreeScreen(ScrnInfoPtr pScrn)
 
 }
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
 
 static Bool
 load_glamor(ScrnInfoPtr pScrn)
@@ -1187,7 +1187,7 @@ try_enable_glamor(ScrnInfoPtr pScrn)
 
     ms->drmmode.glamor = FALSE;
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     if (ms->drmmode.force_24_32) {
         xf86DrvMsg(pScrn->scrnIndex, X_CONFIG, "Cannot use glamor with 24bpp packed fb\n");
         return;
@@ -1902,7 +1902,7 @@ CreateScreenResources(ScreenPtr pScreen)
 static Bool
 msSharePixmapBacking(PixmapPtr ppix, ScreenPtr secondary, void **handle)
 {
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     modesettingPtr ms =
         modesettingPTR(xf86ScreenToScrn(ppix->drawable.pScreen));
     int ret;
@@ -1922,7 +1922,7 @@ msSharePixmapBacking(PixmapPtr ppix, ScreenPtr secondary, void **handle)
 static Bool
 msSetSharedPixmapBacking(PixmapPtr ppix, void *fd_handle)
 {
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     ScreenPtr screen = ppix->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
@@ -2053,7 +2053,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
     if (!SetMaster(pScrn))
         return FALSE;
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     if (ms->drmmode.glamor)
         ms->drmmode.gbm = ms->glamor.egl_get_gbm_device(pScreen);
 #endif
@@ -2217,7 +2217,7 @@ ScreenInit(ScreenPtr pScreen, int argc, char **argv)
         return FALSE;
     }
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     if (ms->drmmode.glamor) {
 #ifdef DRI2
         if (!(ms->drmmode.dri2_enable = ms_dri2_screen_init(pScreen))) {

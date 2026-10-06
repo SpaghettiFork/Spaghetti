@@ -37,12 +37,12 @@
 #include <X11/extensions/dpmsconst.h>
 #include <shadow.h>
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
 # define GLAMOR_FOR_XORG 1
 # include "glamor.h"
 #endif
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
 # include <gbm.h>
 #endif
 #ifdef FISSION_SOFT2D
@@ -140,7 +140,7 @@ typedef struct _modesettingRec {
     Bool is_connector_vrr_capable;
     uint32_t connector_prop_id;
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     /* glamor API */
     XF86VideoAdaptorPtr glamor_adaptor;
 
@@ -235,7 +235,7 @@ void ms_vblank_close_screen(ScreenPtr screen);
 
 Bool ms_present_screen_init(ScreenPtr screen);
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
 
 typedef void (*ms_pageflip_handler_proc)(modesettingPtr ms,
                                          uint64_t frame,

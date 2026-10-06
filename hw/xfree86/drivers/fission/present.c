@@ -45,7 +45,7 @@
 #include "driver.h"
 #include "drmmode_display.h"
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
 #include "drm_fourcc.h"
 #endif
 
@@ -179,7 +179,7 @@ ms_present_abort_vblank(RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
 static void
 ms_present_flush(WindowPtr window)
 {
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     ScreenPtr screen = window->drawable.pScreen;
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     modesettingPtr ms = modesettingPTR(scrn);
@@ -189,7 +189,7 @@ ms_present_flush(WindowPtr window)
 #endif
 }
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
 /**
  * Callback for the DRM event queue when a flip has completed on all pipes
  *
@@ -259,7 +259,7 @@ ms_present_check_unflip(RRCrtcPtr crtc,
         drmmode_crtc_private_ptr drmmode_crtc = config->crtc[i]->driver_private;
 
         /* Don't do pageflipping if CRTCs are rotated. */
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
         if (drmmode_crtc->rotate_bo.gbm)
             return FALSE;
 #endif
@@ -486,7 +486,7 @@ static present_screen_info_rec ms_present_screen_info = {
     .flush = ms_present_flush,
 
     .capabilities = PresentCapabilityNone,
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     .check_flip = NULL,
     .check_flip2 = ms_present_check_flip,
 

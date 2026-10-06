@@ -1077,7 +1077,7 @@ drmmode_crtc_set_mode(xf86CrtcPtr crtc, Bool test_only)
     if (!drmmode_crtc_get_fb_id(crtc, &fb_id, &x, &y))
         return 1;
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     /* Make sure any pending drawing will be visible in a new scanout buffer */
     if (drmmode->glamor)
         glamor_finish(crtc->scrn->pScreen);
@@ -1171,7 +1171,7 @@ drmmode_bo_destroy(drmmode_ptr drmmode, drmmode_bo *bo)
 {
     int ret;
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     if (bo->gbm && drmmode->glamor) {
         gbm_bo_destroy(bo->gbm);
         bo->gbm = NULL;
@@ -1190,7 +1190,7 @@ drmmode_bo_destroy(drmmode_ptr drmmode, drmmode_bo *bo)
 uint32_t
 drmmode_bo_get_pitch(drmmode_bo *bo)
 {
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     if (bo->gbm)
         return gbm_bo_get_stride(bo->gbm);
 #endif
@@ -1201,7 +1201,7 @@ drmmode_bo_get_pitch(drmmode_bo *bo)
 static Bool
 drmmode_bo_has_bo(drmmode_bo *bo)
 {
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     if (bo->gbm)
         return TRUE;
 #endif
@@ -1212,7 +1212,7 @@ drmmode_bo_has_bo(drmmode_bo *bo)
 uint32_t
 drmmode_bo_get_handle(drmmode_bo *bo)
 {
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     if (bo->gbm)
         return gbm_bo_get_handle(bo->gbm).u32;
 #endif
@@ -1225,7 +1225,7 @@ drmmode_bo_map(drmmode_ptr drmmode, drmmode_bo *bo)
 {
     int ret;
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     if (bo->gbm)
         return NULL;
 #endif
@@ -1332,7 +1332,7 @@ drmmode_create_bo(drmmode_ptr drmmode, drmmode_bo *bo,
     bo->width = width;
     bo->height = height;
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     if (drmmode->gbm && !force_dumb) {
         uint32_t format;
         uint32_t num_modifiers;
@@ -1706,7 +1706,7 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 
 }
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
 static Bool
 depth_bpp_from_format(uint32_t pixel_format, int* depth, int* bpp)
 {
@@ -1833,7 +1833,7 @@ out_free_fb:
 void
 drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 {
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     ScreenPtr pScreen = xf86ScrnToScreen(pScrn);
     PixmapPtr src, dst;
@@ -2365,7 +2365,7 @@ drmmode_clear_pixmap(PixmapPtr pixmap)
 {
     ScreenPtr screen = pixmap->drawable.pScreen;
     GCPtr gc;
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(screen));
 
     if (ms->drmmode.glamor) {
@@ -2404,7 +2404,7 @@ drmmode_shadow_allocate(xf86CrtcPtr crtc, int width, int height)
         return NULL;
     }
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     if (drmmode->gbm)
         return drmmode_crtc->rotate_bo.gbm;
 #endif
@@ -3888,7 +3888,7 @@ drmmode_clones_init(ScrnInfoPtr scrn, drmmode_ptr drmmode, drmModeResPtr mode_re
 static Bool
 drmmode_set_pixmap_bo(drmmode_ptr drmmode, PixmapPtr pixmap, drmmode_bo *bo)
 {
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
     ScrnInfoPtr scrn = drmmode->scrn;
     modesettingPtr ms = modesettingPTR(scrn);
 
@@ -4224,7 +4224,7 @@ drmmode_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
     ScreenPtr pScreen = xf86ScrnToScreen(pScrn);
     modesettingPtr ms = modesettingPTR(pScrn);
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     if (drmmode->glamor) {
         if (!ms->glamor.init(pScreen, GLAMOR_USE_EGL_SCREEN)) {
             return FALSE;
