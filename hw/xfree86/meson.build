@@ -117,7 +117,7 @@ xorg_server = executable(
 subdir('dixmods')
 subdir('exa')
 subdir('fbdevhw')
-if gbm_dep.found()
+if build_glamor
     subdir('glamor_egl')
 endif
 if build_soft2d
