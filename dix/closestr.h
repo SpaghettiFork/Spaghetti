@@ -111,9 +111,9 @@ typedef struct _PTclosure {
     unsigned char *data;
     int xorg;
     int yorg;
-    CARD8 reqType;
+    CARD16 err;
+    CARD16 reqType;
     XID did;
-    int err;
 } PTclosureRec;
 
 /* ImageText */
