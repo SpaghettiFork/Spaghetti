@@ -92,11 +92,11 @@ typedef struct _CompWindow {
     Bool damageRegistered;
     Bool damaged;
     int update;
+    short borderClipX, borderClipY;
     CompClientWindowPtr clients;
     int oldx;
     int oldy;
     PixmapPtr pOldPixmap;
-    int borderClipX, borderClipY;
 } CompWindowRec, *CompWindowPtr;
 
 #define COMP_ORIGIN_INVALID	    0x80000000
