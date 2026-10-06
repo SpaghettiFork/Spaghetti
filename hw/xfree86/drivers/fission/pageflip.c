@@ -77,7 +77,7 @@ ms_drain_drm_events(ScreenPtr screen)
         ms_flush_drm_events_timeout(screen, -1);
 }
 
-#if defined(GLAMOR_HAS_GBM) || defined(FISSION_SOFT2D)
+#if defined(HAVE_GBM) || defined(FISSION_SOFT2D)
 
 /*
  * Event data for an in progress flip.

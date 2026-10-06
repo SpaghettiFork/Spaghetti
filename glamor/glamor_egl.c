@@ -556,7 +556,7 @@ glamor_egl_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
                            uint32_t *strides, uint32_t *offsets,
                            uint64_t *modifier)
 {
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     struct gbm_bo *bo;
     int num_fds;
 #ifdef GBM_BO_WITH_MODIFIERS
@@ -625,7 +625,7 @@ int
 glamor_egl_fd_from_pixmap(ScreenPtr screen, PixmapPtr pixmap,
                           CARD16 *stride, CARD32 *size)
 {
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     struct gbm_bo *bo;
     int fd;
 
@@ -924,7 +924,7 @@ glamor_egl_exchange_buffers(PixmapPtr front, PixmapPtr back)
 
     glamor_pixmap_exchange_fbos(front, back);
 
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     XORG_EXCHANGE(back_priv->image, front_priv->image);
     XORG_EXCHANGE(back_priv->used_modifiers, front_priv->used_modifiers);
 #endif

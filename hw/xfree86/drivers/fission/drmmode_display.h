@@ -93,7 +93,7 @@ typedef struct {
     uint32_t width;
     uint32_t height;
     struct dumb_bo *dumb;
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     struct gbm_bo *gbm;
     Bool used_modifiers;
 #endif

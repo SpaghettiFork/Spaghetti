@@ -40,7 +40,7 @@
 #endif
 
 #include <epoxy/gl.h>
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
 #define MESA_EGL_NO_X11_HEADERS
 #define EGL_NO_X11
 #include <epoxy/egl.h>
@@ -390,7 +390,7 @@ typedef struct glamor_pixmap_private {
     BoxRec box;
     RegionRec prepare_region;
     Bool prepared;
-#ifdef GLAMOR_HAS_GBM
+#ifdef HAVE_GBM
     Bool used_modifiers;
     EGLImageKHR image;
 #endif

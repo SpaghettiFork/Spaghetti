@@ -112,7 +112,6 @@ conf_data.set('GLAMOR_HAS_EGL_QUERY_DRIVER',
               epoxy_dep.found() and epoxy_dep.version().version_compare('>= 1.5.4') ? '1' : false)
 conf_data.set('GLXEXT', build_glx ? '1' : false)
 conf_data.set('GLAMOR', build_glamor ? '1' : false)
-conf_data.set('GLAMOR_HAS_GBM', gbm_dep.found() ? '1' : false)
 conf_data.set('GLAMOR_HAS_GBM_LINEAR',
               build_glamor and gbm_dep.found() and gbm_dep.version().version_compare('>= 10.6') ? '1' : false)
 conf_data.set('GBM_BO_WITH_MODIFIERS',
