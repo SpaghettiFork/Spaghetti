@@ -6,8 +6,6 @@ Yet _another_ fork of the X.Org Display Server.
 
 ![https://xkcd.com/927/](.repo/images/standards.png)
 
-*replace standards with display servers
-
 ## Goals
 
 - Maintain ABI compatibility
