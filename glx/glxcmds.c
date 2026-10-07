@@ -2188,6 +2188,9 @@ __glXDisp_RenderLarge(__GLXclientState * cl, GLbyte * pc)
             return BadLength;
         }
 
+        if (dataBytes > cmdlen)
+            return BadLength;
+
         /*
          ** Make enough space in the buffer, then copy the entire request.
          */
