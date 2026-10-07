@@ -43,7 +43,7 @@ typedef struct _OFclosure {
     ClientPtr client;
     short current_fpe;
     short num_fpes;
-    XID fontid;
+    XID fontid; /* XXX -- get this from request buffer instead? */
     FontPathElementPtr *fpe_list;
     Mask flags;
 
