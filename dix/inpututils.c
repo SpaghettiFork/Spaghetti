@@ -1265,7 +1265,7 @@ CopySprite(SpritePtr src, SpritePtr dst)
     WindowPtr *trace;
     if (src->spriteTraceGood > dst->spriteTraceSize) {
         trace = reallocarray(dst->spriteTrace,
-                             src->spriteTraceSize, sizeof(*trace));
+                             src->spriteTraceGood, sizeof(*trace));
         if (!trace) {
             dst->spriteTraceGood = 0;
             return FALSE;
