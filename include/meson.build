@@ -228,6 +228,7 @@ conf_data.set('LOCALCONN', host_machine.system() == 'sunos' ? '1' : false)
 conf_data.set('IPv6', build_ipv6 ? '1' : false)
 
 conf_data.set('LEGACY_ABI_COMPAT', legacy_abi_compat ? '1' : false)
+conf_data.set('HAVE_DRI3_1_4', have_dri3_1_4 ? '1' : false)
 conf_data.set('HAVE_PRESENT_1_4', have_present_1_4 ? '1' : false)
 
 conf_data.set('COMPOSITE', '1')

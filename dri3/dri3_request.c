@@ -595,6 +595,7 @@ proc_dri3_set_drm_device_in_use(ClientPtr client)
     return Success;
 }
 
+#ifdef HAVE_DRI3_1_4
 static int
 proc_dri3_import_syncobj(ClientPtr client)
 {
@@ -639,6 +640,7 @@ proc_dri3_free_syncobj(ClientPtr client)
     FreeResource(stuff->syncobj, RT_NONE);
     return Success;
 }
+#endif /* HAVE_DRI3_1_4 */
 
 int (*proc_dri3_vector[DRI3NumberRequests]) (ClientPtr) = {
     proc_dri3_query_version,            /* 0 */
@@ -651,8 +653,10 @@ int (*proc_dri3_vector[DRI3NumberRequests]) (ClientPtr) = {
     proc_dri3_pixmap_from_buffers,      /* 7 */
     proc_dri3_buffers_from_pixmap,      /* 8 */
     proc_dri3_set_drm_device_in_use,    /* 9 */
+#ifdef HAVE_DRI3_1_4
     proc_dri3_import_syncobj,           /* 10 */
     proc_dri3_free_syncobj,             /* 11 */
+#endif /* HAVE_DRI3_1_4 */
 };
 
 int
@@ -779,6 +783,7 @@ sproc_dri3_set_drm_device_in_use(ClientPtr client)
     return (*proc_dri3_vector[stuff->dri3ReqType]) (client);
 }
 
+#ifdef HAVE_DRI3_1_4
 static int _X_COLD
 sproc_dri3_import_syncobj(ClientPtr client)
 {
@@ -797,6 +802,7 @@ sproc_dri3_free_syncobj(ClientPtr client)
     swapl(&stuff->syncobj);
     return (*proc_dri3_vector[stuff->dri3ReqType]) (client);
 }
+#endif /* HAVE_DRI3_1_4 */
 
 int (*sproc_dri3_vector[DRI3NumberRequests]) (ClientPtr) = {
     sproc_dri3_query_version,           /* 0 */
@@ -809,8 +815,10 @@ int (*sproc_dri3_vector[DRI3NumberRequests]) (ClientPtr) = {
     sproc_dri3_pixmap_from_buffers,     /* 7 */
     sproc_dri3_buffers_from_pixmap,     /* 8 */
     sproc_dri3_set_drm_device_in_use,   /* 9 */
+#ifdef HAVE_DRI3_1_4
     sproc_dri3_import_syncobj,          /* 10 */
     sproc_dri3_free_syncobj,            /* 11 */
+#endif /* HAVE_DRI3_1_4 */
 };
 
 int _X_COLD
