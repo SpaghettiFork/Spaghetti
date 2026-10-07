@@ -137,6 +137,18 @@ else
     libsystemd_daemon_dep = disabler()
 endif
 
+# _X_FALLTHROUGH needs xproto 7.0.34 or newer
+have_x_fallthrough = cc.has_header_symbol('X11/Xfuncproto.h', '_X_FALLTHROUGH',
+                                           dependencies : xproto_dep)
+if not have_x_fallthrough
+    if (cc.get_id() == 'gcc' and cc.version().version_compare('>= 7')) or cc.get_id() == 'clang'
+        x_fallthrough_arg = '-D_X_FALLTHROUGH=__attribute__((fallthrough))'
+    else
+        x_fallthrough_arg = '-D_X_FALLTHROUGH=(void)0'
+    endif
+    add_project_arguments(x_fallthrough_arg, language : ['c', 'objc'])
+endif
+
 build_hashtable = false
 
 # Resolve default values of some options
