@@ -52,7 +52,11 @@
 
 /* DRI3 */
 #define SERVER_DRI3_MAJOR_VERSION               1
+#if defined(DRI3) && defined(HAVE_DRI3_1_4)
 #define SERVER_DRI3_MINOR_VERSION               4
+#else
+#define SERVER_DRI3_MINOR_VERSION               3
+#endif
 
 /* Generic event extension */
 #define SERVER_GE_MAJOR_VERSION                 1
