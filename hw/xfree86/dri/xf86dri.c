@@ -450,10 +450,12 @@ ProcXF86DRIGetDrawableInfo(register ClientPtr client)
 
     WriteToClient(client, sizeof(xXF86DRIGetDrawableInfoReply), &rep);
 
-    if (rep.numClipRects) {
-        WriteToClient(client,
-                      sizeof(drm_clip_rect_t) * rep.numClipRects,
-                      pClippedRects);
+    if (pClippedRects != pClipRects) {
+        if (rep.numClipRects) {
+            WriteToClient(client,
+                          sizeof(drm_clip_rect_t) * rep.numClipRects,
+                          pClippedRects);
+        }
         free(pClippedRects);
     }
 
