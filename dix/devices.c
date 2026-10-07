@@ -1384,6 +1384,7 @@ AllocValuatorClass(ValuatorClassPtr src, int numAxes)
         double d;
     } *align;
     int size;
+    int oldAxes = src ? src->numAxes : 0;
 
     size =
         sizeof(union align_u) + numAxes * (sizeof(double) + sizeof(AxisInfo));
@@ -1399,6 +1400,13 @@ AllocValuatorClass(ValuatorClassPtr src, int numAxes)
     v->numAxes = numAxes;
     v->axisVal = (double *) (align + 1);
     v->axes = (AxisInfoPtr) (v->axisVal + numAxes);
+
+    if (numAxes > oldAxes) {
+        memset(v->axisVal + oldAxes, 0,
+               (numAxes - oldAxes) * sizeof(double));
+        memset(v->axes + oldAxes, 0,
+               (numAxes - oldAxes) * sizeof(AxisInfo));
+    }
 
     return v;
 }
