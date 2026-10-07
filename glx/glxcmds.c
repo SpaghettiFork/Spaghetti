@@ -2195,12 +2195,12 @@ __glXDisp_RenderLarge(__GLXclientState * cl, GLbyte * pc)
          ** Make enough space in the buffer, then copy the entire request.
          */
         if (glxc->largeCmdBufSize < cmdlen) {
-	    GLbyte *newbuf = glxc->largeCmdBuf;
+            GLbyte *newbuf = glxc->largeCmdBuf;
 
-	    if (!(newbuf = realloc(newbuf, cmdlen)))
-		return BadAlloc;
+            if (!(newbuf = realloc(newbuf, cmdlen)))
+                return BadAlloc;
 
-	    glxc->largeCmdBuf = newbuf;
+            glxc->largeCmdBuf = newbuf;
             glxc->largeCmdBufSize = cmdlen;
         }
         memcpy(glxc->largeCmdBuf, pc, dataBytes);
