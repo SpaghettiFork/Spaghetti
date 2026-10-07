@@ -403,7 +403,7 @@ VBEGetVBEInfo(vbeInfoPtr pVbe)
 
     block->VideoModePtr = xallocarray(i + 1, sizeof(CARD16));
     if (!block->VideoModePtr) {
-        free(block);
+        VBEFreeVBEInfo(block);
         return NULL;
     }
 
