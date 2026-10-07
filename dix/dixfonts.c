@@ -1787,6 +1787,16 @@ GetFontPath(ClientPtr client, int *count, int *length, unsigned char **result)
         fpe = font_path_elements[i];
         len += fpe->name_length + 1;
     }
+    if (len == 0) {
+        /* realloc(p, 0) may free p and return NULL, which would make the
+         * free below a double free. Handle the empty path explicitly. */
+        free(font_path_string);
+        font_path_string = NULL;
+        *count = 0;
+        *length = 0;
+        *result = NULL;
+        return Success;
+    }
     c = realloc(font_path_string, len);
     if (c == NULL) {
         free(font_path_string);
