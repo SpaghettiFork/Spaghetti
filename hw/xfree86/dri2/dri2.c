@@ -1624,7 +1624,7 @@ DRI2ScreenInit(ScreenPtr pScreen, DRI2InfoPtr info)
             ds->driverName = dri2_probe_driver_name(pScreen, info);
             ds->driverNames[0] = ds->driverNames[1] = ds->driverName;
             if (!ds->driverNames[0])
-                return FALSE;
+                goto err_out;
 
             /* There is no VDPAU driver for i965, fallback to the generic
              * OpenGL/VAAPI va_gl backend to emulate VDPAU on i965. */
@@ -1663,6 +1663,7 @@ DRI2ScreenInit(ScreenPtr pScreen, DRI2InfoPtr info)
     xf86DrvMsg(pScreen->myNum, X_WARNING,
                "[DRI2] Initialization failed for info version %d.\n",
                info->version);
+    free(ds->driverNames);
     free(ds);
     return FALSE;
 }
