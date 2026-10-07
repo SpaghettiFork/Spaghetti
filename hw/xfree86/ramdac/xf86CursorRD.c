@@ -70,8 +70,10 @@ xf86InitCursor(ScreenPtr pScreen, xf86CursorInfoPtr infoPtr)
         return FALSE;
 
     if (!dixRegisterScreenPrivateKey(&xf86ScreenCursorBitsKeyRec, pScreen,
-                                     PRIVATE_CURSOR, 0))
+                                      PRIVATE_CURSOR, 0)) {
+        free(ScreenPriv);
         return FALSE;
+    }
 
     dixSetPrivate(&pScreen->devPrivates, xf86CursorScreenKey, ScreenPriv);
 
