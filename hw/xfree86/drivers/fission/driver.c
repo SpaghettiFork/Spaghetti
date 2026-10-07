@@ -631,8 +631,10 @@ dispatch_damages(ScrnInfoPtr scrn, xf86CrtcPtr crtc, RegionPtr dirty,
             c++;
         }
 
-        if (!c)
+        if (!c) {
+            free(clip);
             return 0;
+        }
 
         ftrace_print("dispatch_damages fb_id %d rects %d", fb_id, num_cliprects);
 
