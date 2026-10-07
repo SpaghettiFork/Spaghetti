@@ -68,7 +68,7 @@
 
 /* Present */
 #define SERVER_PRESENT_MAJOR_VERSION            1
-#ifdef DRI3
+#if defined(DRI3) && defined(HAVE_PRESENT_1_4)
 #define SERVER_PRESENT_MINOR_VERSION            4
 #else
 #define SERVER_PRESENT_MINOR_VERSION            3

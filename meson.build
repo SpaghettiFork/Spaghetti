@@ -86,7 +86,9 @@ fixesproto_dep = dependency('fixesproto', version: '>= 6.1', fallback: ['xorgpro
 damageproto_dep = dependency('damageproto', version: '>= 1.1', fallback: ['xorgproto', 'ext_xorgproto'])
 xcmiscproto_dep = dependency('xcmiscproto', version: '>= 1.2.0', fallback: ['xorgproto', 'ext_xorgproto'])
 bigreqsproto_dep = dependency('bigreqsproto', version: '>= 1.1.0', fallback: ['xorgproto', 'ext_xorgproto'])
-presentproto_dep = dependency('presentproto', version: '>= 1.4', fallback: ['xorgproto', 'ext_xorgproto'])
+presentproto_dep = dependency('presentproto', version: '>= 1.3', fallback: ['xorgproto', 'ext_xorgproto'])
+# This is why we can't have nice things in life.
+have_present_1_4 = presentproto_dep.version().version_compare('>= 1.4')
 xtrans_dep = dependency('xtrans', version: '>= 1.3.5')
 
 videoproto_dep = dependency('videoproto', fallback: ['xorgproto', 'ext_xorgproto'])
