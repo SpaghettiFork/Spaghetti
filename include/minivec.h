@@ -45,8 +45,11 @@ inline void insert_mini_vector(mini_vector *a, int element)
 {
 	if (a->used == a->size)
 	{
+		int *tmp = realloc(a->array, a->size * 2 * a->obj_size);
+		if (!tmp)
+			return;
 		a->size *= 2;
-		a->array = realloc(a->array, a->size * a->obj_size);
+		a->array = tmp;
 	}
 
 	a->array[a->used++] = element;
