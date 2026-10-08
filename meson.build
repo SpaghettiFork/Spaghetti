@@ -86,7 +86,7 @@ fixesproto_dep = dependency('fixesproto', version: '>= 6.1', fallback: ['xorgpro
 damageproto_dep = dependency('damageproto', version: '>= 1.1', fallback: ['xorgproto', 'ext_xorgproto'])
 xcmiscproto_dep = dependency('xcmiscproto', version: '>= 1.2.0', fallback: ['xorgproto', 'ext_xorgproto'])
 bigreqsproto_dep = dependency('bigreqsproto', version: '>= 1.1.0', fallback: ['xorgproto', 'ext_xorgproto'])
-presentproto_dep = dependency('presentproto', version: '>= 1.4', fallback: ['xorgproto', 'ext_xorgproto'])
+presentproto_dep = dependency('presentproto', version: '>= 1.3', fallback: ['xorgproto', 'ext_xorgproto'])
 xtrans_dep = dependency('xtrans', version: '>= 1.3.5')
 
 videoproto_dep = dependency('videoproto', fallback: ['xorgproto', 'ext_xorgproto'])
@@ -96,7 +96,7 @@ scrnsaverproto_dep = dependency('scrnsaverproto', version: '>= 1.1', fallback: [
 resourceproto_dep = dependency('resourceproto', version: '>= 1.2.0', fallback: ['xorgproto', 'ext_xorgproto'])
 xf86driproto_dep = dependency('xf86driproto', version: '>= 2.1.0', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('dri1') == 'true')
 dri2proto_dep = dependency('dri2proto', version: '>= 2.8', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('dri2') == 'true')
-dri3proto_dep = dependency('dri3proto', version: '>= 1.4', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('dri3') == 'true')
+dri3proto_dep = dependency('dri3proto', version: '>= 1.3', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('dri3') == 'true')
 xineramaproto_dep = dependency('xineramaproto', fallback: ['xorgproto', 'ext_xorgproto'])
 xf86bigfontproto_dep = dependency('xf86bigfontproto', version: '>= 1.2.0', fallback: ['xorgproto', 'ext_xorgproto'], required: get_option('xf86bigfont'))
 xf86vidmodeproto_dep = dependency('xf86vidmodeproto', version: '>= 2.2.99.1', fallback: ['xorgproto', 'ext_xorgproto'])
@@ -116,6 +116,10 @@ epoxy_dep = dependency('epoxy', required: false)
 dbus_required = get_option('systemd_logind') == 'true'
 dbus_dep = dependency('dbus-1', version: '>= 1.0', required: dbus_required)
 
+# This is why we can't have nice things in life.
+have_dri3_1_4 = dri3proto_dep.found() and dri3proto_dep.version().version_compare('>= 1.4')
+have_present_1_4 = presentproto_dep.version().version_compare('>= 1.4')
+
 systemd_notify = get_option('systemd_notify')
 libsystemd_required = systemd_notify == 'true'
 libsystemd_wanted = systemd_notify in ['auto','true']
@@ -131,6 +135,18 @@ if libsystemd_wanted
     endif
 else
     libsystemd_daemon_dep = disabler()
+endif
+
+# _X_FALLTHROUGH needs xproto 7.0.34 or newer
+have_x_fallthrough = cc.has_header_symbol('X11/Xfuncproto.h', '_X_FALLTHROUGH',
+                                           dependencies : xproto_dep)
+if not have_x_fallthrough
+    if (cc.get_id() == 'gcc' and cc.version().version_compare('>= 7')) or cc.get_id() == 'clang'
+        x_fallthrough_arg = '-D_X_FALLTHROUGH=__attribute__((fallthrough))'
+    else
+        x_fallthrough_arg = '-D_X_FALLTHROUGH=(void)0'
+    endif
+    add_project_arguments(x_fallthrough_arg, language : ['c', 'objc'])
 endif
 
 build_hashtable = false

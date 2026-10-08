@@ -284,7 +284,7 @@ proc_present_query_capabilities (ClientPtr client)
     return Success;
 }
 
-#ifdef DRI3
+#if defined(DRI3) && defined(HAVE_PRESENT_1_4)
 static int
 proc_present_pixmap_synced (ClientPtr client)
 {
@@ -312,7 +312,7 @@ proc_present_pixmap_synced (ClientPtr client)
                                       sizeof (xPresentPixmapSyncedReq),
                                       (xPresentNotify *)(stuff + 1));
 }
-#endif /* DRI3 */
+#endif /* DRI3 && HAVE_PRESENT_1_4 */
 
 static int (*proc_present_vector[PresentNumberRequests]) (ClientPtr) = {
     proc_present_query_version,            /* 0 */
@@ -320,9 +320,9 @@ static int (*proc_present_vector[PresentNumberRequests]) (ClientPtr) = {
     proc_present_notify_msc,               /* 2 */
     proc_present_select_input,             /* 3 */
     proc_present_query_capabilities,       /* 4 */
-#ifdef DRI3
+#if defined(DRI3) && defined(HAVE_PRESENT_1_4)
     proc_present_pixmap_synced,            /* 5 */
-#endif /* DRI3 */
+#endif /* DRI3 && HAVE_PRESENT_1_4 */
 };
 
 int
@@ -407,7 +407,7 @@ sproc_present_query_capabilities (ClientPtr client)
 }
 
 
-#ifdef DRI3
+#if defined(DRI3) && defined(HAVE_PRESENT_1_4)
 static int _X_COLD
 sproc_present_pixmap_synced(ClientPtr client)
 {
@@ -438,7 +438,7 @@ sproc_present_pixmap_synced(ClientPtr client)
     swapll(&stuff->remainder);
     return (*proc_present_vector[stuff->presentReqType]) (client);
 }
-#endif /* DRI3 */
+#endif /* DRI3 && HAVE_PRESENT_1_4 */
 
 static int (*sproc_present_vector[PresentNumberRequests]) (ClientPtr) = {
     sproc_present_query_version,           /* 0 */
@@ -446,9 +446,9 @@ static int (*sproc_present_vector[PresentNumberRequests]) (ClientPtr) = {
     sproc_present_notify_msc,              /* 2 */
     sproc_present_select_input,            /* 3 */
     sproc_present_query_capabilities,      /* 4 */
-#ifdef DRI3
+#if defined(DRI3) && defined(HAVE_PRESENT_1_4)
     sproc_present_pixmap_synced,           /* 5 */
-#endif /* DRI3 */
+#endif /* DRI3 && HAVE_PRESENT_1_4 */
 };
 
 int _X_COLD
