@@ -911,9 +911,8 @@ ProcMapWindow(ClientPtr client)
     rc = dixLookupWindow(&pWin, stuff->id, client, DixShowAccess);
     if (rc != Success)
         return rc;
-    MapWindow(pWin, client);
     /* update cache to say it is mapped */
-    return Success;
+    return MapWindow(pWin, client);
 }
 
 int
