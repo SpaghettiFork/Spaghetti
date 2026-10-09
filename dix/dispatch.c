@@ -347,21 +347,25 @@ SmartScheduleClient(void)
                 pClient->smart_priority++;
         }
 
-        /* check priority to select best client */
-        robin =
-            (pClient->index -
-             SmartLastIndex[pClient->smart_priority -
-                            SMART_MIN_PRIORITY]) & 0xff;
-
-        /* pick the best client */
-        if (!best ||
-            pClient->priority > best->priority ||
-            (pClient->priority == best->priority &&
-             (pClient->smart_priority > best->smart_priority ||
-              (pClient->smart_priority == best->smart_priority && robin > bestRobin))))
-        {
+        /* Figure out where this client sits in the round-robin history. */
+        int prioIdx = pClient->smart_priority - SMART_MIN_PRIORITY;
+ 
+        /* This client outranks everything so far, just take it.
+         * No point working out round-robin distance here. */
+        if (!best || pClient->priority > best->priority) {
             best = pClient;
-            bestRobin = robin;
+            bestRobin = (pClient->index - SmartLastIndex[prioIdx]) & 0xff;
+        }
+        /* Same rank as the current best: prefer whoever has waited longer,
+         * falling back to round-robin order when that ties too. */
+        else if (pClient->priority == best->priority) {
+            robin = (pClient->index - SmartLastIndex[prioIdx]) & 0xff;
+            if (pClient->smart_priority > best->smart_priority ||
+                (pClient->smart_priority == best->smart_priority &&
+                 robin > bestRobin)) {
+                best = pClient;
+                bestRobin = robin;
+            }
         }
 #ifdef SMART_DEBUG
         if ((now - SmartLastPrint) >= 5000)
