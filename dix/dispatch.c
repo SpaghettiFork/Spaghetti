@@ -944,9 +944,8 @@ ProcUnmapWindow(ClientPtr client)
     rc = dixLookupWindow(&pWin, stuff->id, client, DixHideAccess);
     if (rc != Success)
         return rc;
-    UnmapWindow(pWin, FALSE);
     /* update cache to say it is mapped */
-    return Success;
+    return UnmapWindow(pWin, FALSE);
 }
 
 int
