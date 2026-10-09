@@ -477,6 +477,7 @@ Dispatch(void)
     int result;
     ClientPtr client;
     long start_tick;
+    long maxReqBytes;
 
     nextFreeClientID = 1;
     nClients = 0;
@@ -504,6 +505,7 @@ Dispatch(void)
             isItTimeToYield = FALSE;
 
             start_tick = SmartScheduleTime;
+            maxReqBytes = maxBigRequestSize << 2;
             while (!isItTimeToYield) {
                 if (InputCheckPending())
                     ProcessInputEvents();
@@ -543,7 +545,7 @@ Dispatch(void)
                                           client->index,
                                           client->requestBuffer);
 #endif
-                if (result < 0 || result > (maxBigRequestSize << 2))
+                if (result < 0 || result > maxReqBytes)
                     result = BadLength;
                 else {
                     result = XaceHookDispatch(client, client->majorOp);
