@@ -3584,7 +3584,7 @@ NextAvailableClient(void *ospriv)
         return (ClientPtr) NULL;
     InitClient(client, i, ospriv);
     if (!InitClientResources(client)) {
-        clients[i] = NULL;
+        clients[i] = NullClient;
         dixFreeObjectWithPrivates(client, PRIVATE_CLIENT);
         return (ClientPtr) NULL;
     }
@@ -3592,7 +3592,7 @@ NextAvailableClient(void *ospriv)
     data.length = bytes_to_int32(sz_xReq + sz_xConnClientPrefix);
     if (!InsertFakeRequest(client, (char *) &data, sz_xReq)) {
         FreeClientResources(client);
-        clients[i] = NULL;
+        clients[i] = NullClient;
         dixFreeObjectWithPrivates(client, PRIVATE_CLIENT);
         return (ClientPtr) NULL;
     }
