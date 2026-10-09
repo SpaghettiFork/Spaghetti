@@ -70,6 +70,7 @@ static RESTYPE RTContext;       /* internal resource type for Record contexts */
 
 typedef struct {
     XID id;                     /* resource id of context */
+    int inFlush;                /* are we inside RecordFlushReplyBuffer */
     ClientPtr pRecordingClient; /* client that has context enabled */
     struct _RecordClientsAndProtocolRec *pListOfRCAP;   /* all registered info */
     ClientPtr pBufClient;       /* client whose protocol is in replyBuffer */
@@ -78,7 +79,6 @@ typedef struct {
     char bufCategory;           /* category of protocol in replyBuffer */
     int numBufBytes;            /* number of bytes in replyBuffer */
     char replyBuffer[REPLY_BUF_SIZE];   /* buffered recorded protocol */
-    int inFlush;                /*  are we inside RecordFlushReplyBuffer */
 } RecordContextRec, *RecordContextPtr;
 
 /*  RecordMinorOpRec - to hold minor opcode selections for extension requests
