@@ -1000,8 +1000,7 @@ ProcCirculateWindow(ClientPtr client)
     rc = dixLookupWindow(&pWin, stuff->window, client, DixManageAccess);
     if (rc != Success)
         return rc;
-    CirculateWindow(pWin, (int) stuff->direction, client);
-    return Success;
+    return CirculateWindow(pWin, (int) stuff->direction, client);
 }
 
 static int
