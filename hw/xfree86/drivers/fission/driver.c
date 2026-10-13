@@ -922,11 +922,13 @@ ms_tearfree_update_damages(ScreenPtr pScreen)
     DamageEmpty(ms->damage);
 }
 
+/*
+ * Blit damage into the back buffer ahead of the BlockHandler flush,
+ * which fences it for the flip below.
+ */
 static void
-ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
+ms_tearfree_blit_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    modesettingPtr ms = modesettingPTR(scrn);
     SourceValidateProcPtr SourceValidate = screen->SourceValidate;
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
@@ -934,16 +936,11 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     pixman_f_transform_t *transform_ptr = NULL;
     PixmapPtr src;
     int back = trf->back_idx;
-    uint32_t seq;
-    Bool ret;
 
     if (!crtc->enabled)
         return;
 
     if (trf->flip_seq)
-        return;
-
-    if (ms->drmmode.present_flipping)
         return;
 
     if (RegionNil(&trf->stale[back]))
@@ -965,19 +962,36 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
     }
 
     screen->SourceValidate = miSourceValidate;
-    ret = ms_copy_area(src,
-                       trf->pixmap[back],
-                       transform_ptr, &trf->stale[back]);
+    /*
+     * A failed blit keeps its damage for the next pass; this pass
+     * flips the previous frame. Setup fails only on CPU-side
+     * allocation.
+     */
+    ms_copy_area(src,
+                 trf->pixmap[back],
+                 transform_ptr, &trf->stale[back]);
     screen->SourceValidate = SourceValidate;
+}
 
-    if (!ret)
+/*
+ * Submit the flip after the flush, against the fenced back buffer.
+ */
+static void
+ms_tearfree_flip_crtc(ScrnInfoPtr scrn, xf86CrtcPtr crtc)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    drmmode_tearfree_ptr trf = &drmmode_crtc->tearfree;
+    int back = trf->back_idx;
+    uint32_t seq;
+
+    if (!crtc->enabled)
         return;
 
-#ifdef HAVE_GBM
-    /* Ensure the blit is visible to the display engine before the flip. */
-    if (ms->drmmode.glamor)
-        glamor_finish(screen);
-#endif
+    if (trf->flip_seq)
+        return;
+
+    if (RegionNil(&trf->stale[back]))
+        return;
 
     seq = ms_drm_queue_alloc(crtc, crtc,
                              ms_tearfree_flip_handler,
@@ -1005,14 +1019,20 @@ ms_tearfree_update_crtc(ScreenPtr screen, xf86CrtcPtr crtc)
 }
 
 static void
-ms_tearfree_update(ScreenPtr screen)
+ms_tearfree_update(ScreenPtr screen, modesettingPtr ms, Bool flip)
 {
     ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     int c;
 
+    if (ms->drmmode.present_flipping)
+        return;
+
     for (c = 0; c < xf86_config->num_crtc; c++)
-        ms_tearfree_update_crtc(screen, xf86_config->crtc[c]);
+        if (flip)
+            ms_tearfree_flip_crtc(scrn, xf86_config->crtc[c]);
+        else
+            ms_tearfree_blit_crtc(screen, xf86_config->crtc[c]);
 }
 
 static void
@@ -1020,10 +1040,6 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
 {
     modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(pScreen));
 
-    pScreen->BlockHandler = ms->BlockHandler;
-    pScreen->BlockHandler(pScreen, timeout);
-    ms->BlockHandler = pScreen->BlockHandler;
-    pScreen->BlockHandler = msBlockHandler;
     if (pScreen->isGPU && !ms->drmmode.reverse_prime_offload_mode)
         dispatch_secondary_dirty(pScreen);
     else if (ms->drmmode.tearfree)
@@ -1031,10 +1047,22 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
     else if (ms->dirty_enabled)
         dispatch_dirty(pScreen);
 
+    /*
+     * Blits go out before the wrapped handler so its flush fences
+     * them; flips go out after, ordered behind the blit fence.
+     */
+    if (ms->drmmode.tearfree)
+        ms_tearfree_update(pScreen, ms, FALSE);
+
+    pScreen->BlockHandler = ms->BlockHandler;
+    pScreen->BlockHandler(pScreen, timeout);
+    ms->BlockHandler = pScreen->BlockHandler;
+    pScreen->BlockHandler = msBlockHandler;
+
     ms_dirty_update(pScreen, timeout);
 
     if (ms->drmmode.tearfree)
-        ms_tearfree_update(pScreen);
+        ms_tearfree_update(pScreen, ms, TRUE);
 }
 
 static void
