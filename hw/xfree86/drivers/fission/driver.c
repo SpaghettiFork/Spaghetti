@@ -773,10 +773,8 @@ redisplay_dirty(ScreenPtr screen, PixmapDirtyUpdatePtr dirty, int *timeout)
 }
 
 static void
-ms_dirty_update(ScreenPtr screen, int *timeout)
+ms_dirty_update(ScreenPtr screen, modesettingPtr ms, int *timeout)
 {
-    modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(screen));
-
     RegionPtr region;
     PixmapDirtyUpdatePtr ent;
 
@@ -1059,7 +1057,7 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
     ms->BlockHandler = pScreen->BlockHandler;
     pScreen->BlockHandler = msBlockHandler;
 
-    ms_dirty_update(pScreen, timeout);
+    ms_dirty_update(pScreen, ms, timeout);
 
     if (ms->drmmode.tearfree)
         ms_tearfree_update(pScreen, ms, TRUE);
