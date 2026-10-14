@@ -670,9 +670,8 @@ dispatch_dirty_region(ScrnInfoPtr scrn, xf86CrtcPtr crtc,
 }
 
 static void
-dispatch_dirty(ScreenPtr pScreen)
+dispatch_dirty(ScrnInfoPtr scrn, ScreenPtr pScreen)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     modesettingPtr ms = modesettingPTR(scrn);
     PixmapPtr pixmap = pScreen->GetScreenPixmap(pScreen);
@@ -722,9 +721,8 @@ dispatch_dirty_pixmap(ScrnInfoPtr scrn, xf86CrtcPtr crtc, PixmapPtr ppix)
 }
 
 static void
-dispatch_secondary_dirty(ScreenPtr pScreen)
+dispatch_secondary_dirty(ScrnInfoPtr scrn)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     int c;
 
@@ -877,9 +875,8 @@ out:
 }
 
 static void
-ms_tearfree_update_damages(ScreenPtr pScreen)
+ms_tearfree_update_damages(ScrnInfoPtr scrn, ScreenPtr pScreen)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     modesettingPtr ms = modesettingPTR(scrn);
     RegionPtr dirty = DamageRegion(ms->damage);
@@ -1017,9 +1014,8 @@ ms_tearfree_flip_crtc(ScrnInfoPtr scrn, xf86CrtcPtr crtc)
 }
 
 static void
-ms_tearfree_update(ScreenPtr screen, modesettingPtr ms, Bool flip)
+ms_tearfree_update(ScreenPtr screen, ScrnInfoPtr scrn, modesettingPtr ms, Bool flip)
 {
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
     int c;
 
@@ -1036,21 +1032,22 @@ ms_tearfree_update(ScreenPtr screen, modesettingPtr ms, Bool flip)
 static void
 msBlockHandler(ScreenPtr pScreen, void *timeout)
 {
+    ScrnInfoPtr scrn = xf86ScreenToScrn(pScreen);
     modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(pScreen));
 
     if (pScreen->isGPU && !ms->drmmode.reverse_prime_offload_mode)
-        dispatch_secondary_dirty(pScreen);
+        dispatch_secondary_dirty(scrn);
     else if (ms->drmmode.tearfree)
-        ms_tearfree_update_damages(pScreen);
+        ms_tearfree_update_damages(scrn, pScreen);
     else if (ms->dirty_enabled)
-        dispatch_dirty(pScreen);
+        dispatch_dirty(scrn, pScreen);
 
     /*
      * Blits go out before the wrapped handler so its flush fences
      * them; flips go out after, ordered behind the blit fence.
      */
     if (ms->drmmode.tearfree)
-        ms_tearfree_update(pScreen, ms, FALSE);
+        ms_tearfree_update(pScreen, scrn, ms, FALSE);
 
     pScreen->BlockHandler = ms->BlockHandler;
     pScreen->BlockHandler(pScreen, timeout);
@@ -1060,7 +1057,7 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
     ms_dirty_update(pScreen, ms, timeout);
 
     if (ms->drmmode.tearfree)
-        ms_tearfree_update(pScreen, ms, TRUE);
+        ms_tearfree_update(pScreen, scrn, ms, TRUE);
 }
 
 static void
