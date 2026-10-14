@@ -1097,7 +1097,12 @@ static void glamor_egl_cleanup(struct glamor_egl_screen_private *glamor_egl)
          * (on hot unplug another GPU may still be using glamor)
          */
         lastGLContext = NULL;
+        if (glamor_egl->context != EGL_NO_CONTEXT) {
+            eglDestroyContext(glamor_egl->display, glamor_egl->context);
+            glamor_egl->context = EGL_NO_CONTEXT;
+        }
         eglTerminate(glamor_egl->display);
+        glamor_egl->display = EGL_NO_DISPLAY;
     }
     if (glamor_egl->gbm)
         gbm_device_destroy(glamor_egl->gbm);
