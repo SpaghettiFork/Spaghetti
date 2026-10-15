@@ -44,7 +44,9 @@
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_image.h>
 
+#ifndef __CYGWIN__
 #include <winsock2.h>
+#endif
 
 #include "winresource.h"
 #include "winprefs.h"
