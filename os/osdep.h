@@ -205,7 +205,7 @@ extern void XdmcpRegisterBroadcastAddress(const struct sockaddr_in *addr);
 extern void XdmAuthenticationInit(const char *cookie, int cookie_length);
 #endif
 
-#ifdef WIN32
+#if defined(WIN32) && !defined(__CYGWIN__)
 #include <X11/Xwinsock.h>
 struct utsname {
     char nodename[512];
