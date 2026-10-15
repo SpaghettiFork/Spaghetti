@@ -164,7 +164,7 @@ executable(
     ],
     link_args: ['-Wl,--disable-stdcall-fixup', '-Wl,--export-all-symbols'] +  xwin_sys_libs,
     c_args: xwin_c_args,
-    gui_app: true,
+    win_subsystem: 'windows',
     install: true,
 )
 
