@@ -129,7 +129,7 @@ LoadAuthorization(void)
                        (int) auth->name_length) == 0 && protocols[i].Add) {
                 ++count;
                 (*protocols[i].Add) (auth->data_length, auth->data,
-                                     FakeClientID(0));
+                                     FakeGenericID());
             }
         }
         XauDisposeAuth(auth);
