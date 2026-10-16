@@ -271,7 +271,7 @@ AddAuthorization(unsigned name_length, const char *name,
         if (protocols[i].name_length == name_length &&
             memcmp(protocols[i].name, name, (int) name_length) == 0 &&
             protocols[i].Add) {
-            return (*protocols[i].Add) (data_length, data, FakeClientID(0));
+            return (*protocols[i].Add) (data_length, data, FakeGenericID());
         }
     }
     return 0;
