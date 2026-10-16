@@ -665,7 +665,7 @@ DGACreateColormap(int index, ClientPtr client, int id, int mode, int alloc)
     if (!(pVisual = malloc(sizeof(VisualRec))))
         return BadAlloc;
 
-    pVisual->vid = FakeVisualID();
+    pVisual->vid = FakeGenericID();
     pVisual->class = pMode->visualClass;
     pVisual->nplanes = pMode->depth;
     pVisual->ColormapEntries = 1 << pMode->depth;

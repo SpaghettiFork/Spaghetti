@@ -154,10 +154,10 @@ static void RebuildTable(int    /*client */
 
 #define SERVER_MINID 32
 
-#define VISUAL_ID_BASE (SERVER_BIT >> 2)
-#define VISUAL_ID_MAX  (SERVER_BIT - 1)
+#define GENERIC_ID_BASE (SERVER_BIT >> 2)
+#define GENERIC_ID_MAX  (SERVER_BIT - 1)
 
-static XID nextVisualID = VISUAL_ID_BASE;
+static XID nextGenericID = GENERIC_ID_BASE;
 
 #define INITBUCKETS 64
 #define INITHASHSIZE 6
@@ -807,21 +807,21 @@ FakeClientID(int client)
 }
 
 /*
- * Return the next ID for the visual and GLX FBConfig namespace.
+ * Return the next ID for the generic namespace.
  *
- * Visual IDs and FBConfig IDs share one namespace that is distinct from
+ * Generic IDs share one namespace that is distinct from
  * the XID resource namespace. They are never entered in the resource
  * database, they are only compared for equality, and they must never
  * alias each other. A single monotonic counter keeps that property
  * without consuming server client XIDs.
  */
 XID
-FakeVisualID(void)
+FakeGenericID(void)
 {
-    XID id = nextVisualID++;
+    XID id = nextGenericID++;
 
-    if (id > VISUAL_ID_MAX || id == INVALID)
-        FatalError("FakeVisualID: visual ids exhausted\n");
+    if (id > GENERIC_ID_MAX || id == INVALID)
+        FatalError("FakeGenericID: generic ids exhausted\n");
     return id;
 }
 

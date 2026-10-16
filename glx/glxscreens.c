@@ -347,7 +347,7 @@ __glXScreenInit(__GLXscreen * pGlxScreen, ScreenPtr pScreen)
 
     i = 0;
     for (m = pGlxScreen->fbconfigs; m != NULL; m = m->next) {
-        m->fbconfigID = FakeVisualID();
+        m->fbconfigID = FakeGenericID();
         m->visualID = 0;
         i++;
     }
