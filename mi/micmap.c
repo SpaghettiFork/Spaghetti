@@ -504,7 +504,7 @@ miInitVisuals(VisualPtr * visualp, DepthPtr * depthp, int *nvisualp,
             visual->bitsPerRGBValue = visuals->bitsPerRGB;
             visual->ColormapEntries = 1 << d;
             visual->nplanes = d;
-            visual->vid = *vid = FakeVisualID();
+            visual->vid = *vid = FakeGenericID();
             switch (visual->class) {
             case PseudoColor:
             case GrayScale:

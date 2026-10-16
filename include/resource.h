@@ -198,7 +198,7 @@ extern _X_EXPORT Bool InitClientResources(ClientPtr /*client */ );
 
 extern _X_EXPORT XID FakeClientID(int /*client */ );
 
-extern _X_EXPORT XID FakeVisualID(void);
+extern _X_EXPORT XID FakeGenericID(void);
 
 /* Quartz support on Mac OS X uses the CarbonCore
    framework whose AddResource function conflicts here. */

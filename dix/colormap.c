@@ -2600,7 +2600,7 @@ ResizeVisualArray(ScreenPtr pScreen, int new_visual_count, DepthPtr depth)
     pScreen->visuals = visuals;
 
     for (i = 0; i < new_visual_count; i++) {
-        vid = FakeVisualID();
+        vid = FakeGenericID();
         pScreen->visuals[first_new_visual + i].vid = vid;
         vids[first_new_vid + i] = vid;
     }

@@ -210,7 +210,7 @@ xnestOpenScreen(ScreenPtr pScreen, int argc, char *argv[])
         if (j < numVisuals)
             break;
 
-        visuals[numVisuals].vid = FakeVisualID();
+        visuals[numVisuals].vid = FakeGenericID();
 
         depthIndex = UNDEFINED;
         for (j = 0; j < numDepths; j++)
