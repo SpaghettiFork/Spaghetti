@@ -581,11 +581,6 @@ Dispatch(void)
                     break;
                 }
             }
-
-            /* WaitForSomething() does the work for other clients... */
-            if (!xorg_list_is_empty(&client->output_pending) && client->osPrivate)
-                FlushClient(client, (OsCommPtr) client->osPrivate, NULL, 0);
-
             if (client == SmartLastClient)
                 client->smart_stop_tick = SmartScheduleTime;
         }
