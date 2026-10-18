@@ -479,9 +479,10 @@ void
 Dispatch(void)
 {
     int result;
-    ClientPtr client;
-    long start_tick;
+    long tick_mark;
+    long used_ticks;
     long maxReqBytes;
+    ClientPtr client;
 
     nextFreeClientID = 1;
     nClients = 0;
@@ -508,21 +509,15 @@ Dispatch(void)
 
             isItTimeToYield = FALSE;
 
-            start_tick = SmartScheduleTime;
+            used_ticks = 0;
             maxReqBytes = maxBigRequestSize << 2;
             while (!isItTimeToYield) {
                 if (InputCheckPending())
                     ProcessInputEvents();
 
                 FlushIfCriticalOutputPending();
-                if ((SmartScheduleTime - start_tick) >= SmartScheduleSlice)
-                {
-                    /* Penalize clients which consume ticks */
-                    if (client->smart_priority > SMART_MIN_PRIORITY)
-                        client->smart_priority--;
-                    break;
-                }
 
+                tick_mark = SmartScheduleTime;
                 /* now, finally, deal with client requests */
                 result = ReadRequestFromClient(client);
                 if (result == 0)
@@ -578,6 +573,14 @@ Dispatch(void)
                     SendErrorToClient(client, client->majorOp,
                                       client->minorOp,
                                       client->errorValue, result);
+                    break;
+                }
+
+                used_ticks += SmartScheduleTime - tick_mark;
+                if (used_ticks >= SmartScheduleSlice) {
+                    /* Penalize clients which consume ticks */
+                    if (client->smart_priority > SMART_MIN_PRIORITY)
+                        client->smart_priority--;
                     break;
                 }
             }
