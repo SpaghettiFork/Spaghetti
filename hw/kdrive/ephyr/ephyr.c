@@ -1315,12 +1315,11 @@ MouseFini(KdPointerInfo * pi)
 }
 
 KdPointerDriver EphyrMouseDriver = {
-    "ephyr",
-    MouseInit,
-    MouseEnable,
-    MouseDisable,
-    MouseFini,
-    NULL,
+    .name    = "ephyr",
+    .Init    = MouseInit,
+    .Enable  = MouseEnable,
+    .Disable = MouseDisable,
+    .Fini    = MouseFini,
 };
 
 /* Keyboard */
@@ -1389,12 +1388,11 @@ EphyrKeyboardBell(KdKeyboardInfo * ki, int volume, int frequency, int duration)
 }
 
 KdKeyboardDriver EphyrKeyboardDriver = {
-    "ephyr",
-    EphyrKeyboardInit,
-    EphyrKeyboardEnable,
-    EphyrKeyboardLeds,
-    EphyrKeyboardBell,
-    EphyrKeyboardDisable,
-    EphyrKeyboardFini,
-    NULL,
+    .name    = "ephyr",
+    .Init    = EphyrKeyboardInit,
+    .Enable  = EphyrKeyboardEnable,
+    .Leds    = EphyrKeyboardLeds,
+    .Bell    = EphyrKeyboardBell,
+    .Disable = EphyrKeyboardDisable,
+    .Fini    = EphyrKeyboardFini,
 };
