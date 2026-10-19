@@ -65,6 +65,10 @@ SOFTWARE.
 #include "grabdev.h"
 #include "selectev.h"
 
+#ifdef SPAGHETTI_NS
+#include "namespacesstr.h"
+#endif
+
 static int
 HandleDevicePresenceMask(ClientPtr client, WindowPtr win,
                          XEventClass * cls, CARD16 *count)
@@ -163,6 +167,19 @@ ProcXSelectExtensionEvent(ClientPtr client)
                                   stuff->count, tmp, NULL,
                                   X_SelectExtensionEvent)) != Success)
         return ret;
+
+#if SPAGHETTI_NS
+    if (UseNamespaces && xns_client_namespace(client) != 0) {
+        for (i = 0; i < EMASKSIZE; i++) {
+            if (tmp[i].dev != NULL &&
+                (tmp[i].mask & (KeyPressMask | KeyReleaseMask)) &&
+                client != serverClient) {
+                client->errorValue = DeviceKeyPress;
+                return BadAccess;
+            }
+        }
+    }
+#endif
 
     for (i = 0; i < EMASKSIZE; i++)
         if (tmp[i].dev != NULL) {

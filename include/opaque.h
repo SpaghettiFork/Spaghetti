@@ -75,6 +75,12 @@ extern _X_EXPORT Bool NoListenAll;
 
 extern _X_EXPORT Bool AllowByteSwappedClients;
 
+#if SPAGHETTI_NS
+extern Bool UseNamespaces;
+extern Bool IsolateClipboard;
+extern const char *PromotePassword;
+#endif
+
 extern Bool party_like_its_1989; /* -retro mode */
 
 #endif                          /* OPAQUE_H */

@@ -107,6 +107,9 @@ Equipment Corporation.
 #include "validate.h"
 #include "windowstr.h"
 #include "propertyst.h"
+#ifdef SPAGHETTI_NS
+#include "namespacesstr.h"
+#endif
 #include "input.h"
 #include "inputstr.h"
 #include "resource.h"
@@ -950,6 +953,13 @@ CreateWindow(Window wid, WindowPtr pParent, int x, int y, unsigned w,
         return NullWindow;
     }
 
+#if SPAGHETTI_NS
+    /* Tag window with creating client's namespace */
+    if (UseNamespaces) {
+        xns_add_window(pWin);
+    }
+#endif
+
     if (SubSend(pParent)) {
         xEvent event = {
             .u.createNotify.window = wid,
@@ -1153,6 +1163,10 @@ DeleteWindow(void *value, XID wid)
     }
     else
         pWin->drawable.pScreen->root = NULL;
+#if SPAGHETTI_NS
+    if (UseNamespaces)
+        xns_remove_window(pWin);
+#endif
     dixFreeObjectWithPrivates(pWin, PRIVATE_WINDOW);
     return ok ? Success : BadImplementation;
 }
