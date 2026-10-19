@@ -70,7 +70,9 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         "#define RepeatReflect                    3\n"
         "#define RepeatFix		      	      10\n"
         "uniform int 			source_repeat_mode;\n"
-        "uniform int 			mask_repeat_mode;\n";
+        "uniform int 			mask_repeat_mode;\n"
+        "uniform int 			source_alpha_repeat_mode;\n"
+        "uniform int 			mask_alpha_repeat_mode;\n";
     const char *relocate_texture =
         "vec2 rel_tex_coord(vec2 texture, vec4 wh, int repeat) \n"
         "{\n"
@@ -189,6 +191,66 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         "	return rel_sampler_rgbx(mask_sampler, mask_texture,\n"
         "				mask_wh, mask_repeat_mode);\n"
         "}\n";
+    const char *source_alpha_map_rgba_fetch =
+        "in vec2 source_texture;\n"
+        "uniform sampler2D source_sampler;\n"
+        "uniform vec4 source_wh;"
+        "in vec2 source_alpha_texture;\n"
+        "uniform sampler2D source_alpha_sampler;\n"
+        "uniform vec4 source_alpha_wh;"
+        "vec4 get_source()\n"
+        "{\n"
+        "	vec4 base = rel_sampler_rgba(source_sampler, source_texture,\n"
+        "			             source_wh, source_repeat_mode);\n"
+        "	float amap = rel_sampler_rgba(source_alpha_sampler, source_alpha_texture,\n"
+        "			              source_alpha_wh, source_alpha_repeat_mode).a;\n"
+        "	return vec4(base.rgb, base.a * amap);\n"
+        "}\n";
+    const char *source_alpha_map_rgbx_fetch =
+        "in vec2 source_texture;\n"
+        "uniform sampler2D source_sampler;\n"
+        "uniform vec4 source_wh;\n"
+        "in vec2 source_alpha_texture;\n"
+        "uniform sampler2D source_alpha_sampler;\n"
+        "uniform vec4 source_alpha_wh;\n"
+        "vec4 get_source()\n"
+        "{\n"
+        "	vec4 base = rel_sampler_rgbx(source_sampler, source_texture,\n"
+        "			             source_wh, source_repeat_mode);\n"
+        "	float amap = rel_sampler_rgba(source_alpha_sampler, source_alpha_texture,\n"
+        "			              source_alpha_wh, source_alpha_repeat_mode).a;\n"
+        "	return vec4(base.rgb, amap);\n"
+        "}\n";
+    const char *mask_alpha_map_rgba_fetch =
+        "in vec2 mask_texture;\n"
+        "uniform sampler2D mask_sampler;\n"
+        "uniform vec4 mask_wh;\n"
+        "in vec2 mask_alpha_texture;\n"
+        "uniform sampler2D mask_alpha_sampler;\n"
+        "uniform vec4 mask_alpha_wh;\n"
+        "vec4 get_mask()\n"
+        "{\n"
+        "	vec4 base = rel_sampler_rgba(mask_sampler, mask_texture,\n"
+        "			             mask_wh, mask_repeat_mode);\n"
+        "	float amap = rel_sampler_rgba(mask_alpha_sampler, mask_alpha_texture,\n"
+        "			              mask_alpha_wh, mask_alpha_repeat_mode).a;\n"
+        "	return vec4(base.rgb, base.a * amap);\n"
+        "}\n";
+    const char *mask_alpha_map_rgbx_fetch =
+        "in vec2 mask_texture;\n"
+        "uniform sampler2D mask_sampler;\n"
+        "uniform vec4 mask_wh;\n"
+        "in vec2 mask_alpha_texture;\n"
+        "uniform sampler2D mask_alpha_sampler;\n"
+        "uniform vec4 mask_alpha_wh;\n"
+        "vec4 get_mask()\n"
+        "{\n"
+        "	vec4 base = rel_sampler_rgbx(mask_sampler, mask_texture,\n"
+        "			             mask_wh, mask_repeat_mode);\n"
+        "	float amap = rel_sampler_rgba(mask_alpha_sampler, mask_alpha_texture,\n"
+        "			              mask_alpha_wh, mask_alpha_repeat_mode).a;\n"
+        "	return vec4(base.rgb, amap);\n"
+        "}\n";
 
     const char *dest_swizzle_default =
         "vec4 dest_swizzle(vec4 color)\n"
@@ -235,14 +297,42 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         "	gl_FragColor = dest_swizzle(get_source() * get_mask());\n"
         "	gl_SecondaryFragColorEXT = dest_swizzle(get_source().a * get_mask());\n"
         "}\n";
+    const char *in_normal_mrt =
+        "out vec4 color0;\n"
+        "out vec4 color1;\n"
+        "void main()\n"
+        "{\n"
+        "	vec4 result = dest_swizzle(get_source() * get_mask().a);\n"
+        "	color0 = result;\n"
+        "	color1 = vec4(result.a, result.a, result.a, result.a);\n"
+        "}\n";
+    const char *in_normal_mrt_gles3 =
+        "layout(location = 0) out vec4 color0;\n"
+        "layout(location = 1) out vec4 color1;\n"
+        "void main()\n"
+        "{\n"
+        "	vec4 result = dest_swizzle(get_source() * get_mask().a);\n"
+        "	color0 = result;\n"
+        "	color1 = vec4(result.a, result.a, result.a, result.a);\n"
+        "}\n";
     const char *header_ca_dual_blend_gles2 =
         "#version 100\n"
         "#extension GL_EXT_blend_func_extended : require\n"
         GLAMOR_COMPAT_DEFINES_FS;
 
+    /* MRT shaders declare their own color0/color1 outputs, so they must
+     * not get the stock compat block which declares an unwritten
+     * frag_color output for __VERSION__ >= 130. */
+    const char *compat_fs_mrt =
+        "#if __VERSION__ < 130\n"
+        "#define in varying\n"
+        "#define texture texture2D\n"
+        "#endif\n";
+
     char *source;
     const char *source_fetch;
     const char *mask_fetch = "";
+    const char *compat_fs = GLAMOR_COMPAT_DEFINES_FS;
     const char *in;
     const char *header;
     const char *header_norm = glamor_priv->glsl_version > 120 ?
@@ -259,10 +349,16 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         source_fetch = source_solid_fetch;
         break;
     case SHADER_SOURCE_TEXTURE_ALPHA:
-        source_fetch = source_alpha_pixmap_fetch;
+        if (key->src_alpha_map)
+            source_fetch = source_alpha_map_rgba_fetch;
+        else
+            source_fetch = source_alpha_pixmap_fetch;
         break;
     case SHADER_SOURCE_TEXTURE:
-        source_fetch = source_pixmap_fetch;
+        if (key->src_alpha_map)
+            source_fetch = source_alpha_map_rgbx_fetch;
+        else
+            source_fetch = source_pixmap_fetch;
         break;
     default:
         FatalError("Bad composite shader source");
@@ -276,10 +372,16 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
         mask_fetch = mask_solid_fetch;
         break;
     case SHADER_MASK_TEXTURE_ALPHA:
-        mask_fetch = mask_alpha_pixmap_fetch;
+        if (key->mask_alpha_map)
+            mask_fetch = mask_alpha_map_rgba_fetch;
+        else
+            mask_fetch = mask_alpha_pixmap_fetch;
         break;
     case SHADER_MASK_TEXTURE:
-        mask_fetch = mask_pixmap_fetch;
+        if (key->mask_alpha_map)
+            mask_fetch = mask_alpha_map_rgbx_fetch;
+        else
+            mask_fetch = mask_pixmap_fetch;
         break;
     default:
         FatalError("Bad composite shader mask");
@@ -306,7 +408,15 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
     header = glamor_priv->is_gles ? header_es : header_norm;
     switch (key->in) {
     case glamor_program_alpha_normal:
-        in = in_normal;
+        if (key->dst_alpha_map) {
+            if (glamor_priv->is_gles)
+                in = in_normal_mrt_gles3;
+            else
+                in = in_normal_mrt;
+            compat_fs = compat_fs_mrt;
+        }
+        else
+            in = in_normal;
         break;
     case glamor_program_alpha_ca_first:
         in = in_ca_source;
@@ -328,7 +438,7 @@ glamor_create_composite_fs(glamor_screen_private *glamor_priv, struct shader_key
     XNFasprintf(&source,
                 "%s"
                 GLAMOR_DEFAULT_PRECISION
-                "%s%s%s%s%s%s%s%s", header, GLAMOR_COMPAT_DEFINES_FS,
+                "%s%s%s%s%s%s%s%s", header, compat_fs,
                 repeat_define, relocate_texture,
                 enable_rel_sampler ? rel_sampler : stub_rel_sampler,
                 source_fetch, mask_fetch, dest_swizzle, in);
@@ -346,16 +456,24 @@ glamor_create_composite_vs(glamor_screen_private* priv, struct shader_key *key)
         "in vec4 v_position;\n"
         "in vec4 v_texcoord0;\n"
         "in vec4 v_texcoord1;\n"
+        "in vec4 v_texcoord2;\n"
+        "in vec4 v_texcoord3;\n"
         "out vec2 source_texture;\n"
         "out vec2 mask_texture;\n"
+        "out vec2 source_alpha_texture;\n"
+        "out vec2 mask_alpha_texture;\n"
         "void main()\n"
         "{\n"
         "	gl_Position = v_position;\n";
     const char *source_coords = "	source_texture = v_texcoord0.xy;\n";
     const char *mask_coords = "	mask_texture = v_texcoord1.xy;\n";
+    const char *source_alpha_coords = "	source_alpha_texture = v_texcoord2.xy;\n";
+    const char *mask_alpha_coords = "	mask_alpha_texture = v_texcoord3.xy;\n";
     const char *main_closing = "}\n";
     const char *source_coords_setup = "";
     const char *mask_coords_setup = "";
+    const char *source_alpha_coords_setup = "";
+    const char *mask_alpha_coords_setup = "";
     const char *version_gles2 = "#version 100\n";
     const char *version_gles3 = "#version 300 es\n";
     const char *version = priv->glsl_version > 120 ? "#version 130\n" : "#version 120\n";
@@ -369,6 +487,12 @@ glamor_create_composite_vs(glamor_screen_private* priv, struct shader_key *key)
     if (key->mask != SHADER_MASK_NONE && key->mask != SHADER_MASK_SOLID)
         mask_coords_setup = mask_coords;
 
+    if (key->src_alpha_map)
+        source_alpha_coords_setup = source_alpha_coords;
+
+    if (key->mask_alpha_map)
+        mask_alpha_coords_setup = mask_alpha_coords;
+
     if (priv->is_gles)
         version = version_gles2;
 
@@ -378,9 +502,10 @@ glamor_create_composite_vs(glamor_screen_private* priv, struct shader_key *key)
     XNFasprintf(&source,
                 "%s"
                 GLAMOR_DEFAULT_PRECISION
-                "%s%s%s%s%s",
+                "%s%s%s%s%s%s%s",
                 version, defines, main_opening, source_coords_setup,
-                mask_coords_setup, main_closing);
+                mask_coords_setup, source_alpha_coords_setup,
+                mask_alpha_coords_setup, main_closing);
 
     prog = glamor_compile_glsl_prog(GL_VERTEX_SHADER, source);
     free(source);
@@ -414,10 +539,17 @@ glamor_create_composite_shader(ScreenPtr screen, struct shader_key *key,
     glBindAttribLocation(prog, GLAMOR_VERTEX_POS, "v_position");
     glBindAttribLocation(prog, GLAMOR_VERTEX_SOURCE, "v_texcoord0");
     glBindAttribLocation(prog, GLAMOR_VERTEX_MASK, "v_texcoord1");
+    glBindAttribLocation(prog, GLAMOR_VERTEX_SOURCE_ALPHA, "v_texcoord2");
+    glBindAttribLocation(prog, GLAMOR_VERTEX_MASK_ALPHA, "v_texcoord3");
 
     if (key->in == glamor_program_alpha_dual_blend) {
         glBindFragDataLocationIndexed(prog, 0, 0, "color0");
         glBindFragDataLocationIndexed(prog, 0, 1, "color1");
+    }
+
+    if (key->dst_alpha_map && !glamor_priv->is_gles) {
+        glBindFragDataLocation(prog, 0, "color0");
+        glBindFragDataLocation(prog, 1, "color1");
     }
 
     if (!glamor_link_glsl_prog(screen, prog, "composite")) {
@@ -465,6 +597,22 @@ glamor_create_composite_shader(ScreenPtr screen, struct shader_key *key,
                 glGetUniformLocation(prog, "mask_repeat_mode");
         }
     }
+
+    if (key->src_alpha_map) {
+        glUniform1i(glGetUniformLocation(prog, "source_alpha_sampler"),
+                    GLAMOR_COMPOSITE_SOURCE_ALPHA_UNIT);
+        shader->source_alpha.wh = glGetUniformLocation(prog, "source_alpha_wh");
+        shader->source_alpha.repeat_mode =
+            glGetUniformLocation(prog, "source_alpha_repeat_mode");
+    }
+
+    if (key->mask_alpha_map) {
+        glUniform1i(glGetUniformLocation(prog, "mask_alpha_sampler"),
+                    GLAMOR_COMPOSITE_MASK_ALPHA_UNIT);
+        shader->mask_alpha.wh = glGetUniformLocation(prog, "mask_alpha_wh");
+        shader->mask_alpha.repeat_mode =
+            glGetUniformLocation(prog, "mask_alpha_repeat_mode");
+    }
 }
 
 static glamor_composite_shader *
@@ -475,7 +623,7 @@ glamor_lookup_composite_shader(ScreenPtr screen, struct
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
     glamor_composite_shader *shader;
 
-    shader = &glamor_priv->composite_shader[key->source][key->mask][key->in][key->dest_swizzle];
+    shader = &glamor_priv->composite_shader[key->source][key->mask][key->in][key->dest_swizzle][key->src_alpha_map][key->mask_alpha_map][key->dst_alpha_map];
     if (shader->prog == 0)
         glamor_create_composite_shader(screen, key, shader);
 
@@ -686,9 +834,13 @@ glamor_setup_composite_vbo(ScreenPtr screen, int n_verts)
 
     glamor_priv->render_nr_quads = 0;
     glamor_priv->vb_stride = 2 * sizeof(float);
-    if (glamor_priv->has_source_coords)
+    if (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE)
         glamor_priv->vb_stride += 2 * sizeof(float);
-    if (glamor_priv->has_mask_coords)
+    if (glamor_priv->coord_mask & GLAMOR_COORD_MASK)
+        glamor_priv->vb_stride += 2 * sizeof(float);
+    if (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE_ALPHA)
+        glamor_priv->vb_stride += 2 * sizeof(float);
+    if (glamor_priv->coord_mask & GLAMOR_COORD_MASK_ALPHA)
         glamor_priv->vb_stride += 2 * sizeof(float);
 
     vert_size = n_verts * glamor_priv->vb_stride;
@@ -703,7 +855,7 @@ glamor_setup_composite_vbo(ScreenPtr screen, int n_verts)
                           glamor_priv->vb_stride, vbo_offset);
     glEnableVertexAttribArray(GLAMOR_VERTEX_POS);
 
-    if (glamor_priv->has_source_coords) {
+    if (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE) {
         glVertexAttribPointer(GLAMOR_VERTEX_SOURCE, 2,
                               GL_FLOAT, GL_FALSE,
                               glamor_priv->vb_stride,
@@ -711,12 +863,33 @@ glamor_setup_composite_vbo(ScreenPtr screen, int n_verts)
         glEnableVertexAttribArray(GLAMOR_VERTEX_SOURCE);
     }
 
-    if (glamor_priv->has_mask_coords) {
+    if (glamor_priv->coord_mask & GLAMOR_COORD_MASK) {
         glVertexAttribPointer(GLAMOR_VERTEX_MASK, 2, GL_FLOAT, GL_FALSE,
                               glamor_priv->vb_stride,
-                              vbo_offset + (glamor_priv->has_source_coords ?
+                              vbo_offset + (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE ?
                                             4 : 2) * sizeof(float));
         glEnableVertexAttribArray(GLAMOR_VERTEX_MASK);
+    }
+
+    if (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE_ALPHA) {
+        glVertexAttribPointer(GLAMOR_VERTEX_SOURCE_ALPHA, 2, GL_FLOAT, GL_FALSE,
+                              glamor_priv->vb_stride,
+                              vbo_offset + (2
+                                            + (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE ? 2 : 0)
+                                            + (glamor_priv->coord_mask & GLAMOR_COORD_MASK ? 2 : 0))
+                              * sizeof(float));
+        glEnableVertexAttribArray(GLAMOR_VERTEX_SOURCE_ALPHA);
+    }
+
+    if (glamor_priv->coord_mask & GLAMOR_COORD_MASK_ALPHA) {
+        glVertexAttribPointer(GLAMOR_VERTEX_MASK_ALPHA, 2, GL_FLOAT, GL_FALSE,
+                              glamor_priv->vb_stride,
+                              vbo_offset + (2
+                                            + (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE ? 2 : 0)
+                                            + (glamor_priv->coord_mask & GLAMOR_COORD_MASK ? 2 : 0)
+                                            + (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE_ALPHA ? 2 : 0))
+                              * sizeof(float));
+        glEnableVertexAttribArray(GLAMOR_VERTEX_MASK_ALPHA);
     }
 
     return vb;
@@ -900,6 +1073,97 @@ glamor_composite_can_replace_with_solid(PicturePtr picture)
     return (!pixmap->drawable.width || !pixmap->drawable.height);
 }
 
+/* MRT writes map texel (x,y) for dest fragment (x,y), and the origin is
+ * rejected unless zero, so both drawables must sit at the same pixmap
+ * offset. Sub-window drawables sharing a pixmap at different offsets
+ * would shift the writes.
+ */
+static Bool
+glamor_dest_alpha_map_is_aligned(PicturePtr dest, PixmapPtr dest_pixmap)
+{
+    PixmapPtr alpha_pixmap =
+        glamor_get_drawable_pixmap(dest->alphaMap->pDrawable);
+    int dest_dx, dest_dy, alpha_dx, alpha_dy;
+
+    glamor_get_drawable_deltas(dest->pDrawable, dest_pixmap,
+                               &dest_dx, &dest_dy);
+    glamor_get_drawable_deltas(dest->alphaMap->pDrawable, alpha_pixmap,
+                               &alpha_dx, &alpha_dy);
+    return dest_dx == alpha_dx && dest_dy == alpha_dy;
+}
+
+/* Validate one alphaMap for shader sampling. owner_textured reports
+ * whether the owning picture takes texture coords (solid/none owners
+ * have nothing to modulate). Tiled alphaMaps are rejected because the
+ * large-pixmap block loop only walks source/mask/dest blocks, never
+ * alphaMap blocks, so it would bind the wrong block. Returns TRUE on
+ * success, FALSE after glamor_fallback() otherwise; the caller sets
+ * its key flag.
+ */
+static inline Bool
+glamor_check_alpha_map(PicturePtr owner, Bool owner_textured,
+                       const char *role)
+{
+    PicturePtr alpha = owner->alphaMap;
+
+    if (!owner_textured
+        || !alpha->pDrawable
+        || alpha->alphaMap
+        || alpha->transform
+        || owner->transform) {
+        glamor_fallback("unsupported %s alphaMap\n", role);
+        return FALSE;
+    }
+    if (glamor_pixmap_priv_is_large(glamor_get_pixmap_private(
+            glamor_get_drawable_pixmap(alpha->pDrawable)))) {
+        glamor_fallback("large %s alphaMap\n", role);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/* Upload one validated alphaMap and check its format.
+ * Skips the upload if storage is already attached.
+ *
+ * Returns TRUE on success, FALSE after glamor_fallback() otherwise.
+ */
+static inline Bool
+glamor_upload_alpha_map(PicturePtr alpha, const char *role)
+{
+    PixmapPtr pixmap = glamor_get_drawable_pixmap(alpha->pDrawable);
+    glamor_pixmap_private *priv = glamor_get_pixmap_private(pixmap);
+
+    if (glamor_pixmap_drm_only(pixmap)) {
+        glamor_fallback("%s alphaMap drm-only\n", role);
+        return FALSE;
+    }
+    if (priv->gl_fbo == GLAMOR_FBO_UNATTACHED &&
+        !glamor_upload_picture_to_texture(alpha)) {
+        glamor_fallback("Failed to upload %s alphaMap.\n", role);
+        return FALSE;
+    }
+    if (!glamor_render_format_is_supported(alpha)) {
+        glamor_fallback("Unsupported %s alphaMap format.\n", role);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/* Emit one alphaMap quad's texcoords. AlphaMaps never carry a transform
+ * (rejected in validation), so matrix is always NULL.
+ */
+static inline void
+glamor_emit_alpha_quad(PixmapPtr pixmap, glamor_pixmap_private *priv,
+                       PicturePtr alpha, float xscale, float yscale,
+                       int x, int y, int width, int height,
+                       float *vertices, int vb_stride)
+{
+    glamor_set_normalize_tcoords_generic(pixmap, priv, alpha->repeatType,
+                                         NULL, xscale, yscale,
+                                         x, y, x + width, y + height,
+                                         vertices, vb_stride);
+}
+
 static Bool
 glamor_composite_choose_shader(CARD8 op,
                                PicturePtr source,
@@ -1031,12 +1295,49 @@ glamor_composite_choose_shader(CARD8 op,
     }
 
     if (source && source->alphaMap) {
-        glamor_fallback("source alphaMap\n");
-        goto fail;
+        if (!glamor_check_alpha_map(source,
+                                    key.source != SHADER_SOURCE_SOLID,
+                                    "source"))
+            goto fail;
+        key.src_alpha_map = TRUE;
     }
     if (mask && mask->alphaMap) {
-        glamor_fallback("mask alphaMap\n");
-        goto fail;
+        if (!glamor_check_alpha_map(mask,
+                                    key.mask != SHADER_MASK_SOLID &&
+                                    key.mask != SHADER_MASK_NONE,
+                                    "mask"))
+            goto fail;
+        key.mask_alpha_map = TRUE;
+    }
+    if (dest && dest->alphaMap) {
+        if (key.in != glamor_program_alpha_normal
+            || !dest->alphaMap->pDrawable
+            || dest->alphaMap->alphaMap
+            || dest->alphaMap->transform
+            || glamor_priv->glsl_version <= 120
+            || PICT_FORMAT_A(dest->format)
+            || dest->alphaOrigin.x != 0
+            || dest->alphaOrigin.y != 0) {
+            glamor_fallback("unsupported dest alphaMap\n");
+            goto fail;
+        }
+        /* MRT attaches a single dest FBO plus a single alpha FBO, so
+         * neither side may be block-tiled. */
+        if (glamor_pixmap_priv_is_large(dest_pixmap_priv)
+            || glamor_pixmap_priv_is_large(glamor_get_pixmap_private(glamor_get_drawable_pixmap(dest->alphaMap->pDrawable)))) {
+            glamor_fallback("large dest alphaMap\n");
+            goto fail;
+        }
+        /* MRT writes map texel (x,y) for dest fragment (x,y), and the
+         * origin is forced to zero above, so both drawables must sit at
+         * the same pixmap offset. Sub-window drawables sharing a pixmap
+         * at different offsets would shift the writes.
+         */
+        if (!glamor_dest_alpha_map_is_aligned(dest, dest_pixmap)) {
+            glamor_fallback("dest alphaMap offset mismatch\n");
+            goto fail;
+        }
+        key.dst_alpha_map = 1;
     }
 
     if (key.source == SHADER_SOURCE_TEXTURE ||
@@ -1142,6 +1443,49 @@ glamor_composite_choose_shader(CARD8 op,
         goto fail;
     }
 
+    /* An alphaMap sharing its pixmap with source/mask at a different
+     * format would sample the other picture's baked upload conversion.
+     */
+    if (key.src_alpha_map || key.mask_alpha_map) {
+        PixmapPtr src_ap = key.src_alpha_map ?
+            glamor_get_drawable_pixmap(source->alphaMap->pDrawable) : NULL;
+        PixmapPtr mask_ap = key.mask_alpha_map ?
+            glamor_get_drawable_pixmap(mask->alphaMap->pDrawable) : NULL;
+        PictFormatShort src_af = key.src_alpha_map ?
+            source->alphaMap->format : 0;
+        PictFormatShort mask_af = key.mask_alpha_map ?
+            mask->alphaMap->format : 0;
+
+        if ((src_ap && ((src_ap == source_pixmap &&
+                         src_af != source->format) ||
+                        (mask && src_ap == mask_pixmap &&
+                         src_af != mask->format))) ||
+            (mask_ap && ((mask_ap == source_pixmap &&
+                          mask_af != source->format) ||
+                         (mask && mask_ap == mask_pixmap &&
+                          mask_af != mask->format)))) {
+            glamor_fallback("alphaMap shares pixmap, format differs\n");
+            goto fail;
+        }
+    }
+
+    if (key.src_alpha_map &&
+        !glamor_upload_alpha_map(source->alphaMap, "source"))
+        goto fail;
+
+    if (key.mask_alpha_map &&
+        !glamor_upload_alpha_map(mask->alphaMap, "mask"))
+        goto fail;
+
+    if (key.dst_alpha_map) {
+        PixmapPtr alpha_pixmap = glamor_get_drawable_pixmap(dest->alphaMap->pDrawable);
+        if (alpha_pixmap->drawable.width != dest_pixmap->drawable.width
+            || alpha_pixmap->drawable.height != dest_pixmap->drawable.height) {
+            glamor_fallback("dest alphaMap size mismatch\n");
+            goto fail;
+        }
+    }
+
     if (!glamor_set_composite_op(screen, op, op_info, dest, mask, ca_state,
                                  &key)) {
         goto fail;
@@ -1167,6 +1511,18 @@ glamor_composite_choose_shader(CARD8 op,
     else {
         (*shader)->mask.pict.pixmap = mask_pixmap;
         (*shader)->mask.pict.picture = mask;
+    }
+
+    if (key.src_alpha_map) {
+        (*shader)->source_alpha.pict.picture = source->alphaMap;
+        (*shader)->source_alpha.pict.pixmap =
+            glamor_get_drawable_pixmap(source->alphaMap->pDrawable);
+    }
+
+    if (key.mask_alpha_map) {
+        (*shader)->mask_alpha.pict.picture = mask->alphaMap;
+        (*shader)->mask_alpha.pict.pixmap =
+            glamor_get_drawable_pixmap(mask->alphaMap->pDrawable);
     }
 
     ret = TRUE;
@@ -1196,7 +1552,8 @@ glamor_composite_set_shader_blend(glamor_screen_private *glamor_priv,
                                    shader->source.uniform_location);
     }
     else {
-        glamor_set_composite_texture(glamor_priv, 0,
+        glamor_set_composite_texture(glamor_priv,
+                                     GLAMOR_COMPOSITE_SOURCE_UNIT,
                                      shader->source.pict.picture,
                                      shader->source.pict.pixmap,
                                      shader->source.wh,
@@ -1210,13 +1567,34 @@ glamor_composite_set_shader_blend(glamor_screen_private *glamor_priv,
                                        shader->mask.uniform_location);
         }
         else {
-            glamor_set_composite_texture(glamor_priv, 1,
+            glamor_set_composite_texture(glamor_priv,
+                                         GLAMOR_COMPOSITE_MASK_UNIT,
                                          shader->mask.pict.picture,
                                          shader->mask.pict.pixmap,
                                          shader->mask.wh,
                                          shader->mask.repeat_mode,
                                          dest_priv);
         }
+    }
+
+    if (key->src_alpha_map) {
+        glamor_set_composite_texture(glamor_priv,
+                                     GLAMOR_COMPOSITE_SOURCE_ALPHA_UNIT,
+                                     shader->source_alpha.pict.picture,
+                                     shader->source_alpha.pict.pixmap,
+                                     shader->source_alpha.wh,
+                                     shader->source_alpha.repeat_mode,
+                                     dest_priv);
+    }
+
+    if (key->mask_alpha_map) {
+        glamor_set_composite_texture(glamor_priv,
+                                     GLAMOR_COMPOSITE_MASK_ALPHA_UNIT,
+                                     shader->mask_alpha.pict.picture,
+                                     shader->mask_alpha.pict.pixmap,
+                                     shader->mask_alpha.wh,
+                                     shader->mask_alpha.repeat_mode,
+                                     dest_priv);
     }
 
     if (!glamor_priv->is_gles)
@@ -1229,6 +1607,61 @@ glamor_composite_set_shader_blend(glamor_screen_private *glamor_priv,
         glEnable(GL_BLEND);
         glBlendFunc(op_info->source_blend, op_info->dest_blend);
     }
+}
+
+static Bool
+glamor_set_destination_alpha_pixmap(glamor_screen_private *glamor_priv,
+                                    PicturePtr dest,
+                                    glamor_pixmap_private *dest_priv)
+{
+    PixmapPtr alpha_pixmap;
+    glamor_pixmap_private *alpha_priv;
+    GLenum draw_buffers[2];
+
+    if (!dest || !dest->alphaMap || !dest->alphaMap->pDrawable)
+        return FALSE;
+    alpha_pixmap = glamor_get_drawable_pixmap(dest->alphaMap->pDrawable);
+    alpha_priv = glamor_get_pixmap_private(alpha_pixmap);
+    if (!GLAMOR_PIXMAP_PRIV_HAS_FBO(dest_priv)
+        || !GLAMOR_PIXMAP_PRIV_HAS_FBO(alpha_priv))
+        return FALSE;
+    if (glamor_pixmap_wcnt(dest_priv) != 1
+        || glamor_pixmap_hcnt(dest_priv) != 1
+        || glamor_pixmap_wcnt(alpha_priv) != 1
+        || glamor_pixmap_hcnt(alpha_priv) != 1)
+        return FALSE;
+    if (alpha_pixmap->drawable.width != dest_priv->fbo->width
+        || alpha_pixmap->drawable.height != dest_priv->fbo->height)
+        return FALSE;
+
+    glamor_make_current(glamor_priv);
+    glBindFramebuffer(GL_FRAMEBUFFER, dest_priv->fbo->fb);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
+                           GL_TEXTURE_2D, alpha_priv->fbo->tex, 0);
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
+                               GL_TEXTURE_2D, 0, 0);
+        return FALSE;
+    }
+    draw_buffers[0] = GL_COLOR_ATTACHMENT0;
+    draw_buffers[1] = GL_COLOR_ATTACHMENT1;
+    glDrawBuffers(2, draw_buffers);
+    glViewport(0, 0, dest_priv->fbo->width, dest_priv->fbo->height);
+    return TRUE;
+}
+
+static void
+glamor_restore_destination_pixmap(glamor_screen_private *glamor_priv,
+                                  glamor_pixmap_private *dest_priv)
+{
+    GLenum draw_buffer;
+
+    glamor_make_current(glamor_priv);
+    glBindFramebuffer(GL_FRAMEBUFFER, dest_priv->fbo->fb);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
+                           GL_TEXTURE_2D, 0, 0);
+    draw_buffer = GL_COLOR_ATTACHMENT0;
+    glDrawBuffers(1, &draw_buffer);
 }
 
 static Bool
@@ -1249,10 +1682,17 @@ glamor_composite_with_shader(CARD8 op,
     glamor_screen_private *glamor_priv = glamor_get_screen_private(screen);
     GLfloat dst_xscale, dst_yscale;
     GLfloat mask_xscale = 1, mask_yscale = 1, src_xscale = 1, src_yscale = 1;
+    GLfloat src_alpha_xscale = 1, src_alpha_yscale = 1;
+    GLfloat mask_alpha_xscale = 1, mask_alpha_yscale = 1;
     struct shader_key key, key_ca;
     int dest_x_off, dest_y_off;
     int source_x_off, source_y_off;
     int mask_x_off, mask_y_off;
+    int source_alpha_x_off = 0, source_alpha_y_off = 0;
+    int mask_alpha_x_off = 0, mask_alpha_y_off = 0;
+    PixmapPtr source_alpha_pixmap = NULL, mask_alpha_pixmap = NULL;
+    glamor_pixmap_private *source_alpha_pixmap_priv = NULL;
+    glamor_pixmap_private *mask_alpha_pixmap_priv = NULL;
     PictFormatShort saved_source_format = 0;
     float src_matrix[9], mask_matrix[9];
     float *psrc_matrix = NULL, *pmask_matrix = NULL;
@@ -1261,6 +1701,7 @@ glamor_composite_with_shader(CARD8 op,
     glamor_composite_shader *shader = NULL, *shader_ca = NULL;
     struct blendinfo op_info, op_info_ca;
     Bool restore_colormask = FALSE;
+    Bool mrt_active = FALSE;
 
     if (!glamor_composite_choose_shader(op, source, mask, dest,
                                         source_pixmap, mask_pixmap, dest_pixmap,
@@ -1285,7 +1726,13 @@ glamor_composite_with_shader(CARD8 op,
 
     glamor_make_current(glamor_priv);
 
+    /* glColorMask applies to every draw buffer, so it must stay off on
+     * the MRT dest-alphaMap path or attachment 1 loses its writes. The
+     * dest format carries no alpha by gate precondition and is only
+     * ever sampled through the rgbx fetch, so an unmasked attachment 0
+     * alpha channel is harmless. */
     if (ca_state != CA_TWO_PASS &&
+        !key.dst_alpha_map &&
         key.dest_swizzle == SHADER_DEST_SWIZZLE_DEFAULT &&
         dest_pixmap->drawable.depth == 32 &&
         glamor_drawable_effective_depth(dest->pDrawable) == 24) {
@@ -1297,9 +1744,15 @@ glamor_composite_with_shader(CARD8 op,
     glamor_composite_set_shader_blend(glamor_priv, dest_pixmap_priv, &key, shader, &op_info);
     glamor_set_alu(dest->pDrawable, GXcopy);
 
-    glamor_priv->has_source_coords = key.source != SHADER_SOURCE_SOLID;
-    glamor_priv->has_mask_coords = (key.mask != SHADER_MASK_NONE &&
-                                    key.mask != SHADER_MASK_SOLID);
+    glamor_priv->coord_mask = 0;
+    if (key.source != SHADER_SOURCE_SOLID)
+        glamor_priv->coord_mask |= GLAMOR_COORD_SOURCE;
+    if (key.mask != SHADER_MASK_NONE && key.mask != SHADER_MASK_SOLID)
+        glamor_priv->coord_mask |= GLAMOR_COORD_MASK;
+    if (key.src_alpha_map)
+        glamor_priv->coord_mask |= GLAMOR_COORD_SOURCE_ALPHA;
+    if (key.mask_alpha_map)
+        glamor_priv->coord_mask |= GLAMOR_COORD_MASK_ALPHA;
 
     dest_pixmap = glamor_get_drawable_pixmap(dest->pDrawable);
     dest_pixmap_priv = glamor_get_pixmap_private(dest_pixmap);
@@ -1307,7 +1760,15 @@ glamor_composite_with_shader(CARD8 op,
                                &dest_x_off, &dest_y_off);
     pixmap_priv_get_dest_scale(dest_pixmap, dest_pixmap_priv, &dst_xscale, &dst_yscale);
 
-    if (glamor_priv->has_source_coords) {
+    if (key.dst_alpha_map) {
+        if (!glamor_set_destination_alpha_pixmap(glamor_priv, dest, dest_pixmap_priv)) {
+            glamor_fallback("dest alphaMap FBO setup failed\n");
+            goto fail;
+        }
+        mrt_active = TRUE;
+    }
+
+    if (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE) {
         glamor_get_drawable_deltas(source->pDrawable,
                                    source_pixmap, &source_x_off, &source_y_off);
         pixmap_priv_get_scale(source_pixmap_priv, &src_xscale, &src_yscale);
@@ -1317,7 +1778,7 @@ glamor_composite_with_shader(CARD8 op,
         }
     }
 
-    if (glamor_priv->has_mask_coords) {
+    if (glamor_priv->coord_mask & GLAMOR_COORD_MASK) {
         glamor_get_drawable_deltas(mask->pDrawable, mask_pixmap,
                                    &mask_x_off, &mask_y_off);
         pixmap_priv_get_scale(mask_pixmap_priv, &mask_xscale, &mask_yscale);
@@ -1325,6 +1786,24 @@ glamor_composite_with_shader(CARD8 op,
             pmask_matrix = mask_matrix;
             glamor_picture_get_matrixf(mask, pmask_matrix);
         }
+    }
+
+    if (glamor_priv->coord_mask & GLAMOR_COORD_SOURCE_ALPHA) {
+        source_alpha_pixmap = glamor_get_drawable_pixmap(source->alphaMap->pDrawable);
+        source_alpha_pixmap_priv = glamor_get_pixmap_private(source_alpha_pixmap);
+        glamor_get_drawable_deltas(source->alphaMap->pDrawable, source_alpha_pixmap,
+                                   &source_alpha_x_off, &source_alpha_y_off);
+        pixmap_priv_get_scale(source_alpha_pixmap_priv,
+                              &src_alpha_xscale, &src_alpha_yscale);
+    }
+
+    if (glamor_priv->coord_mask & GLAMOR_COORD_MASK_ALPHA) {
+        mask_alpha_pixmap = glamor_get_drawable_pixmap(mask->alphaMap->pDrawable);
+        mask_alpha_pixmap_priv = glamor_get_pixmap_private(mask_alpha_pixmap);
+        glamor_get_drawable_deltas(mask->alphaMap->pDrawable, mask_alpha_pixmap,
+                                   &mask_alpha_x_off, &mask_alpha_y_off);
+        pixmap_priv_get_scale(mask_alpha_pixmap_priv,
+                              &mask_alpha_xscale, &mask_alpha_yscale);
     }
 
     nrect_max = MIN(nrect, GLAMOR_COMPOSITE_VBO_VERT_CNT / 4);
@@ -1418,6 +1897,32 @@ glamor_composite_with_shader(CARD8 op,
                                                      vertices, vb_stride);
                 vertices += 2;
             }
+            if (key.src_alpha_map) {
+                glamor_emit_alpha_quad(source_alpha_pixmap,
+                                       source_alpha_pixmap_priv,
+                                       source->alphaMap,
+                                       src_alpha_xscale, src_alpha_yscale,
+                                       x_source - source->alphaOrigin.x
+                                       + source_alpha_x_off - source_x_off,
+                                       y_source - source->alphaOrigin.y
+                                       + source_alpha_y_off - source_y_off,
+                                       width, height,
+                                       vertices, vb_stride);
+                vertices += 2;
+            }
+            if (key.mask_alpha_map) {
+                glamor_emit_alpha_quad(mask_alpha_pixmap,
+                                       mask_alpha_pixmap_priv,
+                                       mask->alphaMap,
+                                       mask_alpha_xscale, mask_alpha_yscale,
+                                       x_mask - mask->alphaOrigin.x
+                                       + mask_alpha_x_off - mask_x_off,
+                                       y_mask - mask->alphaOrigin.y
+                                       + mask_alpha_y_off - mask_y_off,
+                                       width, height,
+                                       vertices, vb_stride);
+                vertices += 2;
+            }
             glamor_priv->render_nr_quads++;
             rects++;
 
@@ -1441,9 +1946,13 @@ glamor_composite_with_shader(CARD8 op,
 disable_va:
     if (restore_colormask)
         glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    if (mrt_active)
+        glamor_restore_destination_pixmap(glamor_priv, dest_pixmap_priv);
     glDisableVertexAttribArray(GLAMOR_VERTEX_POS);
     glDisableVertexAttribArray(GLAMOR_VERTEX_SOURCE);
     glDisableVertexAttribArray(GLAMOR_VERTEX_MASK);
+    glDisableVertexAttribArray(GLAMOR_VERTEX_SOURCE_ALPHA);
+    glDisableVertexAttribArray(GLAMOR_VERTEX_MASK_ALPHA);
     glDisable(GL_BLEND);
     DEBUGF("finish rendering.\n");
     if (saved_source_format)
@@ -1452,10 +1961,24 @@ disable_va:
     ret = TRUE;
 
 fail:
+    if (mrt_active)
+        glamor_restore_destination_pixmap(glamor_priv, dest_pixmap_priv);
     if (mask_pixmap && glamor_pixmap_is_memory(mask_pixmap))
         glamor_pixmap_destroy_fbo(mask_pixmap);
     if (source_pixmap && glamor_pixmap_is_memory(source_pixmap))
         glamor_pixmap_destroy_fbo(source_pixmap);
+    if (source && source->alphaMap && source->alphaMap->pDrawable) {
+        PixmapPtr ap =
+            glamor_get_drawable_pixmap(source->alphaMap->pDrawable);
+        if (ap && glamor_pixmap_is_memory(ap))
+            glamor_pixmap_destroy_fbo(ap);
+    }
+    if (mask && mask->alphaMap && mask->alphaMap->pDrawable) {
+        PixmapPtr ap =
+            glamor_get_drawable_pixmap(mask->alphaMap->pDrawable);
+        if (ap && glamor_pixmap_is_memory(ap))
+            glamor_pixmap_destroy_fbo(ap);
+    }
 
     return ret;
 }
@@ -1873,13 +2396,19 @@ glamor_composite(CARD8 op,
         glamor_prepare_access_picture_box(source, GLAMOR_ACCESS_RO,
                                           x_source, y_source, width, height) &&
         glamor_prepare_access_picture_box(mask, GLAMOR_ACCESS_RO,
-                                          x_mask, y_mask, width, height))
+                                          x_mask, y_mask, width, height) &&
+        glamor_prepare_access_picture(source ? source->alphaMap : NULL, GLAMOR_ACCESS_RO) &&
+        glamor_prepare_access_picture(mask ? mask->alphaMap : NULL, GLAMOR_ACCESS_RO) &&
+        glamor_prepare_access_picture(dest->alphaMap, GLAMOR_ACCESS_RW))
     {
         fbComposite(op,
                     source, mask, dest,
                     x_source, y_source,
                     x_mask, y_mask, x_dest, y_dest, width, height);
     }
+    glamor_finish_access_picture(dest->alphaMap);
+    glamor_finish_access_picture(source ? source->alphaMap : NULL);
+    glamor_finish_access_picture(mask ? mask->alphaMap : NULL);
     glamor_finish_access_picture(mask);
     glamor_finish_access_picture(source);
     glamor_finish_access_picture(dest);

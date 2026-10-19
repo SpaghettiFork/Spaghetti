@@ -468,6 +468,8 @@ glamor_composite_glyphs(CARD8 op,
                     /* First glyph in the current atlas?
                      */
                     if (_X_UNLIKELY(glyphs_queued == 0)) {
+                        if (dst->alphaMap)
+                            goto bail_one;
                         if (glamor_glsl_has_ints(glamor_priv))
                             prog = glamor_setup_program_render(op, src, glyph_pict, dst,
                                                                glyphs_program,
