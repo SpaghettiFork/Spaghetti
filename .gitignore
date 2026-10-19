@@ -3,6 +3,9 @@
 *.patch
 tags
 
+# Python
+*.pyc
+
 # IDEs
 .vscode/
 .idea/
