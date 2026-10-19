@@ -542,7 +542,7 @@ KdCreateScreenResources(ScreenPtr pScreen)
     if (pScreen->CreateScreenResources)
         ret = (*pScreen->CreateScreenResources) (pScreen);
     else
-        ret = -1;
+        ret = TRUE;
     pScreenPriv->CreateScreenResources = pScreen->CreateScreenResources;
     pScreen->CreateScreenResources = KdCreateScreenResources;
     if (ret && card->cfuncs->createRes)
