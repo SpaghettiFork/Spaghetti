@@ -2697,6 +2697,9 @@ drmmode_output_add_gtf_modes(xf86OutputPtr output, DisplayModePtr Modes)
     if (mon && gtf_supported(mon))
         return Modes;
 
+    if (!xf86OutputDefaultModesEnabled(output))
+        return Modes;
+
     if (!has_panel_fitter(output))
         return Modes;
 
