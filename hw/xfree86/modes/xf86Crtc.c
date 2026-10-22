@@ -564,6 +564,17 @@ xf86OutputForceEnabled(xf86OutputPtr output)
     return FALSE;
 }
 
+Bool
+xf86OutputDefaultModesEnabled(xf86OutputPtr output)
+{
+    Bool enabled = TRUE;
+
+    if (output->options)
+        xf86GetOptValBool(output->options, OPTION_DEFAULT_MODES, &enabled);
+
+    return enabled;
+}
+
 static Bool
 xf86OutputEnabled(xf86OutputPtr output, Bool strict)
 {

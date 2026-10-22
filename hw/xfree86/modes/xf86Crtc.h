@@ -960,6 +960,9 @@ extern _X_EXPORT Bool
 extern _X_EXPORT void
  xf86OutputDestroy(xf86OutputPtr output);
 
+extern _X_EXPORT Bool
+xf86OutputDefaultModesEnabled(xf86OutputPtr output);
+
 extern _X_EXPORT void
  xf86ProbeOutputModes(ScrnInfoPtr pScrn, int maxX, int maxY);
 
