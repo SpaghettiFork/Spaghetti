@@ -161,7 +161,7 @@ int connBlockScreenStart;
 
 static void KillAllClients(void);
 
-static int nextFreeClientID;    /* always MIN free client ID */
+static int nextFreeClientID;    /* rotating start of the free client slot scan */
 
 static int nClients;            /* number of authorized clients */
 
@@ -3526,8 +3526,6 @@ CloseDownClient(ClientPtr client)
 #ifdef XSERVER_DTRACE
         XSERVER_CLIENT_DISCONNECT(client->index);
 #endif
-        if (client->index < nextFreeClientID)
-            nextFreeClientID = client->index;
         clients[client->index] = NullClient;
         SmartLastClient = NullClient;
         dixFreeObjectWithPrivates(client, PRIVATE_CLIENT);
@@ -3569,6 +3567,25 @@ InitClient(ClientPtr client, int i, void *ospriv)
     client->clientIds = NULL;
 }
 
+static int
+NextFreeClientSlot(void)
+{
+    int slot, n;
+
+    for (n = 0; n < LimitClients; n++) {
+        slot = nextFreeClientID + n;
+        if (slot >= LimitClients)
+            slot -= LimitClients;
+        if (slot != 0 && !clients[slot]) {
+            nextFreeClientID = slot + 1;
+            if (nextFreeClientID == LimitClients)
+                nextFreeClientID = 1;
+            return slot;
+        }
+    }
+    return -1;
+}
+
 /************************
  * int NextAvailableClient(ospriv)
  *
@@ -3583,8 +3600,8 @@ NextAvailableClient(void *ospriv)
     ClientPtr client;
     xReq data;
 
-    i = nextFreeClientID;
-    if (i == LimitClients)
+    i = NextFreeClientSlot();
+    if (i < 0)
         return (ClientPtr) NULL;
     clients[i] = client =
         dixAllocateObjectWithPrivates(ClientRec, PRIVATE_CLIENT);
@@ -3604,10 +3621,8 @@ NextAvailableClient(void *ospriv)
         dixFreeObjectWithPrivates(client, PRIVATE_CLIENT);
         return (ClientPtr) NULL;
     }
-    if (i == currentMaxClients)
-        currentMaxClients++;
-    while ((nextFreeClientID < LimitClients) && clients[nextFreeClientID])
-        nextFreeClientID++;
+    if (i >= currentMaxClients)
+        currentMaxClients = i + 1;
 
     /* Enable client ID tracking. This must be done before
      * ClientStateCallback. */
