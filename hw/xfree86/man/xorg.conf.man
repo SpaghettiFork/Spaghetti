@@ -1928,7 +1928,8 @@ This optional entry specifies whether the server should add supported default
 modes to the list of modes offered on this monitor. By default, the server
 will add default modes; you should only disable this if you can guarantee
 that EDID will be available at all times, or if you have added custom modelines
-which the server can use.
+which the server can use. This also disables default modes that drivers add
+for outputs with a panel fitter.
 (RandR 1.2-supporting drivers only)
 .TP 7
 .BI "Option \*qMinClock\*q \*q" frequency \*q
