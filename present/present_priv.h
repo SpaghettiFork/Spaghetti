@@ -76,7 +76,7 @@ struct present_vblank {
     int16_t             y_off;
     CARD16              kind;
     CARD16              mode;
-    Bool                queued;         /* on present_exec_queue */
+    Bool                queued;         /* on per-CRTC queue */
     uint64_t            event_id;
     uint64_t            target_msc;     /* target MSC when present should complete */
     uint64_t            exec_msc;       /* MSC at which present can be executed */
@@ -101,6 +101,7 @@ struct present_vblank {
 
 typedef struct present_screen_priv present_screen_priv_rec, *present_screen_priv_ptr;
 typedef struct present_window_priv present_window_priv_rec, *present_window_priv_ptr;
+typedef struct present_crtc_priv present_crtc_priv_rec, *present_crtc_priv_ptr;
 
 /*
  * Mode hooks
@@ -157,7 +158,8 @@ typedef int (*present_priv_queue_vblank_ptr)(ScreenPtr screen,
                                              uint64_t msc);
 typedef void (*present_priv_flush_ptr)(WindowPtr window);
 typedef int (*present_priv_flush_fenced_ptr)(WindowPtr window);
-typedef void (*present_priv_re_execute_ptr)(present_vblank_ptr vblank);
+typedef void (*present_priv_re_execute_ptr)(present_crtc_priv_ptr crtc_priv,
+                                            present_vblank_ptr vblank);
 
 typedef void (*present_priv_abort_vblank_ptr)(ScreenPtr screen,
                                               WindowPtr window,
@@ -166,6 +168,23 @@ typedef void (*present_priv_abort_vblank_ptr)(ScreenPtr screen,
                                               uint64_t msc);
 typedef void (*present_priv_flip_destroy_ptr)(ScreenPtr screen);
 
+#define PRESENT_BLOCK_DELAY_MS          1
+#define PRESENT_QUEUE_RETRY_MS          1
+#define PRESENT_REPLACE_HASH_THRESHOLD  8
+
+struct present_crtc_priv {
+    struct xorg_list            list;
+    RRCrtcPtr                   crtc;
+    struct xorg_list            queue;
+    present_vblank_ptr          flip_pending;
+    present_vblank_ptr          flip_active;
+    uint64_t                    unflip_event_id;
+    uint64_t                    last_event_ust;
+    uint64_t                    last_event_msc;
+    Bool                        has_notify;
+};
+
+/* present state for each CRTC. */
 struct present_screen_priv {
     ScreenPtr                   pScreen;
     CloseScreenProcPtr          CloseScreen;
@@ -173,12 +192,11 @@ struct present_screen_priv {
     DestroyWindowProcPtr        DestroyWindow;
     ClipNotifyProcPtr           ClipNotify;
 
-    present_vblank_ptr          flip_pending;
-    present_vblank_ptr          flip_active;
-
-    uint64_t                    unflip_event_id;
+    struct xorg_list            crtcs;
 
     uint32_t                    fake_interval;
+
+    Bool                        work_pending;
 
     present_screen_info_ptr     info;
 
@@ -202,6 +220,7 @@ struct present_screen_priv {
 
     present_priv_abort_vblank_ptr       abort_vblank;
     present_priv_flip_destroy_ptr       flip_destroy;
+
 };
 
 #define wrap(priv,real,mem,func) {\
@@ -447,16 +466,34 @@ sproc_present_dispatch(ClientPtr client);
  */
 
 void
-present_restore_screen_pixmap(ScreenPtr screen);
+present_restore_screen_pixmap(ScreenPtr screen, RRCrtcPtr crtc);
 
 void
-present_set_abort_flip(ScreenPtr screen);
+present_set_abort_flip(ScreenPtr screen, RRCrtcPtr crtc);
 
 Bool
 present_init(void);
 
 void
 present_scmd_init_mode_hooks(present_screen_priv_ptr screen_priv);
+
+void
+present_screen_block(void *data, void *timeout);
+
+void
+present_screen_wakeup(void *data, int result);
+
+Bool
+present_wakeup_handler(ClientPtr client, void *closure);
+
+void
+present_crtc_queue_work(present_crtc_priv_ptr crtc_priv);
+
+void
+present_screen_queue_work(ScreenPtr screen);
+
+void
+present_vblank_queue_work(present_vblank_ptr vblank);
 
 _X_HIDDEN void
 present_scmd_init_driver_flip(present_screen_priv_ptr screen_priv);
@@ -469,6 +506,18 @@ present_screen_register_priv_keys(void);
 
 present_screen_priv_ptr
 present_screen_priv_init(ScreenPtr screen);
+
+present_crtc_priv_ptr
+present_get_crtc_priv(ScreenPtr screen, RRCrtcPtr crtc, Bool create);
+
+present_crtc_priv_ptr
+present_crtc_priv_for_crtc(RRCrtcPtr crtc, Bool create);
+
+void
+present_free_crtc_priv(present_crtc_priv_ptr crtc_priv);
+
+present_crtc_priv_ptr
+present_get_crtc_priv_for_vblank(present_vblank_ptr vblank);
 
 /*
  * present_vblank.c
