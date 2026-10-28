@@ -399,6 +399,7 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
     int x = dest_x,
         y = dest_y;
     int dir;
+    Bool can_emit = events && nevents;
     struct PointerBarrier *nearest = NULL;
     PointerBarrierClientPtr c;
     Time ms = GetTimeInMillis();
@@ -495,9 +496,11 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
 
             /* root x/y is filled in later */
 
-            barrier_events->barrier_event = ev;
-            barrier_events++;
-            *nevents += 1;
+            if (_X_LIKELY(can_emit)) {
+                barrier_events->barrier_event = ev;
+                barrier_events++;
+                *nevents += 1;
+            }
         }
         pbd->last_timestamp = ms;
     }
@@ -534,9 +537,11 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
 
             /* root x/y is filled in later */
 
-            barrier_events->barrier_event = ev;
-            barrier_events++;
-            *nevents += 1;
+            if (_X_LIKELY(can_emit)) {
+                barrier_events->barrier_event = ev;
+                barrier_events++;
+                *nevents += 1;
+            }
         }
 
         pbd->last_timestamp = ms;
