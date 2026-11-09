@@ -93,7 +93,8 @@ __glXDRIdrawableDestroy(__GLXdrawable * drawable)
     __GLXDRIdrawable *private = (__GLXDRIdrawable *) drawable;
     const __DRIcoreExtension *core = private->screen->core;
 
-    (*core->destroyDrawable) (private->driDrawable);
+    if (private->driDrawable)
+        (*core->destroyDrawable) (private->driDrawable);
 
     __glXDrawableRelease(drawable);
 
@@ -256,8 +257,12 @@ __glXDRIscreenCreateContext(__GLXscreen * baseScreen,
     context->driContext =
         (*core->createNewContext) (screen->driScreen, driConfig, driShare,
                                    context);
-
-    return &context->base;
+    if (context->driContext == NULL) {
+        free(context);
+        return NULL;
+    } else {
+        return &context->base;
+    }
 }
 
 static __GLXdrawable *
@@ -289,8 +294,13 @@ __glXDRIscreenCreateDrawable(ClientPtr client,
     private->driDrawable =
         (*driScreen->swrast->createNewDrawable) (driScreen->driScreen,
                                                  config->driConfig, private);
-
-    return &private->base;
+    if (private->driDrawable == NULL) {
+        __glXDrawableRelease(&private->base);
+        free(private);
+        return NULL;
+    } else {
+        return &private->base;
+    }
 }
 
 static void
