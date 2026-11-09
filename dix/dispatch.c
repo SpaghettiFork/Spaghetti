@@ -3530,7 +3530,7 @@ CloseDownClient(ClientPtr client)
             currentMaxClients--;
     }
 
-    if (ShouldDisconnectRemainingClients())
+    if (nClients > 0 && ShouldDisconnectRemainingClients())
         SetDispatchExceptionTimer();
 }
 
