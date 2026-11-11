@@ -60,6 +60,9 @@ vrr_property_callback(CallbackListPtr *cbl, void *unused, void *call_data)
     vrr_screen_priv_ptr screen_priv;
     vrr_window_priv_ptr win_priv;
 
+    if (!dixPrivateKeyRegistered(&vrr_screen_private_key))
+        return;
+
     if (rec->state != PropertyNewValue && rec->state != PropertyDelete)
         return;
 
