@@ -78,10 +78,10 @@ vrr_property_callback(CallbackListPtr *cbl, void *unused, void *call_data)
         return;
 
     if (rec->state == PropertyNewValue) {
-        if (rec->prop->format == 32 && rec->prop->size == 1) {
-            uint32_t *value = rec->prop->data;
-            win_priv->variable_refresh = (*value != 0);
-        }
+        if (rec->prop->format != 32 || rec->prop->size != 1)
+            return;
+
+        win_priv->variable_refresh = (*(uint32_t *) rec->prop->data != 0);
     } else {
         win_priv->variable_refresh = FALSE;
     }
