@@ -415,19 +415,19 @@ ms_present_flip(RRCrtcPtr crtc,
                               ms_present_flip_handler, ms_present_flip_abort,
                               "Present-TearFree-flip");
 
-    /* A window can only flip if it covers the entire X screen.
-     * Only one window can flip at a time.
-     *
-     * If the window also has the variable refresh property then
-     * variable refresh supported can be enabled on every CRTC.
-     */
-    vrr_set_flip_window(screen, ms->flip_window);
-
     ret = ms_do_pageflip(screen, pixmap, event, xf86_crtc, !sync_flip,
                          ms_present_flip_handler, ms_present_flip_abort,
                          "Present-flip");
-    if (ret)
+    if (ret) {
         ms->drmmode.present_flipping = TRUE;
+        /* A window can only flip if it covers the entire X screen.
+         * Only one window can flip at a time.
+         *
+         * If the window also has the variable refresh property then
+         * variable refresh supported can be enabled on every CRTC.
+         */
+        vrr_set_flip_window(screen, ms->flip_window);
+    }
 
     return ret;
 }
