@@ -197,3 +197,29 @@ class TestXvQueryImageAttributes:
         assert resp.error_code == BadValue, (
             f"Expected BadValue ({BadValue}), got {resp.error_code}"
         )
+
+    def test_negative_size(self, xserver, xv_port):
+        """
+        When ddQueryImageAttributes() returns a negative size, the reply
+        would cast it to CARD32 and report a bogus data_size.
+
+        Reject negative sizes with BadValue.
+        """
+        xclient, opcode, port = xv_port
+
+        xclient.send_request(
+            xv.QueryImageAttributesRequest(
+                opcode=opcode,
+                port=port,
+                id=xv.FOURCC_NV12,
+                width=xv.OVERFLOW_WIDTH,
+                height=xv.OVERFLOW_HEIGHT,
+            )
+        )
+        resp = xclient.recv_response(timeout=5.0)
+
+        assert xserver.is_alive, "Server crashed on NV12 QueryImageAttributes"
+        assert isinstance(resp, X11Error), f"Expected BadValue, got {resp}"
+        assert resp.error_code == BadValue, (
+            f"Expected BadValue ({BadValue}), got {resp.error_code}"
+        )
