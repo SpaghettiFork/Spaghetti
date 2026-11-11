@@ -76,11 +76,11 @@ ephyr_glamor_xv_query_best_size(KdScreenInfo *screen,
 
 static int
 ephyr_glamor_xv_query_image_attributes(KdScreenInfo *screen,
-                                       int id,
+                                       XvImagePtr image,
                                        unsigned short *w, unsigned short *h,
                                        int *pitches, int *offsets)
 {
-    return glamor_xv_query_image_attributes(id, w, h, pitches, offsets);
+    return glamor_xv_query_image_attributes(image->id, w, h, pitches, offsets);
 }
 
 static int

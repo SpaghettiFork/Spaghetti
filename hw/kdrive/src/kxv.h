@@ -93,7 +93,8 @@ typedef int (*PutImageFuncPtr) (KdScreenInfo * screen, DrawablePtr pDraw,
 typedef int (*ReputImageFuncPtr) (KdScreenInfo * screen, DrawablePtr pDraw,
                                   short drw_x, short drw_y, RegionPtr clipBoxes,
                                   void *data);
-typedef int (*QueryImageAttributesFuncPtr) (KdScreenInfo * screen, int image,
+typedef int (*QueryImageAttributesFuncPtr) (KdScreenInfo * screen,
+                                            XvImagePtr image,
                                             unsigned short *width,
                                             unsigned short *height,
                                             int *pitches, int *offsets);

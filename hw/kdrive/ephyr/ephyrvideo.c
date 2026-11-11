@@ -159,7 +159,7 @@ static int ephyrGetStill(KdScreenInfo * a_info,
                          RegionPtr a_clip_region, void *a_port_priv);
 
 static int ephyrQueryImageAttributes(KdScreenInfo * a_info,
-                                     int a_id,
+                                     XvImagePtr a_image,
                                      unsigned short *a_w,
                                      unsigned short *a_h,
                                      int *a_pitches, int *a_offsets);
@@ -1212,9 +1212,10 @@ ephyrGetStill(KdScreenInfo * a_info,
 
 static int
 ephyrQueryImageAttributes(KdScreenInfo * a_info,
-                          int a_id,
+                          XvImagePtr a_image,
                           unsigned short *a_w,
-                          unsigned short *a_h, int *a_pitches, int *a_offsets)
+                          unsigned short *a_h,
+                          int *a_pitches, int *a_offsets)
 {
     xcb_connection_t *conn = hostx_get_xcbconn();
     xcb_xv_query_image_attributes_cookie_t cookie;
@@ -1227,11 +1228,20 @@ ephyrQueryImageAttributes(KdScreenInfo * a_info,
               *a_w, *a_h, a_pitches, a_offsets);
 
     cookie = xcb_xv_query_image_attributes(conn,
-                                           s_base_port_id, a_id,
+                                           s_base_port_id,
+                                           a_image->id,
                                            *a_w, *a_h);
     reply = xcb_xv_query_image_attributes_reply(conn, cookie, NULL);
     if (!reply)
         goto out;
+
+    /* The caller's buffers are sized by the local image's plane count;
+     * never trust more from the host than the local format advertises. */
+    if (reply->num_planes > a_image->num_planes ||
+        reply->data_size > INT_MAX) {
+        free(reply);
+        goto out;
+    }
 
     *a_w = reply->width;
     *a_h = reply->height;
