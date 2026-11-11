@@ -173,7 +173,8 @@ vrr_extension_init(void)
         goto bail;
 
     if (!vrr_callback_registered) {
-        AddCallback(&PropertyStateCallback, vrr_property_callback, NULL);
+        if (!AddCallback(&PropertyStateCallback, vrr_property_callback, NULL))
+            goto bail;
         vrr_callback_registered = TRUE;
     }
 
