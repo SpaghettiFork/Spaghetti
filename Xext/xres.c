@@ -961,8 +961,10 @@ ProcXResQueryResourceBytes (ClientPtr client)
     ConstructResourceBytesCtx    ctx;
 
     REQUEST_AT_LEAST_SIZE(xXResQueryResourceBytesReq);
+#ifndef _LP64
     if (stuff->numSpecs > UINT32_MAX / sizeof(ctx.specs[0]))
         return BadLength;
+#endif
     REQUEST_FIXED_SIZE(xXResQueryResourceBytesReq,
                        stuff->numSpecs * sizeof(ctx.specs[0]));
 
