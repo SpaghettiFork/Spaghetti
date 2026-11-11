@@ -147,13 +147,25 @@ vrr_screen_init(ScreenPtr screen, const vrr_screen_info_rec *info)
     return TRUE;
 }
 
+static int
+ProcVRRDispatch(ClientPtr client)
+{
+    return BadRequest;
+}
+
+static int
+SProcVRRDispatch(ClientPtr client)
+{
+    return BadRequest;
+}
+
 void
 vrr_extension_init(void)
 {
     ExtensionEntry *extension;
 
     extension = AddExtension(VRR_NAME, 0, 0,
-                             NULL, NULL,
+                             ProcVRRDispatch, SProcVRRDispatch,
                              NULL, StandardMinorOpcode);
     if (!extension)
         goto bail;
