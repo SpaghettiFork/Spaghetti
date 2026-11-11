@@ -132,15 +132,14 @@ vrr_screen_init(ScreenPtr screen, const vrr_screen_info_rec *info)
     if (vrr_screen_priv(screen))
         return TRUE;
 
-    if (!info->check_vrr_capable || !info->set_screen_vrr)
+    if (!info || !info->check_vrr_capable || !info->set_screen_vrr)
         return FALSE;
 
     screen_priv = calloc(1, sizeof(vrr_screen_priv_rec));
     if (!screen_priv)
         return FALSE;
 
-    if (info)
-        screen_priv->info = *info;
+    screen_priv->info = *info;
     screen_priv->vrr_atom = MakeAtom("_VARIABLE_REFRESH",
                                      strlen("_VARIABLE_REFRESH"), TRUE);
 
