@@ -397,13 +397,13 @@ ms_present_flip(RRCrtcPtr crtc,
     event->event_id = event_id;
     event->unflip = FALSE;
 
-    vrr_set_flip_window(screen, ms->flip_window);
-
     ret = ms_do_pageflip(screen, pixmap, event, drmmode_crtc->vblank_pipe, !sync_flip,
                          ms_present_flip_handler, ms_present_flip_abort,
                          "PRESENT-flip");
-    if (ret)
+    if (ret) {
         ms->drmmode.present_flipping = TRUE;
+        vrr_set_flip_window(screen, ms->flip_window);
+    }
 
     return ret;
 }
