@@ -853,7 +853,7 @@ ProcXvPutImage(ClientPtr client)
     height = stuff->height;
     size = (*pPort->pAdaptor->ddQueryImageAttributes) (pPort, pImage, &width,
                                                        &height, NULL, NULL);
-    if (size < 0)
+    if (_X_UNLIKELY(size < 0))
         return BadValue;
 
     size += sizeof(xvPutImageReq);
@@ -1006,7 +1006,7 @@ ProcXvQueryImageAttributes(ClientPtr client)
     size = (*pPort->pAdaptor->ddQueryImageAttributes) (pPort, pImage,
                                                        &width, &height, offsets,
                                                        pitches);
-    if (size < 0) {
+    if (_X_UNLIKELY(size < 0)) {
         free(offsets);
         return BadValue;
     }
