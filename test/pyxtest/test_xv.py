@@ -123,3 +123,34 @@ class TestXvShmPutImage:
             )
         finally:
             libc.shmctl(shmid, IPC_RMID, None)
+
+
+class TestXvQueryImageAttributes:
+    def test_yv12_size_overflow(self, xserver, xv_port):
+        """
+        glamor_xv_query_image_attributes() used 32-bit ints for size math.
+        YV12 with w=43690, h=65534 overflows to a *positive* wrong size
+        (~131064) instead of the true ~4GB, so a size < 0 protocol check
+        alone cannot catch it.
+
+        With the fix the adaptor returns -1 and QueryImageAttributes
+        rejects it with BadValue.
+        """
+        xclient, opcode, port = xv_port
+
+        xclient.send_request(
+            xv.QueryImageAttributesRequest(
+                opcode=opcode,
+                port=port,
+                id=xv.FOURCC_YV12,
+                width=xv.OVERFLOW_WIDTH,
+                height=xv.OVERFLOW_HEIGHT,
+            )
+        )
+        resp = xclient.recv_response(timeout=5.0)
+
+        assert xserver.is_alive, "Server crashed on YV12 size overflow"
+        assert isinstance(resp, X11Error), f"Expected BadValue, got {resp}"
+        assert resp.error_code == BadValue, (
+            f"Expected BadValue ({BadValue}), got {resp.error_code}"
+        )
