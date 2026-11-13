@@ -50,6 +50,7 @@ typedef struct _damage {
     ScreenPtr pScreen;
     DamageReportLevel damageLevel;
     Bool isInternal;
+    Bool isWindow;
     Bool reportAfter;
 } DamageRec;
 

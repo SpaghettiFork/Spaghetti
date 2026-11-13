@@ -1457,7 +1457,7 @@ damageDestroyPixmap(PixmapPtr pPixmap)
 
         while ((pDamage = *pPrev)) {
             damageRemoveDamage(pPrev, pDamage);
-            if (pDamage->pDrawable->type != DRAWABLE_WINDOW)
+            if (!pDamage->isWindow)
                 DamageDestroy(pDamage);
         }
     }
@@ -1687,6 +1687,7 @@ DamageCreate(DamageReportFunc damageReport,
     pDamage->damageLevel = damageLevel;
     pDamage->isInternal = isInternal;
     pDamage->closure = closure;
+    pDamage->isWindow = FALSE;
     pDamage->pDrawable = NULL;
     pDamage->reportAfter = FALSE;
 
@@ -1729,7 +1730,10 @@ DamageRegister(DrawablePtr pDrawable, DamagePtr pDamage)
 #endif
         pDamage->pNextWin = *pPrev;
         *pPrev = pDamage;
+        pDamage->isWindow = TRUE;
     }
+    else
+        pDamage->isWindow = FALSE;
     pDamage->pDrawable = pDrawable;
     damageInsertDamage(getDrawableDamageRef(pDrawable), pDamage);
     (*pScrPriv->funcs.Register) (pDrawable, pDamage);
