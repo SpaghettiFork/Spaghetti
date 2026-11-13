@@ -42,16 +42,19 @@ typedef struct _damage {
      */
     DamagePtr *pListHead;
     RegionRec damage;
-    RegionRec pendingDamage;    /* will be flushed post submission at the latest */
-    void *closure;
-    DrawablePtr pDrawable;
-    DamageReportFunc damageReport;
-    DamageDestroyFunc damageDestroy;
-    ScreenPtr pScreen;
+
     DamageReportLevel damageLevel;
     Bool isInternal;
+    void *closure;
     Bool isWindow;
+    DrawablePtr pDrawable;
+
+    DamageReportFunc damageReport;
+    DamageDestroyFunc damageDestroy;
+
     Bool reportAfter;
+    RegionRec pendingDamage;    /* will be flushed post submission at the latest */
+    ScreenPtr pScreen;
 } DamageRec;
 
 typedef struct _damageScrPriv {
