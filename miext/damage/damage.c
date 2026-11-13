@@ -1406,7 +1406,6 @@ damageRemoveDamage(DamagePtr * pPrev, DamagePtr pDamage)
     while (*pPrev) {
         if (*pPrev == pDamage) {
             *pPrev = pDamage->pNext;
-            pDamage->pListHead = NULL;
             return;
         }
         pPrev = &(*pPrev)->pNext;
@@ -1417,16 +1416,6 @@ damageRemoveDamage(DamagePtr * pPrev, DamagePtr pDamage)
 #endif
 }
 
-/*
- * Link pDamage onto the list headed by pPrev, remembering that list so that damageRemoveDamage() can later unlink it
- * from the same place.
- *
- * The list a window's damage belongs on is chosen by getDrawableDamageRef() and depends on the window pixmap, which can
- * change while the damage is registered (Composite redirection, rootless drawing and Present flips all swap it).
- * Re-deriving the list at removal time can therefore consult a different list than the damage was inserted onto, in
- * which case the removal silently does nothing and leaves an unregistered -- possibly freed -- damage linked where
- * damageRegionAppend() will dereference its NULL pDrawable.
- */
 static void
 damageInsertDamage(DamagePtr * pPrev, DamagePtr pDamage)
 {
@@ -1441,7 +1430,6 @@ damageInsertDamage(DamagePtr * pPrev, DamagePtr pDamage)
 #endif
     pDamage->pNext = *pPrev;
     *pPrev = pDamage;
-    pDamage->pListHead = pPrev;
 }
 
 static Bool
@@ -1514,9 +1502,11 @@ damageSetWindowPixmap(WindowPtr pWindow, PixmapPtr pPixmap)
     damageScrPriv(pScreen);
 
     if ((pDamage = damageGetWinPriv(pWindow))) {
+        PixmapPtr pOldPixmap = (*pScreen->GetWindowPixmap) (pWindow);
+        DamagePtr *pPrev = getPixmapDamageRef(pOldPixmap);
+
         while (pDamage) {
-            if (pDamage->pListHead)
-                damageRemoveDamage(pDamage->pListHead, pDamage);
+            damageRemoveDamage(pPrev, pDamage);
             pDamage = pDamage->pNextWin;
         }
     }
@@ -1680,7 +1670,6 @@ DamageCreate(DamageReportFunc damageReport,
         return 0;
     pDamage->pNext = NULL;
     pDamage->pNextWin = NULL;
-    pDamage->pListHead = NULL;
     RegionNull(&pDamage->damage);
     RegionNull(&pDamage->pendingDamage);
 
@@ -1783,8 +1772,7 @@ DamageUnregister(DamagePtr pDamage)
 #endif
     }
     pDamage->pDrawable = NULL;
-    if (pDamage->pListHead)
-        damageRemoveDamage(pDamage->pListHead, pDamage);
+    damageRemoveDamage(getDrawableDamageRef(pDrawable), pDamage);
 }
 
 void
