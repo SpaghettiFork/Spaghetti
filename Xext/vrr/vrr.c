@@ -103,9 +103,13 @@ vrr_window_has_variable_refresh(WindowPtr window)
 void
 vrr_set_flip_window(ScreenPtr screen, WindowPtr window)
 {
-    vrr_screen_priv_ptr screen_priv = vrr_screen_priv(screen);
+    vrr_screen_priv_ptr screen_priv;
     Bool enabled;
 
+    if (!dixPrivateKeyRegistered(&vrr_screen_private_key))
+        return;
+
+    screen_priv = vrr_screen_priv(screen);
     if (!screen_priv)
         return;
 

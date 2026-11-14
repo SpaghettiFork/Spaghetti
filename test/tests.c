@@ -18,6 +18,7 @@ main(int argc, char **argv)
     run_test(region_test);
     run_test(signal_logging_test);
     run_test(touch_test);
+    run_test(vrr_test);
     run_test(xfree86_test);
     run_test(xkb_test);
     run_test(xtest_test);
