@@ -384,6 +384,26 @@ damage_close_without_render(void)
     dixResetPrivates();
 }
 
+static void
+damage_without_listeners(void)
+{
+    struct damage_fixture fixture;
+    BoxRec boxes[] = { { 1, 1, 3, 3 }, { 20, 20, 24, 24 } };
+    RegionRec region, expected;
+
+    fixture_init(&fixture);
+    assert(RegionInitBoxes(&region, boxes, ARRAY_SIZE(boxes)));
+    assert(RegionInitBoxes(&expected, boxes, ARRAY_SIZE(boxes)));
+    DamageUnregister(fixture.damage);
+    DamageDamageRegion(&fixture.pixmap->drawable, &region);
+    assert(RegionEqual(&region, &expected));
+    assert(fixture.calls == 0);
+    DamageRegister(&fixture.pixmap->drawable, fixture.damage);
+    RegionUninit(&region);
+    RegionUninit(&expected);
+    fixture_fini(&fixture);
+}
+
 const testfunc_t *
 damage_test(void)
 {
@@ -395,6 +415,7 @@ damage_test(void)
         damage_callback_append,
         damage_nested_callback_removal,
         damage_close_without_render,
+        damage_without_listeners,
         NULL
     };
 
@@ -435,6 +456,27 @@ main(void)
         printf("%u rectangles: %.0f ns/op\n", sizes[s],
                ((end.tv_sec - start.tv_sec) * 1e9 + end.tv_nsec - start.tv_nsec) /
                repetitions);
+    }
+    {
+        struct timespec start, end;
+        BoxRec box = { 1, 1, 3, 3 };
+        RegionRec region;
+
+        DamageUnregister(fixture.damage);
+#if defined(COMPOSITE) || defined(ROOTLESS)
+        fixture.pixmap->screen_x = 10;
+        fixture.pixmap->screen_y = 10;
+#endif
+        RegionInit(&region, &box, 1);
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        for (unsigned i = 0; i < DAMAGE_BENCH_EDGES; i++)
+            DamageRegionAppend(&fixture.pixmap->drawable, &region);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        printf("No listeners: %.0f ns/op\n",
+               ((end.tv_sec - start.tv_sec) * 1e9 + end.tv_nsec - start.tv_nsec) /
+               DAMAGE_BENCH_EDGES);
+        RegionUninit(&region);
+        DamageRegister(&fixture.pixmap->drawable, fixture.damage);
     }
     dixFreeObjectWithPrivates(gc, PRIVATE_GC);
     fixture_fini(&fixture);
