@@ -625,7 +625,7 @@ damageAddTraps(PicturePtr pPicture,
         box.y2 = -32767;
         x = pPicture->pDrawable->x + x_off;
         y = pPicture->pDrawable->y + y_off;
-        for (i = 0; i < ntrap; i++) {
+        for (i = 0; i < ntrap; i++, t++) {
             pixman_fixed_t l = min(t->top.l, t->bot.l);
             pixman_fixed_t r = max(t->top.r, t->bot.r);
             int x1 = x + pixman_fixed_to_int(l);

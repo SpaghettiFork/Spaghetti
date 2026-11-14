@@ -190,6 +190,7 @@ if build_xorg
      '../mi/miinitext.h',
      '../mi/micmap.c',
      '../mi/micmap.h',
+     'damage.c',
      'fixes.c',
      'input.c',
      'list.c',
