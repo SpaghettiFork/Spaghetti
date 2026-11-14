@@ -41,12 +41,12 @@ typedef struct _damage {
     Bool isInternal;
     void *closure;
     Bool isWindow;
+    Bool reportAfter;
     DrawablePtr pDrawable;
 
     DamageReportFunc damageReport;
     DamageDestroyFunc damageDestroy;
 
-    Bool reportAfter;
     RegionRec pendingDamage;    /* will be flushed post submission at the latest */
     ScreenPtr pScreen;
 } DamageRec;
