@@ -107,11 +107,44 @@ damage_multiple_traps(void)
     fixture_fini(&fixture);
 }
 
+static void
+damage_shared_region(void)
+{
+    const DamageReportLevel levels[] = {
+        DamageReportBoundingBox, DamageReportNonEmpty
+    };
+    BoxRec boxes[] = { { 1, 1, 3, 3 }, { 20, 20, 24, 24 } };
+    struct damage_fixture fixture;
+    RegionRec region, expected;
+    unsigned calls = 0;
+
+    fixture_init(&fixture);
+    assert(RegionInitBoxes(&expected, boxes, ARRAY_SIZE(boxes)));
+    for (unsigned i = 0; i < ARRAY_SIZE(levels); i++) {
+        DamagePtr first = DamageCreate(report_damage, NULL, levels[i], FALSE,
+                                       &fixture.screen, &calls);
+
+        assert(first);
+        DamageRegister(&fixture.pixmap->drawable, first);
+        assert(RegionInitBoxes(&region, boxes, ARRAY_SIZE(boxes)));
+        DamageRegionAppend(&fixture.pixmap->drawable, &region);
+        assert(RegionEqual(&region, &expected));
+        assert(RegionEqual(DamageRegion(fixture.damage), &expected));
+        assert(RegionContainsPoint(DamageRegion(first), 10, 10, NULL));
+        DamageDestroy(first);
+        DamageEmpty(fixture.damage);
+        RegionUninit(&region);
+    }
+    RegionUninit(&expected);
+    fixture_fini(&fixture);
+}
+
 const testfunc_t *
 damage_test(void)
 {
     static const testfunc_t tests[] = {
         damage_multiple_traps,
+        damage_shared_region,
         NULL
     };
 

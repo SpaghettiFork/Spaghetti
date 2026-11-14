@@ -1882,12 +1882,15 @@ DamageGetScreenFuncs(ScreenPtr pScreen)
 static inline void
 DamageCombineExtents(DamagePtr pDamage, RegionPtr pDamageRegion)
 {
-    if (!pDamage->isInternal) {
-        BoxRec box = *RegionExtents(pDamageRegion);
-        RegionUninit(pDamageRegion);
-        RegionInit(pDamageRegion, &box, 1);
+    if (!pDamage->isInternal && RegionNotEmpty(pDamageRegion)) {
+        RegionRec bounds;
+
+        RegionInit(&bounds, RegionExtents(pDamageRegion), 1);
+        RegionUnion(&pDamage->damage, &pDamage->damage, &bounds);
+        RegionUninit(&bounds);
     }
-    RegionUnion(&pDamage->damage, &pDamage->damage, pDamageRegion);
+    else
+        RegionUnion(&pDamage->damage, &pDamage->damage, pDamageRegion);
 }
 
 void
