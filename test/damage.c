@@ -27,8 +27,21 @@ struct damage_fixture {
 };
 
 static Bool
+destroy_window(WindowPtr window)
+{
+    return TRUE;
+}
+
+static void
+set_window_pixmap(WindowPtr window, PixmapPtr pixmap)
+{
+}
+
+static Bool
 close_screen(ScreenPtr screen)
 {
+    assert(screen->DestroyWindow == destroy_window);
+    assert(screen->SetWindowPixmap == set_window_pixmap);
     return TRUE;
 }
 
@@ -78,6 +91,8 @@ fixture_init(struct damage_fixture *fixture)
     screenInfo.screens[0] = &fixture->screen;
     SetPictureScreen(&fixture->screen, &fixture->picture_screen);
     fixture->screen.CloseScreen = close_screen;
+    fixture->screen.DestroyWindow = destroy_window;
+    fixture->screen.SetWindowPixmap = set_window_pixmap;
     fixture->screen.CreateGC = create_gc;
     fixture->picture_screen.AddTraps = add_traps;
     assert(DamageSetup(&fixture->screen));
@@ -104,6 +119,9 @@ fixture_fini(struct damage_fixture *fixture)
     dixFreeObjectWithPrivates(fixture->pixmap, PRIVATE_PIXMAP);
     RegionUninit(&fixture->clip);
     assert(fixture->screen.CloseScreen(&fixture->screen));
+    assert(fixture->picture_screen.AddTraps == add_traps);
+    assert(!fixture->picture_screen.Composite);
+    assert(!fixture->picture_screen.Glyphs);
     dixFreePrivates(fixture->screen.devPrivates, PRIVATE_SCREEN);
     screenInfo.numScreens = 0;
     screenInfo.screens[0] = NULL;
@@ -346,6 +364,26 @@ damage_nested_callback_removal(void)
     fixture_fini(&fixture);
 }
 
+static void
+damage_close_without_render(void)
+{
+    ScreenRec screen = { 0 };
+
+    assert(dixAllocatePrivates(&screen.devPrivates, PRIVATE_SCREEN));
+    screenInfo.numScreens = 1;
+    screenInfo.screens[0] = &screen;
+    screen.CloseScreen = close_screen;
+    screen.DestroyWindow = destroy_window;
+    screen.SetWindowPixmap = set_window_pixmap;
+    assert(DamageSetup(&screen));
+    assert(DamageSetup(&screen));
+    assert(screen.CloseScreen(&screen));
+    dixFreePrivates(screen.devPrivates, PRIVATE_SCREEN);
+    screenInfo.numScreens = 0;
+    screenInfo.screens[0] = NULL;
+    dixResetPrivates();
+}
+
 const testfunc_t *
 damage_test(void)
 {
@@ -356,6 +394,7 @@ damage_test(void)
         damage_callback_removal,
         damage_callback_append,
         damage_nested_callback_removal,
+        damage_close_without_render,
         NULL
     };
 

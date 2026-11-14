@@ -1585,12 +1585,25 @@ damageDestroyWindow(WindowPtr pWindow)
 static Bool
 damageCloseScreen(ScreenPtr pScreen)
 {
+    PictureScreenPtr ps = GetPictureScreenIfSet(pScreen);
+
     damageScrPriv(pScreen);
 
     unwrap(pScrPriv, pScreen, DestroyPixmap);
     unwrap(pScrPriv, pScreen, CreateGC);
+    unwrap(pScrPriv, pScreen, DestroyWindow);
+    unwrap(pScrPriv, pScreen, SetWindowPixmap);
     unwrap(pScrPriv, pScreen, CopyWindow);
     unwrap(pScrPriv, pScreen, CloseScreen);
+    if (ps) {
+        if (pScrPriv->Glyphs || ps->Glyphs == damageGlyphs)
+            unwrap(pScrPriv, ps, Glyphs);
+        if (pScrPriv->Composite || ps->Composite == damageComposite)
+            unwrap(pScrPriv, ps, Composite);
+        if (pScrPriv->AddTraps || ps->AddTraps == damageAddTraps)
+            unwrap(pScrPriv, ps, AddTraps);
+    }
+    dixSetPrivate(&pScreen->devPrivates, damageScrPrivateKey, NULL);
     free(pScrPriv);
     return (*pScreen->CloseScreen) (pScreen);
 }
@@ -1672,7 +1685,7 @@ DamageSetup(ScreenPtr pScreen)
     if (!dixRegisterPrivateKey(&damageWinPrivateKeyRec, PRIVATE_WINDOW, 0))
         return FALSE;
 
-    pScrPriv = malloc(sizeof(DamageScrPrivRec));
+    pScrPriv = calloc(1, sizeof(DamageScrPrivRec));
     if (!pScrPriv)
         return FALSE;
 
