@@ -38,6 +38,27 @@ add_traps(PicturePtr picture, INT16 x, INT16 y, int count, xTrap *traps)
 }
 
 static void
+validate_gc(GCPtr gc, unsigned long changes, DrawablePtr drawable)
+{
+}
+
+static void
+poly_rectangle(DrawablePtr drawable, GCPtr gc, int count, xRectangle *rectangles)
+{
+}
+
+static const GCFuncs gc_funcs = { .ValidateGC = validate_gc };
+static const GCOps gc_ops = { .PolyRectangle = poly_rectangle };
+
+static Bool
+create_gc(GCPtr gc)
+{
+    gc->funcs = &gc_funcs;
+    gc->ops = &gc_ops;
+    return TRUE;
+}
+
+static void
 report_damage(DamagePtr damage, RegionPtr region, void *closure)
 {
     unsigned *calls = closure;
@@ -57,6 +78,7 @@ fixture_init(struct damage_fixture *fixture)
     screenInfo.screens[0] = &fixture->screen;
     SetPictureScreen(&fixture->screen, &fixture->picture_screen);
     fixture->screen.CloseScreen = close_screen;
+    fixture->screen.CreateGC = create_gc;
     fixture->picture_screen.AddTraps = add_traps;
     assert(DamageSetup(&fixture->screen));
     fixture->pixmap = dixAllocateScreenObjectWithPrivates(&fixture->screen,
@@ -86,6 +108,20 @@ fixture_fini(struct damage_fixture *fixture)
     screenInfo.numScreens = 0;
     screenInfo.screens[0] = NULL;
     dixResetPrivates();
+}
+
+static GCPtr
+fixture_gc(struct damage_fixture *fixture)
+{
+    GCPtr gc = dixAllocateScreenObjectWithPrivates(&fixture->screen,
+                                                 GC, PRIVATE_GC);
+
+    assert(gc);
+    gc->pScreen = &fixture->screen;
+    gc->pCompositeClip = &fixture->clip;
+    assert(fixture->screen.CreateGC(gc));
+    gc->funcs->ValidateGC(gc, 0, &fixture->pixmap->drawable);
+    return gc;
 }
 
 static void
@@ -139,14 +175,88 @@ damage_shared_region(void)
     fixture_fini(&fixture);
 }
 
+static void
+damage_rectangle_batch(void)
+{
+    struct damage_fixture fixture;
+    xRectangle rectangles[] = {
+        { 5, 5, 20, 20 }, { 15, 15, 30, 30 },
+        { 50, 50, 1, 1 }, { 70, 70, 0, 0 }, { -5, -5, 10, 10 }
+    };
+    const unsigned widths[] = { 0, 1, 2, 7 };
+    GCPtr gc;
+    RegionRec expected;
+
+    fixture_init(&fixture);
+    gc = fixture_gc(&fixture);
+    for (unsigned w = 0; w < ARRAY_SIZE(widths); w++) {
+        gc->lineWidth = widths[w];
+        for (unsigned i = 0; i < ARRAY_SIZE(rectangles); i++)
+            gc->ops->PolyRectangle(&fixture.pixmap->drawable, gc, 1, &rectangles[i]);
+        RegionNull(&expected);
+        assert(RegionCopy(&expected, DamageRegion(fixture.damage)));
+        DamageEmpty(fixture.damage);
+        gc->ops->PolyRectangle(&fixture.pixmap->drawable, gc,
+                               ARRAY_SIZE(rectangles), rectangles);
+        assert(RegionEqual(DamageRegion(fixture.damage), &expected));
+        assert(!RegionContainsPoint(&expected, 10, 10, NULL));
+        RegionUninit(&expected);
+        DamageEmpty(fixture.damage);
+    }
+    dixFreeObjectWithPrivates(gc, PRIVATE_GC);
+    fixture_fini(&fixture);
+}
+
 const testfunc_t *
 damage_test(void)
 {
     static const testfunc_t tests[] = {
         damage_multiple_traps,
         damage_shared_region,
+        damage_rectangle_batch,
         NULL
     };
 
     return tests;
 }
+
+#ifdef DAMAGE_BENCHMARK
+#include <stdio.h>
+#include <time.h>
+
+#define DAMAGE_BENCH_RECTS 1024
+#define DAMAGE_BENCH_EDGES 200000
+
+int
+main(void)
+{
+    const unsigned sizes[] = { 1, 16, 128, DAMAGE_BENCH_RECTS };
+    struct damage_fixture fixture;
+    xRectangle rectangles[DAMAGE_BENCH_RECTS];
+    GCPtr gc;
+
+    fixture_init(&fixture);
+    gc = fixture_gc(&fixture);
+    for (unsigned i = 0; i < ARRAY_SIZE(rectangles); i++) {
+        rectangles[i] = (xRectangle) { i % 100, (i * 7) % 100, 20, 20 };
+    }
+    for (unsigned s = 0; s < ARRAY_SIZE(sizes); s++) {
+        struct timespec start, end;
+        unsigned repetitions = DAMAGE_BENCH_EDGES / sizes[s];
+
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        for (unsigned i = 0; i < repetitions; i++) {
+            gc->ops->PolyRectangle(&fixture.pixmap->drawable, gc,
+                                   sizes[s], rectangles);
+            DamageEmpty(fixture.damage);
+        }
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        printf("%u rectangles: %.0f ns/op\n", sizes[s],
+               ((end.tv_sec - start.tv_sec) * 1e9 + end.tv_nsec - start.tv_nsec) /
+               repetitions);
+    }
+    dixFreeObjectWithPrivates(gc, PRIVATE_GC);
+    fixture_fini(&fixture);
+    return 0;
+}
+#endif
