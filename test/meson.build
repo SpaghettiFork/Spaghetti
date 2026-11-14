@@ -262,6 +262,16 @@ if build_xorg
 
     test('unit', unit)
 
+    damage_bench = executable('damage-bench',
+         ['damage.c', '../mi/miinitext.c', '../mi/micmap.c'],
+         c_args: ['-DDAMAGE_BENCHMARK'],
+         dependencies: [x11_dep, pixman_dep, randrproto_dep, inputproto_dep, libxcvt_dep],
+         include_directories: unit_includes,
+         link_with: xorg_link,
+    )
+
+    benchmark('damage-bench', damage_bench)
+
     region_bench = executable('region-bench',
          'region-bench.c',
          c_args: unit_c_args,

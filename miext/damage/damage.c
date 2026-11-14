@@ -454,11 +454,11 @@ damageDestroyClip(GCPtr pGC)
 #define BOX_NOT_EMPTY(box) \
     (((box.x2 - box.x1) > 0) && ((box.y2 - box.y1) > 0))
 
-#define DAMAGE_REGION_UNION_BOX(region, box) do { \
+#define DAMAGE_REGION_APPEND_BOX(region, box) do { \
     if (BOX_NOT_EMPTY(box)) { \
         RegionRec _damage_tmp; \
         RegionInit(&_damage_tmp, &(box), 1); \
-        RegionUnion(&(region), &(region), &_damage_tmp); \
+        RegionAppend(&(region), &_damage_tmp); \
         RegionUninit(&_damage_tmp); \
     } \
 } while (0)
@@ -1012,6 +1012,7 @@ damagePolyRectangle(DrawablePtr pDrawable,
 
     if (nRects && checkGCDamage(pDrawable, pGC)) {
         RegionRec edgeRegion;
+        Bool overlap;
         BoxRec box;
         int offset1, offset2, offset3;
         int nRectsTmp = nRects;
@@ -1030,32 +1031,33 @@ damagePolyRectangle(DrawablePtr pDrawable,
             box.x2 = box.x1 + pRectsTmp->width + offset2;
             box.y2 = box.y1 + offset2;
             TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
-            DAMAGE_REGION_UNION_BOX(edgeRegion, box);
+            DAMAGE_REGION_APPEND_BOX(edgeRegion, box);
 
             box.x1 = pRectsTmp->x - offset1;
             box.y1 = pRectsTmp->y + offset3;
             box.x2 = box.x1 + offset2;
             box.y2 = box.y1 + pRectsTmp->height - offset2;
             TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
-            DAMAGE_REGION_UNION_BOX(edgeRegion, box);
+            DAMAGE_REGION_APPEND_BOX(edgeRegion, box);
 
             box.x1 = pRectsTmp->x + pRectsTmp->width - offset1;
             box.y1 = pRectsTmp->y + offset3;
             box.x2 = box.x1 + offset2;
             box.y2 = box.y1 + pRectsTmp->height - offset2;
             TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
-            DAMAGE_REGION_UNION_BOX(edgeRegion, box);
+            DAMAGE_REGION_APPEND_BOX(edgeRegion, box);
 
             box.x1 = pRectsTmp->x - offset1;
             box.y1 = pRectsTmp->y + pRectsTmp->height - offset1;
             box.x2 = box.x1 + pRectsTmp->width + offset2;
             box.y2 = box.y1 + offset2;
             TRIM_AND_TRANSLATE_BOX(box, pDrawable, pGC);
-            DAMAGE_REGION_UNION_BOX(edgeRegion, box);
+            DAMAGE_REGION_APPEND_BOX(edgeRegion, box);
 
             pRectsTmp++;
         }
 
+        RegionValidate(&edgeRegion, &overlap);
         if (RegionNotEmpty(&edgeRegion))
             damageRegionAppend(pDrawable, &edgeRegion, TRUE, pGC->subWindowMode);
         RegionUninit(&edgeRegion);
