@@ -1367,7 +1367,7 @@ KdXVQueryImageAttributes(XvPortPtr pPort,
     XvPortRecPrivatePtr portPriv = (XvPortRecPrivatePtr) (pPort->devPriv.ptr);
 
     return (*portPriv->AdaptorRec->QueryImageAttributes) (portPriv->screen,
-                                                          format->id, width,
+                                                          format, width,
                                                           height, pitches,
                                                           offsets);
 }
