@@ -152,8 +152,8 @@ damageRegionAppend(DrawablePtr pDrawable, RegionPtr pRegion, Bool clip,
     int screen_x = 0, screen_y = 0;
 #endif
 
-    /* short circuit for empty regions */
-    if (!RegionNotEmpty(pRegion))
+    /* Skip region work when there is nothing to report. */
+    if (!pDamage || !RegionNotEmpty(pRegion))
         return;
 
 #if defined(COMPOSITE) || defined(ROOTLESS)
