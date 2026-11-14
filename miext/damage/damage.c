@@ -40,6 +40,7 @@
 #include    "gcstruct.h"
 #include    "damage.h"
 #include    "damagestr.h"
+#include    "list.h"
 
 #define wrap(priv, real, mem, func) {\
     priv->mem = real->mem; \
@@ -81,6 +82,14 @@ static DevPrivateKeyRec damageGCPrivateKeyRec;
 static DevPrivateKeyRec damageWinPrivateKeyRec;
 
 #define damageWinPrivateKey (&damageWinPrivateKeyRec)
+
+/* Active walks are updated when a callback unlinks a listener. */
+typedef struct _damageIterator {
+    struct xorg_list link;
+    DamagePtr next;
+} DamageIteratorRec;
+
+static struct xorg_list *damageIterators;
 
 static DamagePtr *
 getDrawableDamageRef(DrawablePtr pDrawable)
@@ -132,7 +141,8 @@ damageRegionAppend(DrawablePtr pDrawable, RegionPtr pRegion, Bool clip,
 
     damageScrPriv(pScreen);
     drawableDamage(pDrawable);
-    DamagePtr pNext;
+    DamageIteratorRec iterator;
+    struct xorg_list *previous = damageIterators;
     RegionRec clippedRec;
     RegionPtr pDamageRegion;
     RegionRec pixClip;
@@ -177,8 +187,12 @@ damageRegionAppend(DrawablePtr pDrawable, RegionPtr pRegion, Bool clip,
     }
 
     RegionNull(&clippedRec);
-    for (; pDamage; pDamage = pNext) {
-        pNext = pDamage->pNext;
+    xorg_list_init(&iterator.link);
+    if (previous)
+        xorg_list_add(&iterator.link, previous);
+    damageIterators = &iterator.link;
+    for (; pDamage; pDamage = iterator.next) {
+        iterator.next = pDamage->pNext;
         /*
          * Check for internal damage and don't send events
          */
@@ -275,6 +289,8 @@ damageRegionAppend(DrawablePtr pDrawable, RegionPtr pRegion, Bool clip,
         RegionTranslate(pRegion, -screen_x, -screen_y);
 #endif
 
+    xorg_list_del(&iterator.link);
+    damageIterators = previous;
     RegionUninit(&clippedRec);
 }
 
@@ -283,19 +299,30 @@ damageRegionProcessPending(DrawablePtr pDrawable)
 {
     drawableDamage(pDrawable);
 
-    for (; pDamage != NULL; pDamage = pDamage->pNext) {
-        if (pDamage->reportAfter) {
-            /* It's possible that there is only interest in postRendering reporting. */
-            if (pDamage->damageReport)
-                DamageReportDamage(pDamage, &pDamage->pendingDamage);
-            else
-                RegionUnion(&pDamage->damage, &pDamage->damage,
-                            &pDamage->pendingDamage);
-        }
+    DamageIteratorRec iterator;
+    struct xorg_list *previous = damageIterators;
 
-        if (pDamage->reportAfter)
-            RegionEmpty(&pDamage->pendingDamage);
+    xorg_list_init(&iterator.link);
+    if (previous)
+        xorg_list_add(&iterator.link, previous);
+    damageIterators = &iterator.link;
+    for (; pDamage; pDamage = iterator.next) {
+        iterator.next = pDamage->pNext;
+        if (pDamage->reportAfter) {
+            RegionRec pending = pDamage->pendingDamage;
+
+            /* New damage appended by the callback belongs to the next report. */
+            RegionNull(&pDamage->pendingDamage);
+            /* Empty regions also provide post-rendering notification. */
+            if (pDamage->damageReport)
+                DamageReportDamage(pDamage, &pending);
+            else
+                RegionUnion(&pDamage->damage, &pDamage->damage, &pending);
+            RegionUninit(&pending);
+        }
     }
+    xorg_list_del(&iterator.link);
+    damageIterators = previous;
 
 }
 
@@ -1407,6 +1434,18 @@ damageRemoveDamage(DamagePtr * pPrev, DamagePtr pDamage)
 {
     while (*pPrev) {
         if (*pPrev == pDamage) {
+            if (damageIterators) {
+                struct xorg_list *entry = damageIterators;
+
+                do {
+                    DamageIteratorRec *iterator =
+                        xorg_list_entry(entry, DamageIteratorRec, link);
+
+                    if (iterator->next == pDamage)
+                        iterator->next = pDamage->pNext;
+                    entry = entry->next;
+                } while (entry != damageIterators);
+            }
             *pPrev = pDamage->pNext;
             return;
         }
