@@ -207,6 +207,145 @@ damage_rectangle_batch(void)
     fixture_fini(&fixture);
 }
 
+struct callback_state {
+    struct damage_fixture *fixture;
+    DamagePtr victim;
+    Bool append;
+    unsigned calls;
+};
+
+static void
+mutate_listener(DamagePtr damage, RegionPtr region, void *closure)
+{
+    struct callback_state *state = closure;
+
+    if (state->calls++ == 0) {
+        if (state->victim) {
+            DamageDestroy(state->victim);
+            state->victim = NULL;
+        }
+        if (state->append) {
+            BoxRec box = { 40, 40, 45, 45 };
+            RegionRec added;
+
+            RegionInit(&added, &box, 1);
+            DamageRegionAppend(&state->fixture->pixmap->drawable, &added);
+            RegionUninit(&added);
+        }
+        else
+            DamageDestroy(damage);
+    }
+}
+
+static void
+damage_callback_removal(void)
+{
+    for (unsigned after = 0; after < 2; after++) {
+        struct damage_fixture fixture;
+        struct callback_state state = { 0 };
+        DamagePtr listener;
+        BoxRec box = { 1, 1, 3, 3 };
+        RegionRec region;
+
+        fixture_init(&fixture);
+        state.fixture = &fixture;
+        state.victim = DamageCreate(report_damage, NULL, DamageReportRawRegion,
+                                    TRUE, &fixture.screen, &fixture.calls);
+        assert(state.victim);
+        DamageRegister(&fixture.pixmap->drawable, state.victim);
+        DamageSetReportAfterOp(state.victim, after);
+        listener = DamageCreate(mutate_listener, NULL, DamageReportRawRegion,
+                                 TRUE, &fixture.screen, &state);
+        assert(listener);
+        DamageRegister(&fixture.pixmap->drawable, listener);
+        DamageSetReportAfterOp(listener, after);
+        RegionInit(&region, &box, 1);
+        DamageDamageRegion(&fixture.pixmap->drawable, &region);
+        assert(state.calls == 1);
+        assert(!state.victim);
+        assert(fixture.calls == 1);
+        RegionUninit(&region);
+        fixture_fini(&fixture);
+    }
+}
+
+static void
+damage_callback_append(void)
+{
+    struct damage_fixture fixture;
+    struct callback_state state = { .append = TRUE };
+    DamagePtr listener;
+    BoxRec box = { 1, 1, 3, 3 };
+    RegionRec region;
+
+    fixture_init(&fixture);
+    state.fixture = &fixture;
+    listener = DamageCreate(mutate_listener, NULL, DamageReportRawRegion,
+                             TRUE, &fixture.screen, &state);
+    assert(listener);
+    DamageRegister(&fixture.pixmap->drawable, listener);
+    DamageSetReportAfterOp(listener, TRUE);
+    RegionInit(&region, &box, 1);
+    DamageDamageRegion(&fixture.pixmap->drawable, &region);
+    assert(RegionContainsPoint(DamagePendingRegion(listener), 42, 42, NULL));
+    DamageRegionProcessPending(&fixture.pixmap->drawable);
+    assert(!RegionNotEmpty(DamagePendingRegion(listener)));
+    assert(RegionContainsPoint(DamageRegion(listener), 42, 42, NULL));
+    DamageRegionProcessPending(&fixture.pixmap->drawable);
+    assert(state.calls == 3);
+    DamageDestroy(listener);
+    RegionUninit(&region);
+    fixture_fini(&fixture);
+}
+
+static void
+nested_report(DamagePtr damage, RegionPtr region, void *closure)
+{
+    struct callback_state *state = closure;
+
+    if (state->calls++ == 0) {
+        BoxRec box = { 40, 40, 45, 45 };
+        RegionRec added;
+
+        RegionInit(&added, &box, 1);
+        DamageRegionAppend(&state->fixture->pixmap->drawable, &added);
+        RegionUninit(&added);
+    }
+    else {
+        DamageDestroy(state->victim);
+        state->victim = NULL;
+        DamageDestroy(damage);
+    }
+}
+
+static void
+damage_nested_callback_removal(void)
+{
+    struct damage_fixture fixture;
+    struct callback_state state = { 0 };
+    DamagePtr listener;
+    BoxRec box = { 1, 1, 3, 3 };
+    RegionRec region;
+
+    fixture_init(&fixture);
+    state.fixture = &fixture;
+    state.victim = DamageCreate(report_damage, NULL, DamageReportRawRegion,
+                                TRUE, &fixture.screen, &fixture.calls);
+    assert(state.victim);
+    DamageRegister(&fixture.pixmap->drawable, state.victim);
+    listener = DamageCreate(nested_report, NULL, DamageReportRawRegion,
+                             TRUE, &fixture.screen, &state);
+    assert(listener);
+    DamageRegister(&fixture.pixmap->drawable, listener);
+    RegionInit(&region, &box, 1);
+    DamageDamageRegion(&fixture.pixmap->drawable, &region);
+    assert(state.calls == 2);
+    assert(!state.victim);
+    assert(fixture.calls == 2);
+    RegionUninit(&region);
+    fixture_fini(&fixture);
+}
+
 const testfunc_t *
 damage_test(void)
 {
@@ -214,6 +353,9 @@ damage_test(void)
         damage_multiple_traps,
         damage_shared_region,
         damage_rectangle_batch,
+        damage_callback_removal,
+        damage_callback_append,
+        damage_nested_callback_removal,
         NULL
     };
 
