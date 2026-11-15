@@ -12,6 +12,7 @@ cat > sdksyms.c << EOF
 /* These must be included first */
 #include "misc.h"
 #include "miscstruct.h"
+#include "external.h"
 
 
 /* render/Makefile.am */
@@ -254,6 +255,7 @@ cat > sdksyms.c << EOF
 /*
 #include "misc.h"
 #include "miscstruct.h"
+#include "external.h"
  */
 #include "opaque.h"
 #include "os.h"

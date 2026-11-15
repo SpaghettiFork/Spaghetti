@@ -192,6 +192,7 @@ if build_xorg
      '../mi/micmap.h',
      'damage.c',
      'fixes.c',
+     'external.c',
      'input.c',
      'list.c',
      'misc.c',

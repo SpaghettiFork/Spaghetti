@@ -15,6 +15,7 @@ main(int argc, char **argv)
 #ifdef XORG_TESTS
     run_test(damage_test);
     run_test(fixes_test);
+    run_test(external_test);
     run_test(input_test);
     run_test(misc_test);
     run_test(region_test);

@@ -94,6 +94,7 @@ SOFTWARE.
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include "misc.h"
+#include "dix/external_priv.h"
 #include <errno.h>
 #include <sys/types.h>
 #ifndef WIN32
@@ -1063,6 +1064,8 @@ ComputeLocalClient(ClientPtr client)
 {
     const char *cmdname = GetClientCmdName(client);
 
+    if (client->external)
+        return TRUE;
     if (!xtransLocalClient(client))
         return FALSE;
 
@@ -1105,6 +1108,16 @@ ComputeLocalClient(ClientPtr client)
 int
 GetLocalClientCreds(ClientPtr client, LocalClientCredRec ** lccp)
 {
+    if (!lccp)
+        return -1;
+    *lccp = NULL;
+    if (client && client->external) {
+        ExternalClientRec *external = dixLookupPrivate(&client->devPrivates,
+                                                       &externalClientPrivateKeyRec);
+
+        *lccp = dixCopyClientCreds(external->credentials);
+        return *lccp ? 0 : -1;
+    }
 #if defined(HAVE_GETPEEREID) || defined(HAVE_GETPEERUCRED) || defined(SO_PEERCRED) || defined(LOCAL_PEERCRED)
     int fd;
     XtransConnInfo ci;
@@ -1581,8 +1594,11 @@ GetClientFd(ClientPtr client)
 Bool
 ClientIsLocal(ClientPtr client)
 {
-    XtransConnInfo ci = ((OsCommPtr) client->osPrivate)->trans_conn;
+    XtransConnInfo ci;
 
+    if (client->external)
+        return TRUE;
+    ci = ((OsCommPtr) client->osPrivate)->trans_conn;
     return _XSERVTransIsLocal(ci);
 }
 

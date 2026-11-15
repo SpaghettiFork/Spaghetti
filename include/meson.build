@@ -481,6 +481,7 @@ if build_xorg
             'extension.h',
             'extinit.h',
             'extnsionst.h',
+            'external.h',
             'fourcc.h',
             'gc.h',
             'gcstruct.h',

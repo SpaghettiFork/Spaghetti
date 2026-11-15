@@ -916,6 +916,8 @@ IgnoreClient(ClientPtr client)
     isItTimeToYield = TRUE;
     mark_client_not_ready(client);
 
+    if (client->external)
+        return;
     oc->flags |= OS_COMM_IGNORED;
     set_poll_client(client);
 }
@@ -942,6 +944,8 @@ AttendClient(ClientPtr client)
     if (client->ignoreCount)
         return;
 
+    if (client->external)
+        return;
     oc->flags &= ~OS_COMM_IGNORED;
     set_poll_client(client);
     if (listen_to_client(client))
@@ -959,6 +963,8 @@ MakeClientGrabImpervious(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
+    if (client->external)
+        return;
     oc->flags |= OS_COMM_GRAB_IMPERVIOUS;
     set_poll_client(client);
 
@@ -978,6 +984,8 @@ MakeClientGrabPervious(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
+    if (client->external)
+        return;
     oc->flags &= ~OS_COMM_GRAB_IMPERVIOUS;
     set_poll_client(client);
     isItTimeToYield = TRUE;
@@ -1087,6 +1095,8 @@ listen_to_client(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
+    if (client->external)
+        return FALSE;
     if (oc->flags & OS_COMM_IGNORED)
         return FALSE;
 
@@ -1107,6 +1117,8 @@ set_poll_client(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
+    if (client->external)
+        return;
     if (oc->trans_conn) {
         if (listen_to_client(client))
             ospoll_listen(server_poll, oc->trans_conn->fd, X_NOTIFY_READ);

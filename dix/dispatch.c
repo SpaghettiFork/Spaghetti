@@ -126,6 +126,7 @@ Equipment Corporation.
 #include "inputstr.h"
 #include "xkbsrv.h"
 #include "client.h"
+#include "external_priv.h"
 #include "xfixesint.h"
 
 // temporary workaround for win32/mingw32 name clash
@@ -281,7 +282,7 @@ clients_are_ready(void)
 void
 mark_client_ready(ClientPtr client)
 {
-    if (xorg_list_is_empty(&client->ready))
+    if (!client->external && xorg_list_is_empty(&client->ready))
         xorg_list_append(&client->ready, &ready_clients);
 }
 
@@ -291,7 +292,7 @@ mark_client_ready(ClientPtr client)
  */
 void mark_client_saved_ready(ClientPtr client)
 {
-    if (xorg_list_is_empty(&client->ready))
+    if (!client->external && xorg_list_is_empty(&client->ready))
         xorg_list_append(&client->ready, &saved_ready_clients);
 }
 
@@ -490,6 +491,10 @@ Dispatch(void)
 
     nextFreeClientID = 1;
     nClients = 0;
+    for (int i = 1; i < currentMaxClients; i++)
+        if (clients[i] && !clients[i]->clientGone &&
+            clients[i]->clientState == ClientStateRunning)
+            nClients++;
 
     SmartScheduleSlice = SmartScheduleInterval;
     init_client_ready();
@@ -3523,6 +3528,8 @@ CloseDownClient(ClientPtr client)
         /* Disable client ID tracking. This must be done after
          * ClientStateCallback. */
         ReleaseClientIds(client);
+        if (client->external)
+            dixCloseExternalClient(client);
 #ifdef XSERVER_DTRACE
         XSERVER_CLIENT_DISCONNECT(client->index);
 #endif
@@ -3584,6 +3591,66 @@ NextFreeClientSlot(void)
         }
     }
     return -1;
+}
+
+ClientPtr
+dixCreateExternalClient(const ExternalClientCallbacks *callbacks,
+                        const LocalClientCredRec *credentials, void *closure)
+{
+    const int required = LCC_UID_SET | LCC_GID_SET | LCC_PID_SET;
+    ExternalClientRec *external;
+    LocalClientCredRec *copy;
+    ClientPtr client;
+    int i;
+
+    if (!callbacks || !callbacks->write || !credentials ||
+        (credentials->fieldsSet & required) != required ||
+        credentials->euid == -1 || credentials->egid == -1 || credentials->pid <= 0 ||
+        !dixPrivateKeyRegistered(&externalClientPrivateKeyRec))
+        return NULL;
+    i = NextFreeClientSlot();
+    if (i < 0)
+        return NULL;
+    copy = dixCopyClientCreds(credentials);
+    if (!copy)
+        return NULL;
+    client = dixAllocateObjectWithPrivates(ClientRec, PRIVATE_CLIENT);
+    if (!client) {
+        FreeLocalClientCreds(copy);
+        return NULL;
+    }
+    InitClient(client, i, NULL);
+    client->external = TRUE;
+    client->local = TRUE;
+    external = dixLookupPrivate(&client->devPrivates, &externalClientPrivateKeyRec);
+    external->callbacks = *callbacks;
+    external->credentials = copy;
+    external->closure = closure;
+    if (!InitClientResources(client)) {
+        FreeLocalClientCreds(copy);
+        dixFreeObjectWithPrivates(client, PRIVATE_CLIENT);
+        return NULL;
+    }
+    clients[i] = client;
+    if (i >= currentMaxClients)
+        currentMaxClients = i + 1;
+    ReserveClientIds(client);
+    if (ClientStateCallback) {
+        NewClientInfoRec info = { .client = client };
+        CallCallbacks(&ClientStateCallback, &info);
+    }
+    nClients++;
+    client->clientState = ClientStateRunning;
+    if (ClientStateCallback) {
+        NewClientInfoRec info = { .client = client };
+        CallCallbacks(&ClientStateCallback, &info);
+    }
+    if (client->noClientException != Success) {
+        CloseDownClient(client);
+        return NULL;
+    }
+    CancelDispatchExceptionTimer();
+    return client;
 }
 
 /************************

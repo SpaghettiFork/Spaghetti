@@ -76,6 +76,7 @@ SOFTWARE.
 #include "osdep.h"
 #include "opaque.h"
 #include "dixstruct.h"
+#include "dix/external_priv.h"
 #include "misc.h"
 
 CallbackListPtr ReplyCallback;
@@ -256,13 +257,16 @@ int
 ReadRequestFromClient(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
-    ConnectionInputPtr oci = oc->input;
+    ConnectionInputPtr oci;
     unsigned int gotnow, needed;
     int result;
     register xReq *request;
     Bool need_header;
     Bool move_header;
 
+    if (client->external)
+        return 0;
+    oci = oc->input;
     NextAvailableInput(oc);
 
     /* make sure we have an input buffer */
@@ -475,6 +479,11 @@ ReadFdFromClient(ClientPtr client)
 {
     int fd = -1;
 
+    if (client->external) {
+        client->req_fds = 0;
+        return -1;
+    }
+
 #if XTRANS_SEND_FDS
     if (client->req_fds > 0) {
         OsCommPtr oc = (OsCommPtr) client->osPrivate;
@@ -491,6 +500,8 @@ ReadFdFromClient(ClientPtr client)
 int
 WriteFdToClient(ClientPtr client, int fd, Bool do_close)
 {
+    if (client->external)
+        return dixSendExternalClientFD(client, fd, do_close);
 #if XTRANS_SEND_FDS
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
@@ -510,9 +521,12 @@ Bool
 InsertFakeRequest(ClientPtr client, char *data, int count)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
-    ConnectionInputPtr oci = oc->input;
+    ConnectionInputPtr oci;
     int gotnow, moveup;
 
+    if (client->external)
+        return FALSE;
+    oci = oc->input;
     NextAvailableInput(oc);
 
     if (!oci) {
@@ -713,6 +727,8 @@ WriteToClient(ClientPtr who, int count, const void *__buf)
 #endif
     if (!count || !who || who == serverClient || who->clientGone)
         return 0;
+    if (who->external)
+        return dixWriteExternalClient(who, count, __buf);
     oc = who->osPrivate;
     oco = oc->output;
 #ifdef DEBUG_COMMUNICATION
@@ -875,7 +891,7 @@ ReserveClientOutputSpace(ClientPtr who, int count)
     OsCommPtr oc;
     ConnectionOutputPtr oco;
 
-    if (!count || !who || who == serverClient || who->clientGone)
+    if (!count || !who || who == serverClient || who->clientGone || who->external)
         return NULL;
     oc = who->osPrivate;
     oco = oc->output;
@@ -917,7 +933,7 @@ CommitClientOutputSpace(ClientPtr who, int count)
     OsCommPtr oc;
     ConnectionOutputPtr oco;
 
-    if (!count || !who || who == serverClient || who->clientGone)
+    if (!count || !who || who == serverClient || who->clientGone || who->external)
         return -1;
     oc = who->osPrivate;
     oco = oc->output;

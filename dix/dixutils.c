@@ -264,7 +264,8 @@ dixLookupClient(ClientPtr *pClient, XID rid, ClientPtr client, Mask access)
     void *pRes;
     int rc = BadValue, clientIndex = CLIENT_ID(rid);
 
-    if (!clientIndex || !clients[clientIndex] || (rid & SERVER_BIT))
+    if (!clientIndex || !clients[clientIndex] ||
+        ((rid & SERVER_BIT) && !clients[clientIndex]->external))
         goto bad;
 
     rc = dixLookupResourceByClass(&pRes, rid, RC_ANY, client, DixGetAttrAccess);

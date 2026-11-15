@@ -6076,8 +6076,6 @@ WriteEventsToClient(ClientPtr pClient, int count, xEvent *events)
     if (!pClient || pClient == serverClient || pClient->clientGone)
         return;
 
-    BUG_RETURN(pClient->external);
-
     for (i = 0; i < count; i++)
         if ((events[i].u.u.type & 0x7f) != KeymapNotify)
             events[i].u.u.sequenceNumber = pClient->sequence;
