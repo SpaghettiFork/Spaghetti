@@ -27,7 +27,10 @@
 #include <X11/extensions/presentproto.h>
 
 #include "randrstr.h"
+#include "misync.h"
 #include "presentext.h"
+
+struct dri3_syncobj;
 
 typedef enum {
     PRESENT_FLIP_REASON_UNKNOWN = 0,
