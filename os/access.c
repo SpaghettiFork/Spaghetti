@@ -94,6 +94,7 @@ SOFTWARE.
 #include <X11/X.h>
 #include <X11/Xproto.h>
 #include "misc.h"
+#include "dix/external_priv.h"
 #include <errno.h>
 #include <sys/types.h>
 #ifndef WIN32
@@ -1063,6 +1064,8 @@ ComputeLocalClient(ClientPtr client)
 {
     const char *cmdname = GetClientCmdName(client);
 
+    if (client->external)
+        return TRUE;
     if (!xtransLocalClient(client))
         return FALSE;
 
@@ -1105,135 +1108,146 @@ ComputeLocalClient(ClientPtr client)
 int
 GetLocalClientCreds(ClientPtr client, LocalClientCredRec ** lccp)
 {
-#if defined(HAVE_GETPEEREID) || defined(HAVE_GETPEERUCRED) || defined(SO_PEERCRED) || defined(LOCAL_PEERCRED)
-    int fd;
-    XtransConnInfo ci;
-    LocalClientCredRec *lcc;
-
-#if defined(HAVE_GETPEERUCRED)
-    ucred_t *peercred = NULL;
-    const gid_t *gids;
-#elif defined(SO_PEERCRED)
-#ifndef __OpenBSD__
-    struct ucred peercred;
-#else
-    struct sockpeercred peercred;
-#endif
-    socklen_t so_len = sizeof(peercred);
-#elif defined(LOCAL_PEERCRED) && defined(HAVE_XUCRED_CR_PID)
-    struct xucred peercred;
-    socklen_t so_len = sizeof(peercred);
-#elif defined(HAVE_GETPEEREID)
-    uid_t uid;
-    gid_t gid;
-#if defined(LOCAL_PEERPID)
-    pid_t pid;
-    socklen_t so_len = sizeof(pid);
-#endif
-#endif
+    BUG_RETURN_VAL(!lccp, -1);
 
     if (client == NULL)
         return -1;
-    ci = ((OsCommPtr) client->osPrivate)->trans_conn;
-#if !(defined(__sun) && defined(HAVE_GETPEERUCRED))
-    /* Most implementations can only determine peer credentials for Unix
-     * domain sockets - Solaris getpeerucred can work with a bit more, so
-     * we just let it tell us if the connection type is supported or not
-     */
-    if (!_XSERVTransIsLocal(ci)) {
-        return -1;
-    }
-#endif
 
-    *lccp = calloc(1, sizeof(LocalClientCredRec));
-    if (*lccp == NULL)
-        return -1;
-    lcc = *lccp;
+    if (client->external) {
+        ExternalClientRec *external = dixLookupPrivate(&client->devPrivates,
+                                                       &externalClientPrivateKeyRec);
 
-    fd = _XSERVTransGetConnectionNumber(ci);
+        *lccp = dixCopyClientCreds(external->credentials);
+        return *lccp ? 0 : -1;
+    } else {
+#if defined(HAVE_GETPEEREID) || defined(HAVE_GETPEERUCRED) || defined(SO_PEERCRED) || defined(LOCAL_PEERCRED)
+        int fd;
+        XtransConnInfo ci;
+        LocalClientCredRec *lcc;
+
 #if defined(HAVE_GETPEERUCRED)
-    if (getpeerucred(fd, &peercred) < 0) {
-        FreeLocalClientCreds(lcc);
-        return -1;
-    }
-    lcc->euid = ucred_geteuid(peercred);
-    if (lcc->euid != -1)
-        lcc->fieldsSet |= LCC_UID_SET;
-    lcc->egid = ucred_getegid(peercred);
-    if (lcc->egid != -1)
-        lcc->fieldsSet |= LCC_GID_SET;
-    lcc->pid = ucred_getpid(peercred);
-    if (lcc->pid != -1)
-        lcc->fieldsSet |= LCC_PID_SET;
-#ifdef HAVE_GETZONEID
-    lcc->zoneid = ucred_getzoneid(peercred);
-    if (lcc->zoneid != -1)
-        lcc->fieldsSet |= LCC_ZID_SET;
+        ucred_t *peercred = NULL;
+        const gid_t *gids;
+#elif defined(SO_PEERCRED)
+#ifndef __OpenBSD__
+        struct ucred peercred;
+#else
+        struct sockpeercred peercred;
 #endif
-    lcc->nSuppGids = ucred_getgroups(peercred, &gids);
-    if (lcc->nSuppGids > 0) {
-        lcc->pSuppGids = calloc(lcc->nSuppGids, sizeof(int));
-        if (lcc->pSuppGids == NULL) {
-            lcc->nSuppGids = 0;
-        }
-        else {
-            int i;
+        socklen_t so_len = sizeof(peercred);
+#elif defined(LOCAL_PEERCRED) && defined(HAVE_XUCRED_CR_PID)
+        struct xucred peercred;
+        socklen_t so_len = sizeof(peercred);
+#elif defined(HAVE_GETPEEREID)
+        uid_t uid;
+        gid_t gid;
+#if defined(LOCAL_PEERPID)
+        pid_t pid;
+        socklen_t so_len = sizeof(pid);
+#endif
+#endif
 
-            for (i = 0; i < lcc->nSuppGids; i++) {
-                (lcc->pSuppGids)[i] = (int) gids[i];
+        ci = ((OsCommPtr) client->osPrivate)->trans_conn;
+#if !(defined(__sun) && defined(HAVE_GETPEERUCRED))
+        /* Most implementations can only determine peer credentials for Unix
+         * domain sockets - Solaris getpeerucred can work with a bit more, so
+         * we just let it tell us if the connection type is supported or not
+         */
+        if (!_XSERVTransIsLocal(ci)) {
+            return -1;
+        }
+#endif
+
+        *lccp = calloc(1, sizeof(LocalClientCredRec));
+        if (*lccp == NULL)
+            return -1;
+        lcc = *lccp;
+
+        fd = _XSERVTransGetConnectionNumber(ci);
+#if defined(HAVE_GETPEERUCRED)
+        if (getpeerucred(fd, &peercred) < 0) {
+            FreeLocalClientCreds(lcc);
+            return -1;
+        }
+        lcc->euid = ucred_geteuid(peercred);
+        if (lcc->euid != -1)
+            lcc->fieldsSet |= LCC_UID_SET;
+        lcc->egid = ucred_getegid(peercred);
+        if (lcc->egid != -1)
+            lcc->fieldsSet |= LCC_GID_SET;
+        lcc->pid = ucred_getpid(peercred);
+        if (lcc->pid != -1)
+            lcc->fieldsSet |= LCC_PID_SET;
+#ifdef HAVE_GETZONEID
+        lcc->zoneid = ucred_getzoneid(peercred);
+        if (lcc->zoneid != -1)
+            lcc->fieldsSet |= LCC_ZID_SET;
+#endif
+        lcc->nSuppGids = ucred_getgroups(peercred, &gids);
+        if (lcc->nSuppGids > 0) {
+            lcc->pSuppGids = calloc(lcc->nSuppGids, sizeof(int));
+            if (lcc->pSuppGids == NULL) {
+                lcc->nSuppGids = 0;
+            }
+            else {
+                int i;
+
+                for (i = 0; i < lcc->nSuppGids; i++) {
+                    (lcc->pSuppGids)[i] = (int) gids[i];
+                }
             }
         }
-    }
-    else {
-        lcc->nSuppGids = 0;
-    }
-    ucred_free(peercred);
-    return 0;
+        else {
+            lcc->nSuppGids = 0;
+        }
+        ucred_free(peercred);
+        return 0;
 #elif defined(SO_PEERCRED)
-    if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &peercred, &so_len) == -1) {
-        FreeLocalClientCreds(lcc);
-        return -1;
-    }
-    lcc->euid = peercred.uid;
-    lcc->egid = peercred.gid;
-    lcc->pid = peercred.pid;
-    lcc->fieldsSet = LCC_UID_SET | LCC_GID_SET | LCC_PID_SET;
-    return 0;
+        if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &peercred, &so_len) == -1) {
+            FreeLocalClientCreds(lcc);
+            return -1;
+        }
+        lcc->euid = peercred.uid;
+        lcc->egid = peercred.gid;
+        lcc->pid = peercred.pid;
+        lcc->fieldsSet = LCC_UID_SET | LCC_GID_SET | LCC_PID_SET;
+        return 0;
 #elif defined(LOCAL_PEERCRED) && defined(HAVE_XUCRED_CR_PID)
-    if (getsockopt(fd, SOL_LOCAL, LOCAL_PEERCRED, &peercred, &so_len) != 0 ||
-        peercred.cr_version != XUCRED_VERSION) {
-        FreeLocalClientCreds(lcc);
-        return -1;
-    }
-    lcc->euid = peercred.cr_uid;
-    lcc->egid = peercred.cr_gid;
-    lcc->pid = peercred.cr_pid;
-    lcc->fieldsSet = LCC_UID_SET | LCC_GID_SET | LCC_PID_SET;
-    return 0;
+        if (getsockopt(fd, SOL_LOCAL, LOCAL_PEERCRED, &peercred, &so_len) != 0 ||
+            peercred.cr_version != XUCRED_VERSION) {
+            FreeLocalClientCreds(lcc);
+            return -1;
+        }
+        lcc->euid = peercred.cr_uid;
+        lcc->egid = peercred.cr_gid;
+        lcc->pid = peercred.cr_pid;
+        lcc->fieldsSet = LCC_UID_SET | LCC_GID_SET | LCC_PID_SET;
+        return 0;
 #elif defined(HAVE_GETPEEREID)
-    if (getpeereid(fd, &uid, &gid) == -1) {
-        FreeLocalClientCreds(lcc);
-        return -1;
-    }
-    lcc->euid = uid;
-    lcc->egid = gid;
-    lcc->fieldsSet = LCC_UID_SET | LCC_GID_SET;
+        if (getpeereid(fd, &uid, &gid) == -1) {
+            FreeLocalClientCreds(lcc);
+            return -1;
+        }
+        lcc->euid = uid;
+        lcc->egid = gid;
+        lcc->fieldsSet = LCC_UID_SET | LCC_GID_SET;
 
 #if defined(LOCAL_PEERPID)
-    if (getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &so_len) != 0) {
-        ErrorF("getsockopt failed to determine pid of socket %d: %s\n", fd, strerror(errno));
-    } else {
-        lcc->pid = pid;
-        lcc->fieldsSet |= LCC_PID_SET;
-    }
+        if (getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &so_len) != 0) {
+            ErrorF("getsockopt failed to determine pid of socket %d: %s\n", fd, strerror(errno));
+        } else {
+            lcc->pid = pid;
+            lcc->fieldsSet |= LCC_PID_SET;
+        }
 #endif
 
-    return 0;
+        return 0;
 #endif
 #else
-    /* No system call available to get the credentials of the peer */
-    return -1;
+        /* No system call available to get the credentials of the peer */
+        return -1;
 #endif
+    }
 }
 
 void
@@ -1581,9 +1595,14 @@ GetClientFd(ClientPtr client)
 Bool
 ClientIsLocal(ClientPtr client)
 {
-    XtransConnInfo ci = ((OsCommPtr) client->osPrivate)->trans_conn;
+    XtransConnInfo ci;
 
-    return _XSERVTransIsLocal(ci);
+    if (_X_LIKELY(!client->external)) {
+        ci = ((OsCommPtr) client->osPrivate)->trans_conn;
+        return _XSERVTransIsLocal(ci);
+    } else {
+        return TRUE;
+    }
 }
 
 /*****************************************************************************

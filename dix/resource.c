@@ -126,6 +126,7 @@ Equipment Corporation.
 #include "os.h"
 #include "resource.h"
 #include "dixstruct.h"
+#include "external_priv.h"
 #include "opaque.h"
 #include "windowstr.h"
 #include "dixfont.h"
@@ -648,6 +649,9 @@ InitClientResources(ClientPtr client)
     int i, j;
 
     if (client == serverClient) {
+        if (!dixRegisterPrivateKey(&externalClientPrivateKeyRec, PRIVATE_CLIENT,
+                                    sizeof(ExternalClientRec)))
+            return FALSE;
         lastResourceType = X11_RESTYPE_LASTPREDEF;
         lastResourceClass = RC_LASTPREDEF;
         TypeMask = RC_LASTPREDEF - 1;
@@ -1200,25 +1204,33 @@ LegalNewID(XID id, ClientPtr client)
     void *val;
     int rc;
 
-    BUG_RETURN_VAL(client->external, FALSE);
-
+    if (client->external) {
+        if ((id & ~RESOURCE_ID_MASK) != (client->clientAsMask | SERVER_BIT))
+            return FALSE;
+        else {
+            rc = dixLookupResourceByClass(&val, id, RC_ANY,
+                                          serverClient, DixGetAttrAccess);
+            return rc == BadValue;
+        }
+    } else {
 #ifdef PANORAMIX
-    XID minid, maxid;
+        XID minid, maxid;
 
-    if (!noPanoramiXExtension) {
-        minid = client->clientAsMask | (client->index ?
-                                        SERVER_BIT : SERVER_MINID);
-        maxid = (clientTable[client->index].fakeID | RESOURCE_ID_MASK) + 1;
-        if ((id >= minid) && (id <= maxid))
-            return TRUE;
+        if (!noPanoramiXExtension) {
+            minid = client->clientAsMask | (client->index ?
+                                            SERVER_BIT : SERVER_MINID);
+            maxid = (clientTable[client->index].fakeID | RESOURCE_ID_MASK) + 1;
+            if ((id >= minid) && (id <= maxid))
+                return TRUE;
+        }
+ #endif /* PANORAMIX */
+        if (client->clientAsMask == (id & ~RESOURCE_ID_MASK)) {
+            rc = dixLookupResourceByClass(&val, id, RC_ANY,
+                                          serverClient, DixGetAttrAccess);
+            return rc == BadValue;
+        }
+        return FALSE;
     }
-#endif                          /* PANORAMIX */
-    if (client->clientAsMask == (id & ~RESOURCE_ID_MASK)) {
-        rc = dixLookupResourceByClass(&val, id, RC_ANY, serverClient,
-                                      DixGetAttrAccess);
-        return rc == BadValue;
-    }
-    return FALSE;
 }
 
 int
