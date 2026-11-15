@@ -32,6 +32,7 @@
 
 #include "xf86.h"
 #include "xf86Parser.h"
+#include "xf86Config.h"
 
 #include "tests-common.h"
 
@@ -108,12 +109,79 @@ xfree86_add_comment(void)
     free(current);
 }
 
+static void
+xfree86_module_config(void)
+{
+    const char *lines[] = {
+        "Section \"Module\"\n",
+        "    Load \"libinput\"\n",
+        "    SubSection \"sauce\"\n",
+        "        Option \"SocketPath\" \"/run/user/1000/wayland-meatball-0\"\n",
+        "        Option \"SocketMode\" \"0600\"\n",
+        "    EndSubSection\n",
+        "EndSection\n",
+        NULL
+    };
+    XF86ConfigPtr config;
+    XF86LoadPtr module;
+    char *path, *mode;
+
+    xf86initConfigFiles();
+    xf86setBuiltinConfig(lines);
+    config = xf86readConfigFile();
+    assert(config && config->conf_modules);
+    module = config->conf_modules->mod_load_lst;
+    assert(module && !strcmp(module->load_name, "libinput"));
+    module = module->list.next;
+    assert(module && !strcmp(module->load_name, "sauce"));
+    assert(!module->list.next);
+    path = xf86CheckStrOption(module->load_opt, "SocketPath", NULL);
+    mode = xf86CheckStrOption(module->load_opt, "SocketMode", NULL);
+    assert(path && !strcmp(path, "/run/user/1000/wayland-meatball-0"));
+    assert(mode && !strcmp(mode, "0600"));
+    free(path);
+    free(mode);
+    xf86freeConfig(config);
+    xf86configptr = NULL;
+    xf86closeConfigFile();
+}
+
+static void
+xfree86_config_invalid_token(void)
+{
+    const char *invalid[] = {
+        "SubSection \"sauce\"\n",
+        "UnknownKeyword\n",
+        "42\n",
+        "\"unexpected string\"\n",
+    };
+    const char *lines[] = {
+        "Section \"Module\"\n",
+        "    Load \"sauce\"\n",
+        "EndSection\n",
+        NULL,
+        NULL
+    };
+    const unsigned int invalid_line = ARRAY_SIZE(lines) - 2;
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(invalid); i++) {
+        lines[invalid_line] = invalid[i];
+        xf86initConfigFiles();
+        xf86setBuiltinConfig(lines);
+        assert(!xf86readConfigFile());
+        xf86configptr = NULL;
+        xf86closeConfigFile();
+    }
+}
+
 const testfunc_t*
 xfree86_test(void)
 {
     static const testfunc_t testfuncs[] = {
         xfree86_option_list_duplicate,
         xfree86_add_comment,
+        xfree86_module_config,
+        xfree86_config_invalid_token,
         NULL,
     };
     return testfuncs;
