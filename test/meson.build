@@ -207,6 +207,9 @@ if build_xorg
      'xfree86.c',
      'xtest.c',
     ]
+    if build_mitshm
+        unit_sources += ['shm.c']
+    endif
     unit_c_args = ['-DXORG_TESTS']
     unit_includes = [inc, xorg_inc]
 

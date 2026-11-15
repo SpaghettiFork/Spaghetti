@@ -1,3 +1,4 @@
+#include <dix-config.h>
 #include <string.h>
 #include "tests.h"
 #include "tests-common.h"
@@ -17,6 +18,9 @@ main(int argc, char **argv)
     run_test(input_test);
     run_test(misc_test);
     run_test(region_test);
+#ifdef MITSHM
+    run_test(shm_test);
+#endif
     run_test(signal_logging_test);
     run_test(touch_test);
     run_test(vrr_test);

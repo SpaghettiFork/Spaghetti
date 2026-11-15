@@ -120,6 +120,7 @@ static DevPrivateKeyRec shmScrPrivateKeyRec;
 
 #define shmScrPrivateKey (&shmScrPrivateKeyRec)
 static DevPrivateKeyRec shmPixmapPrivateKeyRec;
+static DevPrivateKeyRec shmImportPrivateKeyRec;
 
 #define shmPixmapPrivateKey (&shmPixmapPrivateKeyRec)
 static ShmFuncs miFuncs = { NULL, NULL };
@@ -230,6 +231,8 @@ ShmRegisterPrivates(void)
         return FALSE;
     if (!dixRegisterPrivateKey(&shmPixmapPrivateKeyRec, PRIVATE_PIXMAP, 0))
         return FALSE;
+    if (!dixRegisterPrivateKey(&shmImportPrivateKeyRec, PRIVATE_PIXMAP, 0))
+        return FALSE;
     return TRUE;
 }
 
@@ -258,8 +261,14 @@ ShmDestroyPixmap(PixmapPtr pPixmap)
     void *shmdesc = NULL;
     Bool ret;
 
-    if (pPixmap->refcnt == 1)
+    if (pPixmap->refcnt == 1) {
+        ShmDescPtr imported = dixLookupPrivate(&pPixmap->devPrivates,
+                                               &shmImportPrivateKeyRec);
+
         shmdesc = dixLookupPrivate(&pPixmap->devPrivates, shmPixmapPrivateKey);
+        if (imported && imported->resource != None)
+            FreeResource(imported->resource, X11_RESTYPE_NONE);
+    }
 
     pScreen->DestroyPixmap = screen_priv->destroyPixmap;
     ret = (*pScreen->DestroyPixmap) (pPixmap);
@@ -373,65 +382,92 @@ shm_access(ClientPtr client, SHMPERM_TYPE * perm, int readonly)
     return (SHMPERM_MODE(perm) & mask) == mask ? 0 : -1;
 }
 
+#ifdef SHM_FD_PASSING
+static void ShmBusfaultNotify(void *context);
+#endif
+
 PixmapPtr
 shm_create_pixmap_from_fd(ScreenPtr pScreen, int fd, CARD16 width, CARD16 height,
                           CARD8 depth, CARD8 bpp, CARD16 stride, CARD32 offset)
 {
 #ifdef SHM_FD_PASSING
     struct stat st;
-    void *addr;
     ShmDescPtr shmdesc;
     PixmapPtr pMap;
     ShmScrPrivateRec *priv;
     size_t size;
-    unsigned long pixSize;
+    int i;
 
-    if (fstat(fd, &st) < 0 || st.st_size == 0)
+    if (!pScreen || !sharedPixmaps || !width || !height ||
+        width > INT16_MAX || height > INT16_MAX || !depth)
         return NULL;
 
-    size = st.st_size;
-    if (offset + (unsigned long)stride * height > size)
+    for (i = 0; depth != 1 && i < pScreen->numDepths; i++)
+        if (pScreen->allowedDepths[i].depth == depth)
+            break;
+    if (depth != 1 && i == pScreen->numDepths)
         return NULL;
-
-    addr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-    if (addr == MAP_FAILED)
+    if (bpp != BitsPerPixel(depth) || stride < PixmapBytePad(width, depth) ||
+        stride % (BITMAP_SCANLINE_PAD / CHAR_BIT) || offset % sizeof(CARD32))
         return NULL;
-
-    pixSize = (unsigned long)stride * height;
-    if (offset + pixSize < pixSize) {
-        munmap(addr, size);
-        return NULL;
-    }
-
-    shmdesc = calloc(1, sizeof(ShmDescRec));
-    if (!shmdesc) { 
-        munmap(addr, size);
-        return NULL;
-    }
-
-    shmdesc->addr = addr;
-    shmdesc->size = size;
-    shmdesc->is_fd = TRUE;
-    shmdesc->refcnt = 0;
-    shmdesc->busfault = busfault_register(addr, size, ShmBusfaultNotify, shmdesc);
 
     priv = ShmGetScreenPriv(pScreen);
-    pMap = (*priv->shmFuncs->CreatePixmap)(pScreen, width, height, depth,
-                                          (char *)addr + offset);
-    if (!pMap) {
-        if (shmdesc->busfault)
-            busfault_unregister(shmdesc->busfault);
-        munmap(addr, size);
+    if (!priv || !priv->shmFuncs || !priv->shmFuncs->CreatePixmap ||
+        !pScreen->ModifyPixmapHeader)
+        return NULL;
+    if (fstat(fd, &st) < 0 || st.st_size <= 0 ||
+        (uintmax_t) st.st_size > SIZE_MAX)
+        return NULL;
+    size = st.st_size;
+    if (offset > size || (size_t) stride * height > size - offset)
+        return NULL;
+
+    shmdesc = calloc(1, sizeof(*shmdesc));
+    if (!shmdesc)
+        return NULL;
+    shmdesc->addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (shmdesc->addr == MAP_FAILED) {
         free(shmdesc);
         return NULL;
     }
+    shmdesc->size = size;
+    shmdesc->is_fd = TRUE;
+    shmdesc->writable = TRUE;
+    shmdesc->busfault = busfault_register_mmap(shmdesc->addr, size,
+                                               ShmBusfaultNotify, shmdesc);
+#ifdef BUSFAULT
+    if (!shmdesc->busfault)
+        goto fail;
+#endif
+    pMap = (*priv->shmFuncs->CreatePixmap)(pScreen, width, height, depth,
+                                          shmdesc->addr + offset);
+    if (!pMap)
+        goto fail;
+    if (!(*pScreen->ModifyPixmapHeader)(pMap, width, height, depth, bpp,
+                                         stride, shmdesc->addr + offset)) {
+        (*pScreen->DestroyPixmap)(pMap);
+        goto fail;
+    }
 
+    shmdesc->resource = FakeClientID(serverClient->index);
+    shmdesc->refcnt = 1;
+    xorg_list_add(&shmdesc->entry, &Shmsegs);
+    if (!AddResource(shmdesc->resource, ShmSegType, shmdesc)) {
+        (*pScreen->DestroyPixmap)(pMap);
+        return NULL;
+    }
     dixSetPrivate(&pMap->devPrivates, shmPixmapPrivateKey, shmdesc);
+    dixSetPrivate(&pMap->devPrivates, &shmImportPrivateKeyRec, shmdesc);
     shmdesc->refcnt++;
     return pMap;
-#else
-    return NULL;
+
+fail:
+    if (shmdesc->busfault)
+        busfault_unregister(shmdesc->busfault);
+    munmap(shmdesc->addr, size);
+    free(shmdesc);
 #endif
+    return NULL;
 }
 
 static int
@@ -502,10 +538,14 @@ ProcShmAttach(ClientPtr client)
 
  /*ARGSUSED*/ static int
 ShmDetachSegment(void *value, /* must conform to DeleteType */
-                 XID unused)
+                 XID id)
 {
     ShmDescPtr shmdesc = (ShmDescPtr) value;
 
+#ifdef SHM_FD_PASSING
+    if (shmdesc->is_fd && shmdesc->resource == id)
+        shmdesc->resource = None;
+#endif
     if (--shmdesc->refcnt)
         return TRUE;
 #if SHM_FD_PASSING
@@ -1210,7 +1250,8 @@ ShmBusfaultNotify(void *context)
            (unsigned int) shmdesc->resource);
     busfault_unregister(shmdesc->busfault);
     shmdesc->busfault = NULL;
-    FreeResource (shmdesc->resource, X11_RESTYPE_NONE);
+    if (shmdesc->resource != None)
+        FreeResource(shmdesc->resource, X11_RESTYPE_NONE);
 }
 
 static int
