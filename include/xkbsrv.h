@@ -58,7 +58,8 @@ THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "inputstr.h"
 #include "events.h"
 
-extern RESTYPE RT_XKBCLIENT;
+/* Resource type for subscriptions created with XkbAddClientResource. */
+extern _X_EXPORT RESTYPE RT_XKBCLIENT;
 
 typedef struct _XkbInterest {
     DeviceIntPtr dev;

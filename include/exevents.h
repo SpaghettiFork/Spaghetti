@@ -297,8 +297,9 @@ extern int
 extern void
  XISendDeviceChangedEvent(DeviceIntPtr device, DeviceChangedEvent *dce);
 
-extern int
-
+/* The caller validates device/window access and mask bits. Selections belong
+ * to the client and are removed when the client or window is destroyed. */
+extern _X_EXPORT int
 XISetEventMask(DeviceIntPtr dev, WindowPtr win, ClientPtr client,
                unsigned int len, unsigned char *mask);
 
