@@ -39,11 +39,22 @@ static const uint32_t drm_fmt_by_bpp[33] = {
 int
 dri3_open(ClientPtr client, ScreenPtr screen, RRProviderPtr provider, int *fd)
 {
-    dri3_screen_priv_ptr        ds = dri3_screen_priv(screen);
-    const dri3_screen_info_rec *info = ds->info;
+    dri3_screen_priv_ptr ds;
+    const dri3_screen_info_rec *info;
 
-    if (info == NULL)
+    if (!fd)
+        return BadValue;
+    *fd = -1;
+    if (!client || client->clientGone || !client->local || !screen ||
+        (provider && provider->pScreen != screen) ||
+        !dixPrivateKeyRegistered(&dri3_screen_private_key))
         return BadMatch;
+    if (client->ignoreCount)
+        return BadAccess;
+    ds = dri3_screen_priv(screen);
+    if (!ds || !ds->info)
+        return BadMatch;
+    info = ds->info;
 
     if (info->version >= 1 && info->open_client != NULL)
         return (*info->open_client) (client, screen, provider, fd);
@@ -228,8 +239,8 @@ dri3_get_supported_modifiers(ScreenPtr screen, DrawablePtr drawable,
                              CARD32 *num_screen_modifiers,
                              CARD64 **screen_modifiers)
 {
-    dri3_screen_priv_ptr        ds = dri3_screen_priv(screen);
-    const dri3_screen_info_rec *info = ds->info;
+    dri3_screen_priv_ptr ds;
+    const dri3_screen_info_rec *info;
     int                         i;
     int                         ret;
     uint32_t                    num_drawable_mods;
@@ -237,6 +248,22 @@ dri3_get_supported_modifiers(ScreenPtr screen, DrawablePtr drawable,
     CARD64                     *screen_mods = NULL;
     CARD32                      format;
     dri3_dmabuf_format_ptr      screen_format = NULL;
+
+    if (!num_drawable_modifiers || !drawable_modifiers ||
+        !num_screen_modifiers || !screen_modifiers)
+        return BadValue;
+    *num_drawable_modifiers = *num_screen_modifiers = 0;
+    *drawable_modifiers = *screen_modifiers = NULL;
+    if (!depth || depth > bpp || bpp >= ARRAY_SIZE(drm_fmt_by_bpp) ||
+        !drm_fmt_by_bpp[bpp])
+        return BadValue;
+    if (!screen || !drawable || drawable->pScreen != screen ||
+        !dixPrivateKeyRegistered(&dri3_screen_private_key))
+        return BadMatch;
+    ds = dri3_screen_priv(screen);
+    if (!ds || !ds->info)
+        return BadMatch;
+    info = ds->info;
 
     ret = cache_formats_and_modifiers(screen);
     if (ret != Success)
@@ -264,7 +291,9 @@ dri3_get_supported_modifiers(ScreenPtr screen, DrawablePtr drawable,
     }
 
     /* copy the screen mods so we can return an owned allocation */
-    screen_mods = XNFalloc(screen_format->num_modifiers * sizeof(CARD64));
+    screen_mods = xallocarray(screen_format->num_modifiers, sizeof(*screen_mods));
+    if (!screen_mods)
+        return BadAlloc;
     memcpy(screen_mods, screen_format->modifiers,
            screen_format->num_modifiers * sizeof(CARD64));
 

@@ -142,6 +142,26 @@ typedef struct dri3_screen_info {
 extern _X_EXPORT Bool
 dri3_screen_init(ScreenPtr screen, const dri3_screen_info_rec *info);
 
+/* On synchronous success *fd belongs to the caller. An ignored client has an
+ * asynchronous open pending and *fd remains -1. The driver completes it through
+ * dri3_send_open_reply and AttendClient. External clients receive the fd and
+ * xDRI3OpenReply through their send_fd and write callbacks. Only one open may
+ * be pending per client.
+ */
+extern _X_EXPORT int
+dri3_open(ClientPtr client, ScreenPtr screen, RRProviderPtr provider, int *fd);
+
+/* Returned modifier arrays belong to the caller and are freed with free().
+ * Outputs are cleared on failure and when no modifiers are supported.
+ */
+extern _X_EXPORT int
+dri3_get_supported_modifiers(ScreenPtr screen, DrawablePtr drawable,
+                             CARD8 depth, CARD8 bpp,
+                             CARD32 *num_drawable_modifiers,
+                             CARD64 **drawable_modifiers,
+                             CARD32 *num_screen_modifiers,
+                             CARD64 **screen_modifiers);
+
 extern _X_EXPORT int
 dri3_send_open_reply(ClientPtr client, int fd);
 

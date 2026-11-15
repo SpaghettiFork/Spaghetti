@@ -16,6 +16,9 @@ main(int argc, char **argv)
     run_test(damage_test);
     run_test(fixes_test);
     run_test(external_test);
+#ifdef DRI3
+    run_test(dri3_test);
+#endif
     run_test(input_test);
     run_test(misc_test);
     run_test(region_test);

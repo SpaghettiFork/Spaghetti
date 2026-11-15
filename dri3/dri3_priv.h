@@ -77,20 +77,10 @@ sproc_dri3_dispatch(ClientPtr client);
 /* DDX interface */
 
 int
-dri3_open(ClientPtr client, ScreenPtr screen, RRProviderPtr provider, int *fd);
-
-int
 dri3_fds_from_pixmap(PixmapPtr pixmap, int *fds,
                      uint32_t *strides, uint32_t *offsets,
                      uint64_t *modifier);
 
-int
-dri3_get_supported_modifiers(ScreenPtr screen, DrawablePtr drawable,
-                             CARD8 depth, CARD8 bpp,
-                             CARD32 *num_drawable_modifiers,
-                             CARD64 **drawable_modifiers,
-                             CARD32 *num_screen_modifiers,
-                             CARD64 **screen_modifiers);
 
 int
 dri3_import_syncobj(ClientPtr client, ScreenPtr screen, XID id, int fd);

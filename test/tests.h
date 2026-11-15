@@ -26,6 +26,7 @@ typedef void (*testfunc_t)(void);
 const testfunc_t* damage_test(void);
 const testfunc_t* fixes_test(void);
 const testfunc_t* external_test(void);
+const testfunc_t* dri3_test(void);
 const testfunc_t* hashtabletest_test(void);
 const testfunc_t* input_test(void);
 const testfunc_t* list_test(void);

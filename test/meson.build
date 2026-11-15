@@ -212,6 +212,11 @@ if build_xorg
     if build_mitshm
         unit_sources += ['shm.c']
     endif
+    unit_dependencies = [x11_dep, pixman_dep, randrproto_dep, inputproto_dep, libxcvt_dep]
+    if build_dri3
+        unit_sources += ['dri3.c']
+        unit_dependencies += libdrm_dep
+    endif
     unit_c_args = ['-DXORG_TESTS']
     unit_includes = [inc, xorg_inc]
 
@@ -259,7 +264,7 @@ if build_xorg
     unit = executable('tests',
          unit_sources,
          c_args: unit_c_args,
-         dependencies: [x11_dep, pixman_dep, randrproto_dep, inputproto_dep, libxcvt_dep],
+         dependencies: unit_dependencies,
          include_directories: unit_includes,
          link_args: ldwraps,
          link_with: xorg_link,
