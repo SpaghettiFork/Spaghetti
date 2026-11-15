@@ -27,6 +27,7 @@ enum {
     SHM_TEST_BPP = 32,
     SHM_TEST_STRIDE = 16,
     SHM_TEST_SIZE = SHM_TEST_STRIDE * SHM_TEST_HEIGHT,
+    SHM_TEST_LARGE_STRIDE = 1 << 16,
     SHM_TEST_ROW_WORDS = SHM_TEST_STRIDE / sizeof(uint32_t),
     SHM_TEST_IMPORT_COUNT = 2,
     SHM_TEST_FIRST_ROW_SENTINEL = 0x12345678,
@@ -160,6 +161,35 @@ shm_test_reject_imports(struct shm_test *test)
                                       SHM_TEST_WIDTH, SHM_TEST_HEIGHT,
                                       SHM_TEST_DEPTH, SHM_TEST_BPP / 2,
                                       SHM_TEST_STRIDE, 0));
+    assert(!shm_create_pixmap_from_fd(&test->screen, test->fd,
+                                      SHM_TEST_WIDTH, SHM_TEST_HEIGHT,
+                                      SHM_TEST_DEPTH, SHM_TEST_BPP,
+                                      UINT32_MAX, 0));
+}
+
+static void
+shm_test_import_large(struct shm_test *test)
+{
+    PixmapPtr pixmap;
+
+    assert(ftruncate(test->fd, SHM_TEST_LARGE_STRIDE * SHM_TEST_HEIGHT) == 0);
+    assert(pwrite(test->fd, &test->rows[SHM_TEST_ROW_WORDS],
+                  sizeof(uint32_t),
+                  SHM_TEST_LARGE_STRIDE) == sizeof(uint32_t));
+    pixmap = shm_create_pixmap_from_fd(&test->screen, test->fd,
+                                       SHM_TEST_WIDTH, SHM_TEST_HEIGHT,
+                                       SHM_TEST_DEPTH, SHM_TEST_BPP,
+                                       SHM_TEST_LARGE_STRIDE, 0);
+    assert(pixmap);
+    assert(pixmap->devKind == SHM_TEST_LARGE_STRIDE);
+    assert(*(uint32_t *) pixmap->devPrivate.ptr == test->rows[0]);
+    assert(*(uint32_t *) ((char *) pixmap->devPrivate.ptr + pixmap->devKind)
+           == test->rows[SHM_TEST_ROW_WORDS]);
+    assert(test->screen.DestroyPixmap(pixmap));
+    assert(destroyed == 1);
+    assert(ftruncate(test->fd, sizeof(test->rows)) == 0);
+    assert(pwrite(test->fd, test->rows, sizeof(test->rows), 0) ==
+           sizeof(test->rows));
 }
 
 static PixmapPtr
@@ -190,17 +220,20 @@ static void
 shm_import(void)
 {
     struct shm_test test;
+    unsigned previous_destroyed;
 
     shm_test_init(&test);
     shm_test_reject_imports(&test);
+    shm_test_import_large(&test);
+    previous_destroyed = destroyed;
     for (unsigned i = 0; i < SHM_TEST_IMPORT_COUNT; i++) {
         PixmapPtr pixmap = shm_test_import(&test, i);
 
         pixmap->refcnt++;
         assert(test.screen.DestroyPixmap(pixmap));
-        assert(destroyed == i);
+        assert(destroyed == previous_destroyed + i);
         assert(test.screen.DestroyPixmap(pixmap));
-        assert(destroyed == i + 1);
+        assert(destroyed == previous_destroyed + i + 1);
     }
     shm_test_fini(&test);
 }

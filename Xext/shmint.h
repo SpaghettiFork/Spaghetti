@@ -90,15 +90,16 @@ extern _X_EXPORT void
  ShmRegisterFbFuncs(ScreenPtr pScreen);
 
 /* The caller retains fd on success and failure.
- * 
+ *
  * DestroyPixmap releases the imported mapping after the pixmap's last reference.
- * Stride is in bytes and must satisfy the screen's scanline alignment and minimum row size.
+ * Stride is in bytes and must satisfy the screen's scanline alignment,
+ * minimum row size and fit the signed stride passed to ModifyPixmapHeader.
  */
 extern MEATBALL_EXPORT PixmapPtr
  shm_create_pixmap_from_fd(ScreenPtr pScreen, int fd,
                            CARD16 width, CARD16 height,
                            CARD8 depth, CARD8 bpp,
-                           CARD16 stride, CARD32 offset);
+                           CARD32 stride, CARD32 offset);
 
 extern _X_EXPORT RESTYPE ShmSegType;
 extern _X_EXPORT int ShmCompletionCode;
