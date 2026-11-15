@@ -26,7 +26,8 @@ enum {
     SHM_TEST_DEPTH = 32,
     SHM_TEST_BPP = 32,
     SHM_TEST_STRIDE = 16,
-    SHM_TEST_SIZE = SHM_TEST_STRIDE * SHM_TEST_HEIGHT
+    SHM_TEST_SIZE = SHM_TEST_STRIDE * SHM_TEST_HEIGHT,
+    SHM_TEST_LARGE_STRIDE = 1 << 16
 };
 
 static unsigned destroyed;
@@ -120,6 +121,25 @@ shm_import(void)
                                       SHM_TEST_DEPTH, SHM_TEST_BPP / 2,
                                       SHM_TEST_STRIDE, 0));
 
+    assert(!shm_create_pixmap_from_fd(&screen, fd, SHM_TEST_WIDTH, SHM_TEST_HEIGHT,
+                                      SHM_TEST_DEPTH, SHM_TEST_BPP, UINT32_MAX, 0));
+    assert(ftruncate(fd, SHM_TEST_LARGE_STRIDE * SHM_TEST_HEIGHT) == 0);
+    assert(pwrite(fd, &rows[SHM_TEST_STRIDE / sizeof(uint32_t)], sizeof(uint32_t),
+                  SHM_TEST_LARGE_STRIDE) == sizeof(uint32_t));
+    pixmap = shm_create_pixmap_from_fd(&screen, fd, SHM_TEST_WIDTH,
+                                        SHM_TEST_HEIGHT, SHM_TEST_DEPTH,
+                                        SHM_TEST_BPP, SHM_TEST_LARGE_STRIDE, 0);
+    assert(pixmap);
+    assert(pixmap->devKind == SHM_TEST_LARGE_STRIDE);
+    assert(*(uint32_t *) pixmap->devPrivate.ptr == rows[0]);
+    assert(*(uint32_t *) ((char *) pixmap->devPrivate.ptr + pixmap->devKind)
+           == rows[SHM_TEST_STRIDE / sizeof(uint32_t)]);
+    assert(screen.DestroyPixmap(pixmap));
+    assert(destroyed == 1);
+    assert(ftruncate(fd, sizeof(rows)) == 0);
+    assert(pwrite(fd, rows, sizeof(rows), 0) == sizeof(rows));
+    unsigned previous_destroyed = destroyed;
+
     for (unsigned i = 0; i < 2; i++) {
         pixmap = shm_create_pixmap_from_fd(&screen, fd, SHM_TEST_WIDTH,
                                             SHM_TEST_HEIGHT, SHM_TEST_DEPTH,
@@ -139,9 +159,9 @@ shm_import(void)
 #endif
         pixmap->refcnt++;
         assert(screen.DestroyPixmap(pixmap));
-        assert(destroyed == i);
+        assert(destroyed == previous_destroyed + i);
         assert(screen.DestroyPixmap(pixmap));
-        assert(destroyed == i + 1);
+        assert(destroyed == previous_destroyed + i + 1);
     }
     close(fd);
     FreeAllResources();

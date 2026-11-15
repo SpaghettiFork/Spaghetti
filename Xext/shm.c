@@ -388,7 +388,7 @@ static void ShmBusfaultNotify(void *context);
 
 PixmapPtr
 shm_create_pixmap_from_fd(ScreenPtr pScreen, int fd, CARD16 width, CARD16 height,
-                          CARD8 depth, CARD8 bpp, CARD16 stride, CARD32 offset)
+                          CARD8 depth, CARD8 bpp, CARD32 stride, CARD32 offset)
 {
 #ifdef SHM_FD_PASSING
     struct stat st;
@@ -407,7 +407,8 @@ shm_create_pixmap_from_fd(ScreenPtr pScreen, int fd, CARD16 width, CARD16 height
             break;
     if (depth != 1 && i == pScreen->numDepths)
         return NULL;
-    if (bpp != BitsPerPixel(depth) || stride < PixmapBytePad(width, depth) ||
+    if (bpp != BitsPerPixel(depth) || stride > INT_MAX ||
+        stride < PixmapBytePad(width, depth) ||
         stride % (BITMAP_SCANLINE_PAD / CHAR_BIT) || offset % sizeof(CARD32))
         return NULL;
 
@@ -419,7 +420,7 @@ shm_create_pixmap_from_fd(ScreenPtr pScreen, int fd, CARD16 width, CARD16 height
         (uintmax_t) st.st_size > SIZE_MAX)
         return NULL;
     size = st.st_size;
-    if (offset > size || (size_t) stride * height > size - offset)
+    if (offset > size || stride > (size - offset) / height)
         return NULL;
 
     shmdesc = calloc(1, sizeof(*shmdesc));
