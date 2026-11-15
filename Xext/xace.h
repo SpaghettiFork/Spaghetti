@@ -87,8 +87,8 @@ _X_EXPORT int XaceHookResourceAccess(ClientPtr client, XID id, RESTYPE rtype, vo
 
 int XaceHookDeviceAccess(ClientPtr client, DeviceIntPtr dev, Mask access_mode);
 
-int XaceHookSendAccess(ClientPtr client, DeviceIntPtr dev, WindowPtr win,
-                       xEventPtr ev, int count);
+extern _X_EXPORT int XaceHookSendAccess(ClientPtr client, DeviceIntPtr dev,
+                                        WindowPtr win, xEventPtr ev, int count);
 int XaceHookReceiveAccess(ClientPtr client, WindowPtr win, xEventPtr ev, int count);
 int XaceHookClientAccess(ClientPtr client, ClientPtr target, Mask access_mode);
 int XaceHookExtAccess(ClientPtr client, ExtensionEntry *ext);
