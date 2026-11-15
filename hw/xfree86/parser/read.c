@@ -208,8 +208,10 @@ xf86readConfigFile(void)
             }
             break;
         default:
-            free(xf86_lex_val.str);
-            xf86_lex_val.str = NULL;
+            if (token == STRING) {
+                free(xf86_lex_val.str);
+                xf86_lex_val.str = NULL;
+            }
             Error(INVALID_KEYWORD_MSG, xf86tokenString());
         }
     }
