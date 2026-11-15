@@ -103,7 +103,6 @@ void RRConstrainCursorHarder(DeviceIntPtr, ScreenPtr, int, int *, int *);
 /* rrlease.c */
 void RRDeliverLeaseEvent(ClientPtr client, WindowPtr window);
 
-void RRTerminateLease(RRLeasePtr lease);
 
 Bool RRLeaseInit(void);
 
