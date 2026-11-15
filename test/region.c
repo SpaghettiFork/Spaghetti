@@ -291,6 +291,7 @@ region_test(void)
         region_set_extents_counts,
         region_set_extents_multiband,
         region_set_extents_variants,
+        NULL,
     };
     return tests;
 }
