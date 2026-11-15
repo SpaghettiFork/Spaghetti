@@ -39,6 +39,7 @@ const testfunc_t* xkb_test(void);
 const testfunc_t* xtest_test(void);
 const testfunc_t* protocol_xchangedevicecontrol_test(void);
 const testfunc_t* region_test(void);
+const testfunc_t* rrlease_test(void);
 const testfunc_t* shm_test(void);
 const testfunc_t* protocol_xiqueryversion_test(void);
 const testfunc_t* protocol_xiquerydevice_test(void);

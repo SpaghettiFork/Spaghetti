@@ -767,9 +767,16 @@ extern _X_EXPORT int
 extern _X_EXPORT Bool
  RRClientKnowsRates(ClientPtr pClient);
 
+/* Returns a server-owned lease and transfers its fd to the caller. On failure
+ * returns NULL and sets *fd to -1. The caller closes the fd and requests lease
+ * termination with RRTerminateLease; the driver frees the lease when finished.
+ */
 extern _X_EXPORT RRLeasePtr
 RRLeaseCreate(ScreenPtr screen, int numCrtcs, RRCrtcPtr *crtcs,
               int numOutputs, RROutputPtr *outputs, int *fd);
+
+extern _X_EXPORT void
+RRTerminateLease(RRLeasePtr lease);
 
 extern _X_EXPORT void
 RRLeaseTerminated(RRLeasePtr lease);

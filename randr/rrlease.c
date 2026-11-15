@@ -99,34 +99,73 @@ RRLeasePtr
 RRLeaseCreate(ScreenPtr screen, int numCrtcs, RRCrtcPtr *crtcs,
               int numOutputs, RROutputPtr *outputs, int *fd)
 {
-    rrScrPrivPtr pScrPriv = rrGetScrPriv(screen);
+    rrScrPrivPtr pScrPriv;
     RRLeasePtr lease;
-    XID lid = FakeClientID(0);
+    int lease_fd = -1;
+    int c, o, i;
 
-    if (numCrtcs <= 0)
+    if (!fd)
         return NULL;
-    
-    if (numOutputs <= 0)
+    *fd = -1;
+    if (!screen || !RRLeaseType || !dixPrivateKeyRegistered(&rrPrivKeyRec))
+        return NULL;
+    pScrPriv = rrGetScrPriv(screen);
+    if (!pScrPriv || !pScrPriv->rrCreateLease || !pScrPriv->rrTerminateLease ||
+        numCrtcs <= 0 || numCrtcs > pScrPriv->numCrtcs || !crtcs ||
+        numOutputs <= 0 || numOutputs > pScrPriv->numOutputs || !outputs)
         return NULL;
 
-    lease = RRLeaseAlloc(screen, lid, numCrtcs, numOutputs);
-    if (!lease)
-        return NULL;
-
-    memcpy(lease->crtcs, crtcs, sizeof(RRCrtcPtr) * numCrtcs);
-    memcpy(lease->outputs, outputs, sizeof(RROutputPtr) * numOutputs);
-
-    if (pScrPriv->rrCreateLease) {
-        int rc = pScrPriv->rrCreateLease(screen, lease, fd);
-        if (rc != Success) {
-            free(lease);
+    for (c = 0; c < numCrtcs; c++) {
+        if (!crtcs[c] || crtcs[c]->pScreen != screen || RRCrtcIsLeased(crtcs[c]))
             return NULL;
-        }
-    } else if (fd) {
-        *fd = -1;
+        for (i = 0; i < c; i++)
+            if (crtcs[i] == crtcs[c])
+                return NULL;
+        for (i = 0; i < pScrPriv->numCrtcs; i++)
+            if (pScrPriv->crtcs[i] == crtcs[c])
+                break;
+        if (i == pScrPriv->numCrtcs)
+            return NULL;
+    }
+    for (o = 0; o < numOutputs; o++) {
+        if (!outputs[o] || outputs[o]->pScreen != screen ||
+            RROutputIsLeased(outputs[o]))
+            return NULL;
+        for (i = 0; i < o; i++)
+            if (outputs[i] == outputs[o])
+                return NULL;
+        for (i = 0; i < pScrPriv->numOutputs; i++)
+            if (pScrPriv->outputs[i] == outputs[o])
+                break;
+        if (i == pScrPriv->numOutputs)
+            return NULL;
     }
 
-    AddResource(lid, RRLeaseType, lease);
+    lease = RRLeaseAlloc(screen, FakeClientID(serverClient->index),
+                          numCrtcs, numOutputs);
+    if (!lease)
+        return NULL;
+    memcpy(lease->crtcs, crtcs, sizeof(*crtcs) * numCrtcs);
+    memcpy(lease->outputs, outputs, sizeof(*outputs) * numOutputs);
+    if (pScrPriv->rrCreateLease(screen, lease, &lease_fd) != Success) {
+        if (lease_fd >= 0)
+            close(lease_fd);
+        free(lease);
+        return NULL;
+    }
+    xorg_list_add(&lease->list, &pScrPriv->leases);
+    if (lease_fd < 0) {
+        lease->id = None;
+        RRTerminateLease(lease);
+        return NULL;
+    }
+    if (!AddResource(lease->id, RRLeaseType, lease)) {
+        close(lease_fd);
+        RRTerminateLease(lease);
+        return NULL;
+    }
+    RRLeaseChangeState(lease, RRLeaseCreating, RRLeaseRunning);
+    *fd = lease_fd;
     return lease;
 }
 

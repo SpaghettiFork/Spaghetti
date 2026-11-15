@@ -18,6 +18,7 @@ main(int argc, char **argv)
     run_test(input_test);
     run_test(misc_test);
     run_test(region_test);
+    run_test(rrlease_test);
 #ifdef MITSHM
     run_test(shm_test);
 #endif

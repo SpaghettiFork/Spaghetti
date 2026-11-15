@@ -196,6 +196,7 @@ if build_xorg
      'list.c',
      'misc.c',
      'region.c',
+     'rrlease.c',
      'sha1.c',
      'signal-logging.c',
      'string.c',
