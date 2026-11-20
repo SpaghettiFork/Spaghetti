@@ -1385,6 +1385,8 @@ fill_pointer_events(InternalEvent *events, DeviceIntPtr pDev, int type,
         num_events++;
 
         init_raw(pDev, raw, ms, type, buttons);
+        raw->relative_motion = type == MotionNotify &&
+            !(flags & (POINTER_ABSOLUTE | POINTER_EMULATED));
 
         if (flags & POINTER_EMULATED)
             raw->flags = XIPointerEmulated;
