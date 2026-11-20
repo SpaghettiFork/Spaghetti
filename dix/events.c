@@ -204,6 +204,7 @@ xi2_get_type(const xEvent *event)
 
 CallbackListPtr EventCallback;
 CallbackListPtr DeviceEventCallback;
+CallbackListPtr RelativeMotionCallback;
 
 #define DNPMCOUNT 8
 
@@ -2484,6 +2485,20 @@ DeliverRawEvent(RawDeviceEvent *ev, DeviceIntPtr device)
     xEvent *xi;
     int i, rc;
     int filter;
+
+    if (RelativeMotionCallback && ev->relative_motion && IsMaster(device)) {
+        RelativeMotionInfoRec motion = {
+            .device = device,
+            .time = ev->time,
+            .dx = ev->valuators.data[0],
+            .dy = ev->valuators.data[1],
+            .dx_unaccel = ev->valuators.data_raw[0],
+            .dy_unaccel = ev->valuators.data_raw[1],
+        };
+
+        if (motion.dx || motion.dy || motion.dx_unaccel || motion.dy_unaccel)
+            CallCallbacks(&RelativeMotionCallback, &motion);
+    }
 
     rc = EventToXI2((InternalEvent *) ev, (xEvent **) &xi);
     if (rc != Success) {

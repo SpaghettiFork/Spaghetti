@@ -230,6 +230,7 @@ struct _DGAEvent {
  */
 struct _RawDeviceEvent {
     unsigned char header; /**<  Always ET_Internal */
+    BOOL relative_motion; /**<  Relative pointer motion before clipping */
     enum EventType type;  /**<  ET_Raw */
     int length;           /**<  Length in bytes */
     Time time;            /**<  Time in ms */

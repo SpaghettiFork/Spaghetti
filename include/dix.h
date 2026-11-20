@@ -617,6 +617,16 @@ typedef struct {
     DeviceIntPtr device;
 } DeviceEventInfoRec;
 
+/* Unclipped relative motion from a master pointer, before event delivery. */
+extern MEATBALL_EXPORT CallbackListPtr RelativeMotionCallback;
+
+typedef struct {
+    DeviceIntPtr device;
+    CARD32 time; /* Event time in milliseconds, modulo 2^32 */
+    double dx, dy;
+    double dx_unaccel, dy_unaccel;
+} RelativeMotionInfoRec;
+
 extern _X_EXPORT CallbackListPtr RootWindowFinalizeCallback;
 
 extern int
