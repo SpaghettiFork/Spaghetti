@@ -34,6 +34,14 @@ else
     message('xcb present/dri3/sync/libdrm not found, skipping pattern-present test')
 endif
 
+xrender_dep = dependency('xrender', required: false)
+if xrender_dep.found()
+    alpha_map_bench = executable('alpha-map-bench', 'alpha-map-bench.c',
+                                 dependencies: [x11_dep, xrender_dep])
+else
+    message('xrender not found, skipping alpha-map-bench')
+endif
+
 piglit_env = environment()
 piglit_env.set('XSERVER_DIR', meson.project_source_root())
 piglit_env.set('XSERVER_BUILDDIR', meson.project_build_root())
@@ -127,6 +135,22 @@ if get_option('xvfb')
                  suite: 'xvfb'
                 )
         endforeach
+    endif
+
+    if xrender_dep.found()
+        test('alpha-map-bench',
+             simple_xinit,
+             args: [
+                 alpha_map_bench.full_path(),
+                 '-b', '1',
+                 '-k', '2',
+                 '-w', '1',
+                 '-m', '256',
+                 '--',
+                 xvfb_args,
+             ],
+             suite: 'xvfb'
+            )
     endif
 
     if get_option('xephyr') and build_glamor
