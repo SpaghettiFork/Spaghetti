@@ -114,51 +114,12 @@ typedef Bool (*present_flip_ptr) (RRCrtcPtr crtc,
                                   PixmapPtr pixmap,
                                   Bool sync_flip);
 
-/* Flip pixmap, return false if it didn't happen.
- *
- * 'crtc' is to be used for any necessary synchronization.
- *
- * 'type' represents the choice between one of the following flips:
- * - SYNCHRONOUS (sync_flip)
- * - ASYNCHRONOUS (!sync_flip)
- * - ASYNC_TEARING (!sync_flip if not supported)
- *
- * present_event_notify should be called with 'event_id' when the flip
- * occurs
- */
-typedef Bool (*present_flip2_ptr) (RRCrtcPtr crtc,
-                                   uint64_t event_id,
-                                   uint64_t target_msc,
-                                   PixmapPtr pixmap,
-                                   present_flip_type type);
-
-/* Flip pixmap for window, return false if it didn't happen.
- *
- * Like present_flip_ptr, additionally with:
- *
- * 'window' used for synchronization.
- *
- */
-typedef Bool (*present_wnmd_flip_ptr) (WindowPtr window,
-                                       RRCrtcPtr crtc,
-                                       uint64_t event_id,
-                                       uint64_t target_msc,
-                                       PixmapPtr pixmap,
-                                       Bool sync_flip,
-                                       RegionPtr damage);
-
 /* "unflip" back to the regular screen scanout buffer
  *
  * present_event_notify should be called with 'event_id' when the unflip occurs.
  */
 typedef void (*present_unflip_ptr) (ScreenPtr screen,
                                     uint64_t event_id);
-
-/* Doing flips has been discontinued.
- *
- * Inform driver for potential cleanup on its side.
- */
-typedef void (*present_wnmd_flips_stop_ptr) (WindowPtr window);
 
 #define PRESENT_SCREEN_INFO_VERSION        1
 
