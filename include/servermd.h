@@ -88,6 +88,13 @@ SOFTWARE.
 #endif
 
 #include <X11/Xfuncproto.h>
+
+#ifdef MEATBALL
+#define MEATBALL_EXPORT _X_EXPORT
+#else
+#define MEATBALL_EXPORT
+#endif
+
 /*
  *   This returns the number of padding units, for depth d and width w.
  * For bitmaps this can be calculated with the macros above.

@@ -68,6 +68,9 @@
 /* Break Xorg ABI in order to support older proprietary drivers? */
 #mesondefine LEGACY_ABI_COMPAT
 
+/* Expose ABI required by Meatball */
+#mesondefine MEATBALL
+
 /* Support MIT-SHM Extension */
 #mesondefine MITSHM
 
