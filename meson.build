@@ -307,6 +307,7 @@ endif
 message('IPv6 support: ' + (build_ipv6 ? 'YES' : 'NO'))
 
 legacy_abi_compat = get_option('legacy_abi')
+meatball = get_option('meatball')
 
 int10 = get_option('int10')
 if int10 == 'auto'
