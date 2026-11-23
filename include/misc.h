@@ -81,6 +81,12 @@ OF THIS SOFTWARE.
 #include <stdint.h>
 #include <pthread.h>
 
+#ifdef MEATBALL
+#define MEATBALL_EXPORT _X_EXPORT
+#else
+#define MEATBALL_EXPORT
+#endif
+
 #ifndef MAXSCREENS
 #define MAXSCREENS	16
 #endif
