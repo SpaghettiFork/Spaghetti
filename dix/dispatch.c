@@ -3525,7 +3525,7 @@ CloseDownClient(ClientPtr client)
          * ClientStateCallback. */
         ReleaseClientIds(client);
 
-        if (client->external)
+        if (CLIENT_IS_EXTERNAL(client))
             dixCloseExternalClient(client);
 #ifdef XSERVER_DTRACE
         XSERVER_CLIENT_DISCONNECT(client->index);

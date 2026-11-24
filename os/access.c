@@ -1064,8 +1064,9 @@ ComputeLocalClient(ClientPtr client)
 {
     const char *cmdname = GetClientCmdName(client);
 
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client))
         return TRUE;
+
     if (!xtransLocalClient(client))
         return FALSE;
 
@@ -1113,7 +1114,7 @@ GetLocalClientCreds(ClientPtr client, LocalClientCredRec ** lccp)
     if (client == NULL)
         return -1;
 
-    if (client->external) {
+    if (CLIENT_IS_EXTERNAL(client)) {
         ExternalClientRec *external = dixLookupPrivate(&client->devPrivates,
                                                        &externalClientPrivateKeyRec);
 

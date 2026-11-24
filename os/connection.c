@@ -776,7 +776,7 @@ CloseDownConnection(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client))
         return;
 
     if (FlushCallback)
@@ -916,8 +916,9 @@ IgnoreClient(ClientPtr client)
     isItTimeToYield = TRUE;
     mark_client_not_ready(client);
 
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client))
         return;
+
     oc->flags |= OS_COMM_IGNORED;
     set_poll_client(client);
 }
@@ -944,8 +945,9 @@ AttendClient(ClientPtr client)
     if (client->ignoreCount)
         return;
 
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client))
         return;
+
     oc->flags &= ~OS_COMM_IGNORED;
     set_poll_client(client);
     if (listen_to_client(client))
@@ -963,8 +965,9 @@ MakeClientGrabImpervious(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client))
         return;
+
     oc->flags |= OS_COMM_GRAB_IMPERVIOUS;
     set_poll_client(client);
 
@@ -982,20 +985,21 @@ MakeClientGrabImpervious(ClientPtr client)
 void
 MakeClientGrabPervious(ClientPtr client)
 {
-    OsCommPtr oc = (OsCommPtr) client->osPrivate;
+    if (!CLIENT_IS_EXTERNAL(client))
+    {
+        OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
-    if (client->external)
-        return;
-    oc->flags &= ~OS_COMM_GRAB_IMPERVIOUS;
-    set_poll_client(client);
-    isItTimeToYield = TRUE;
+        oc->flags &= ~OS_COMM_GRAB_IMPERVIOUS;
+        set_poll_client(client);
+        isItTimeToYield = TRUE;
 
-    if (ServerGrabCallback) {
-        ServerGrabInfoRec grabinfo;
+        if (ServerGrabCallback) {
+            ServerGrabInfoRec grabinfo;
 
-        grabinfo.client = client;
-        grabinfo.grabstate = CLIENT_PERVIOUS;
-        CallCallbacks(&ServerGrabCallback, &grabinfo);
+            grabinfo.client = client;
+            grabinfo.grabstate = CLIENT_PERVIOUS;
+            CallCallbacks(&ServerGrabCallback, &grabinfo);
+        }
     }
 }
 
@@ -1095,8 +1099,9 @@ listen_to_client(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client))
         return FALSE;
+
     if (oc->flags & OS_COMM_IGNORED)
         return FALSE;
 
@@ -1117,8 +1122,9 @@ set_poll_client(ClientPtr client)
 {
     OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client))
         return;
+
     if (oc->trans_conn) {
         if (listen_to_client(client))
             ospoll_listen(server_poll, oc->trans_conn->fd, X_NOTIFY_READ);
