@@ -1204,7 +1204,7 @@ LegalNewID(XID id, ClientPtr client)
     void *val;
     int rc;
 
-    if (client->external) {
+    if (CLIENT_IS_EXTERNAL(client)) {
         if ((id & ~RESOURCE_ID_MASK) != (client->clientAsMask | SERVER_BIT))
             return FALSE;
         else {

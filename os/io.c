@@ -264,8 +264,9 @@ ReadRequestFromClient(ClientPtr client)
     Bool need_header;
     Bool move_header;
 
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client))
         return 0;
+
     oci = oc->input;
     NextAvailableInput(oc);
 
@@ -479,36 +480,38 @@ ReadFdFromClient(ClientPtr client)
 {
     int fd = -1;
 
-    if (client->external) {
+    if (CLIENT_IS_EXTERNAL(client)) {
         client->req_fds = 0;
         return -1;
-    }
-
+    } else {
 #if XTRANS_SEND_FDS
-    if (client->req_fds > 0) {
-        OsCommPtr oc = (OsCommPtr) client->osPrivate;
+        if (client->req_fds > 0) {
+            OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
-        --client->req_fds;
-        fd = _XSERVTransRecvFd(oc->trans_conn);
-    } else
-        LogMessage(X_ERROR, "Request asks for FD without setting req_fds\n");
+            --client->req_fds;
+            fd = _XSERVTransRecvFd(oc->trans_conn);
+        } else
+            LogMessage(X_ERROR, "Request asks for FD without setting req_fds\n");
 #endif
 
-    return fd;
+        return fd;
+    }
 }
 
 int
 WriteFdToClient(ClientPtr client, int fd, Bool do_close)
 {
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client)) {
         return dixSendExternalClientFD(client, fd, do_close);
+    } else {
 #if XTRANS_SEND_FDS
-    OsCommPtr oc = (OsCommPtr) client->osPrivate;
+        OsCommPtr oc = (OsCommPtr) client->osPrivate;
 
-    return _XSERVTransSendFd(oc->trans_conn, fd, do_close);
+        return _XSERVTransSendFd(oc->trans_conn, fd, do_close);
 #else
-    return -1;
+        return -1;
 #endif
+    }
 }
 
 /*****************************************************************
@@ -524,8 +527,9 @@ InsertFakeRequest(ClientPtr client, char *data, int count)
     ConnectionInputPtr oci;
     int gotnow, moveup;
 
-    if (client->external)
+    if (CLIENT_IS_EXTERNAL(client))
         return FALSE;
+
     oci = oc->input;
     NextAvailableInput(oc);
 
