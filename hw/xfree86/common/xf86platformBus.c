@@ -306,7 +306,7 @@ void xf86PlatformScanPciDev(void)
     for (i = 0; i < xf86_num_platform_devices; i++) {
         char *busid = xf86_platform_odev_attributes(i)->busid;
 
-        if (strncmp(busid, "pci:", 4) == 0)
+        if (busid && strncmp(busid, "pci:", 4) == 0)
             platform_find_pci_info(&xf86_platform_devices[i], busid);
     }
 }
