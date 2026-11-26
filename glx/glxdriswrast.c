@@ -257,12 +257,7 @@ __glXDRIscreenCreateContext(__GLXscreen * baseScreen,
     context->driContext =
         (*core->createNewContext) (screen->driScreen, driConfig, driShare,
                                    context);
-    if (context->driContext == NULL) {
-        free(context);
-        return NULL;
-    } else {
-        return &context->base;
-    }
+    return &context->base;
 }
 
 static __GLXdrawable *
