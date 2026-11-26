@@ -267,8 +267,12 @@ glamor_prepare_access_picture_box(PicturePtr picture, glamor_access_t access,
      * potentially work out where in the source would be sampled based
      * on the transform, and we don't need do do this for destination
      * pixmaps at all.
+     *
+     * A convolution filter reads around each pixel too, as far as half
+     * the kernel; without this, the pixels it reads beyond the box were
+     * never downloaded from the GPU.
      */
-    if (picture->transform) {
+    if (picture->transform || picture->filter == PictFilterConvolution) {
         return glamor_prepare_access_box(picture->pDrawable, access,
                                          0, 0,
                                          picture->pDrawable->width,
