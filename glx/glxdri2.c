@@ -645,14 +645,7 @@ __glXDRIscreenCreateDrawable(ClientPtr client,
     private->driDrawable =
         (*driScreen->dri2->createNewDrawable) (driScreen->driScreen,
                                                config->driConfig, private);
-    if (private->driDrawable == NULL) {
-        FreeResource(private->dri2_id, FALSE);
-        __glXDrawableRelease(&private->base);
-        free(private);
-        return NULL;
-    } else {
-        return &private->base;
-    }
+    return &private->base;
 }
 
 static __DRIbuffer *
