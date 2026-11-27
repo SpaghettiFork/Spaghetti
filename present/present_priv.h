@@ -157,11 +157,7 @@ typedef void (*present_priv_flush_ptr)(WindowPtr window);
 typedef int (*present_priv_flush_fenced_ptr)(WindowPtr window);
 typedef void (*present_priv_re_execute_ptr)(present_vblank_ptr vblank);
 
-typedef void (*present_priv_abort_vblank_ptr)(ScreenPtr screen,
-                                              WindowPtr window,
-                                              RRCrtcPtr crtc,
-                                              uint64_t event_id,
-                                              uint64_t msc);
+typedef void (*present_priv_abort_vblank_ptr)(present_vblank_ptr vblank);
 typedef void (*present_priv_flip_destroy_ptr)(ScreenPtr screen);
 
 struct present_screen_priv {

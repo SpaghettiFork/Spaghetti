@@ -864,31 +864,31 @@ present_scmd_pixmap(WindowPtr window,
 }
 
 static void
-present_scmd_abort_vblank(ScreenPtr screen, WindowPtr window, RRCrtcPtr crtc, uint64_t event_id, uint64_t msc)
+present_scmd_abort_vblank(present_vblank_ptr vblank)
 {
-    present_vblank_ptr  vblank;
+    present_vblank_ptr  queued;
 
-    if (crtc == NULL)
-        present_fake_abort_vblank(screen, event_id, msc);
+    if (vblank->crtc == NULL)
+        present_fake_abort_vblank(vblank->screen, vblank->event_id, vblank->target_msc);
     else
     {
-        present_screen_priv_ptr     screen_priv = present_screen_priv(screen);
+        present_screen_priv_ptr     screen_priv = present_screen_priv(vblank->crtc->pScreen);
 
-        (*screen_priv->info->abort_vblank) (crtc, event_id, msc);
+        (*screen_priv->info->abort_vblank) (vblank->crtc, vblank->event_id, vblank->target_msc);
     }
 
-    xorg_list_for_each_entry(vblank, &present_exec_queue, event_queue) {
-        int64_t match = event_id - vblank->event_id;
+    xorg_list_for_each_entry(queued, &present_exec_queue, event_queue) {
+        int64_t match = vblank->event_id - queued->event_id;
         if (match == 0) {
-            xorg_list_del(&vblank->event_queue);
-            vblank->queued = FALSE;
+            xorg_list_del(&queued->event_queue);
+            queued->queued = FALSE;
             return;
         }
     }
-    xorg_list_for_each_entry(vblank, &present_flip_queue, event_queue) {
-        if (vblank->event_id == event_id) {
-            xorg_list_del(&vblank->event_queue);
-            vblank->queued = FALSE;
+    xorg_list_for_each_entry(queued, &present_flip_queue, event_queue) {
+        if (queued->event_id == vblank->event_id) {
+            xorg_list_del(&queued->event_queue);
+            queued->queued = FALSE;
             return;
         }
     }
