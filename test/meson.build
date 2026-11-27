@@ -196,6 +196,7 @@ if build_xorg
      'input.c',
      'list.c',
      'misc.c',
+     'checked-math.c',
      'region.c',
      'rrlease.c',
      'sha1.c',

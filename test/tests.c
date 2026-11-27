@@ -21,6 +21,7 @@ main(int argc, char **argv)
 #endif
     run_test(input_test);
     run_test(misc_test);
+    run_test(checked_math_test);
     run_test(region_test);
     run_test(rrlease_test);
 #ifdef MITSHM
