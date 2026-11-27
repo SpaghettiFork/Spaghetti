@@ -147,6 +147,27 @@ fbOddTile(FbBits * dst,
     int widthTmp;
     int h, w;
     int x, y;
+    int seedWidth = width;
+
+#ifndef FB_ACCESS_WRAPPER
+#define MIN_TILE_REPEATS 8
+
+    if (alu == GXcopy && pm == FB_ALLONES &&
+        !((dstX | xRot | width | tileWidth) & 7) &&
+        tileWidth <= width / MIN_TILE_REPEATS &&
+        dstStride > 0 && tileStride > 0) {
+
+        uintptr_t dstStart = (uintptr_t) dst;
+        uintptr_t tileStart = (uintptr_t) tile;
+        uintptr_t dstEnd = dstStart + (size_t) height * dstStride * sizeof(FbBits);
+        uintptr_t tileEnd = tileStart + (size_t) tileHeight * tileStride * sizeof(FbBits);
+
+        /* Reuse the first period only when writing it cannot change the tile. */
+        if (dstEnd <= tileStart || tileEnd <= dstStart)
+            seedWidth = tileWidth;
+    }
+#undef MIN_TILE_REPEATS
+#endif
 
     modulus(-yRot, tileHeight, tileY);
     y = 0;
@@ -155,7 +176,7 @@ fbOddTile(FbBits * dst,
         if (h > height)
             h = height;
         height -= h;
-        widthTmp = width;
+        widthTmp = seedWidth;
         x = dstX;
         modulus(dstX - xRot, tileWidth, tileX);
         while (widthTmp) {
@@ -171,6 +192,21 @@ fbOddTile(FbBits * dst,
             x += w;
             tileX = 0;
         }
+
+#ifndef FB_ACCESS_WRAPPER
+        /* The seeded run starts at the requested tile phase. */
+        widthTmp = width - seedWidth;
+        while (widthTmp) {
+            w = x - dstX;
+            if (w > widthTmp)
+                w = widthTmp;
+            fbBlt(dst + y * dstStride, dstStride, dstX,
+                  dst + y * dstStride, dstStride, x, w, h,
+                  alu, pm, bpp, FALSE, FALSE);
+            x += w;
+            widthTmp -= w;
+        }
+#endif
         y += h;
         tileY = 0;
     }
