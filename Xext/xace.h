@@ -81,7 +81,7 @@ extern _X_EXPORT int XaceHookPropertyAccess(ClientPtr ptr, WindowPtr pWin,
 extern _X_EXPORT int XaceHookSelectionAccess(ClientPtr ptr, Selection ** ppSel,
                                              Mask access_mode);
 
-/* needs to be exported for in-tree modsetting, but not part of public API */
+/* Exported for GLX; this is not installed as part of the SDK */
 _X_EXPORT int XaceHookResourceAccess(ClientPtr client, XID id,
                                      RESTYPE rtype, void *res,
                                      RESTYPE ptype, void *parent,
