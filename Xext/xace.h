@@ -82,8 +82,10 @@ extern _X_EXPORT int XaceHookSelectionAccess(ClientPtr ptr, Selection ** ppSel,
                                              Mask access_mode);
 
 /* needs to be exported for in-tree modsetting, but not part of public API */
-_X_EXPORT int XaceHookResourceAccess(ClientPtr client, XID id, RESTYPE rtype, void *res,
-                           RESTYPE ptype, void *parent, Mask access_mode);
+_X_EXPORT int XaceHookResourceAccess(ClientPtr client, XID id,
+                                     RESTYPE rtype, void *res,
+                                     RESTYPE ptype, void *parent,
+                                     Mask access_mode);
 
 int XaceHookDeviceAccess(ClientPtr client, DeviceIntPtr dev, Mask access_mode);
 
