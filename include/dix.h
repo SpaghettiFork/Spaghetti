@@ -457,7 +457,7 @@ extern void
 UpdateSpriteForScreen(DeviceIntPtr /* pDev */ ,
                       ScreenPtr /* pScreen */ );
 
-extern _X_EXPORT void
+extern MEATBALL_EXPORT void
 WindowHasNewCursor(WindowPtr /* pWin */ );
 
 extern Bool
