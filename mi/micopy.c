@@ -139,11 +139,6 @@ miCopyRegion(DrawablePtr pSrcDrawable,
         }
     }
 
-    if (nbox <= 1) {
-        reverse = FALSE;
-        upsidedown = FALSE;
-    }
-
     (*copyProc) (pSrcDrawable,
                  pDstDrawable,
                  pGC,
