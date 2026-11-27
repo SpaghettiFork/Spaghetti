@@ -387,19 +387,18 @@ barrier_clamp_to_barrier(struct PointerBarrier *barrier, int dir, int *x,
     }
 }
 
-void
+int
 input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
                        int current_x, int current_y,
                        int dest_x, int dest_y,
                        int *out_x, int *out_y,
-                       int *nevents, InternalEvent* events)
+                       InternalEvent* events)
 {
     /* Clamped coordinates here refer to screen edge clamping. */
     BarrierScreenPtr cs = GetBarrierScreen(screen);
     int x = dest_x,
         y = dest_y;
     int dir;
-    Bool can_emit = events && nevents;
     struct PointerBarrier *nearest = NULL;
     PointerBarrierClientPtr c;
     Time ms = GetTimeInMillis();
@@ -416,6 +415,7 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
     };
     InternalEvent *barrier_events = events;
     DeviceIntPtr master;
+    int nevents = 0;
 
     /* We cannot know how many events are available in *events, but
      * we know that all DDX very probably allocated them with
@@ -428,9 +428,6 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
      * through miPointerSetPosition so... weeping face.
      */
     const int MAX_BARRIER_EVENTS = 64;
-
-    if (nevents)
-        *nevents = 0;
 
     if (xorg_list_is_empty(&cs->barriers) || IsFloating(dev))
         goto out;
@@ -484,9 +481,8 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
             current_y = y;
         }
 
-        if (*nevents < MAX_BARRIER_EVENTS) {
+        if (nevents < MAX_BARRIER_EVENTS) {
             ev.type = ET_BarrierHit;
-
             ev.flags = 0;
             ev.event_id = pbd->barrier_event_id;
             ev.barrierid = c->id;
@@ -496,11 +492,9 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
 
             /* root x/y is filled in later */
 
-            if (_X_LIKELY(can_emit)) {
-                barrier_events->barrier_event = ev;
-                barrier_events++;
-                *nevents += 1;
-            }
+            barrier_events->barrier_event = ev;
+            barrier_events++;
+            nevents++;
         }
         pbd->last_timestamp = ms;
     }
@@ -522,7 +516,7 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
 
         pbd->hit = FALSE;
 
-        if (*nevents < MAX_BARRIER_EVENTS) {
+        if (nevents < MAX_BARRIER_EVENTS) {
             ev.type = ET_BarrierLeave;
 
             if (pbd->barrier_event_id == pbd->release_event_id)
@@ -537,11 +531,9 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
 
             /* root x/y is filled in later */
 
-            if (_X_LIKELY(can_emit)) {
-                barrier_events->barrier_event = ev;
-                barrier_events++;
-                *nevents += 1;
-            }
+            barrier_events->barrier_event = ev;
+            barrier_events++;
+            nevents++;
         }
 
         pbd->last_timestamp = ms;
@@ -553,6 +545,8 @@ input_constrain_cursor(DeviceIntPtr dev, ScreenPtr screen,
  out:
     *out_x = x;
     *out_y = y;
+
+    return nevents;
 }
 
 static void
