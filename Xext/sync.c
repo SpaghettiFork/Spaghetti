@@ -591,7 +591,7 @@ SyncAlarmTriggerFired(SyncTrigger * pTrigger)
             else {
                 steps = diff / pAlarm->delta + 1;
 
-                if (INT64_MUL_OVERFLOW(steps, pAlarm->delta, &advance))
+                if (checked_int64_multiply(&advance, steps, pAlarm->delta))
                     overflow = TRUE;
                 else
                     overflow = checked_int64_add(&paTrigger->test_value,
