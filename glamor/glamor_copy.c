@@ -339,9 +339,17 @@ bail:
 #define GL_TILE_RASTER_ORDER_INCREASING_Y_MESA   0x8BBA
 #endif
 
-static Bool glamor_copy_blit(DrawablePtr src, DrawablePtr dst, GCPtr gc,
-                             BoxPtr box, int nbox, int dx, int dy,
-                             Pixel bitplane);
+static Bool
+glamor_copy_fbo_fbo_blit(DrawablePtr src,
+                         DrawablePtr dst,
+                         GCPtr gc,
+                         BoxPtr box,
+                         int nbox,
+                         int dx,
+                         int dy,
+                         Bool reverse,
+                         Bool upsidedown,
+                         Pixel bitplane);
 
 /*
  * Copy from GPU to GPU by using the source
@@ -390,7 +398,9 @@ glamor_copy_fbo_fbo_draw(DrawablePtr src,
     if (bitplane && !glamor_priv->can_copyplane)
         goto bail_ctx;
 
-    if (glamor_copy_blit(src, dst, gc, box, nbox, dx, dy, bitplane))
+    if (glamor_copy_fbo_fbo_blit(src, dst, gc,
+                                 box, nbox, dx, dy,
+                                 reverse, upsidedown, bitplane))
         return TRUE;
 
     if (bitplane) {
@@ -698,20 +708,29 @@ glamor_copy_needs_temp(DrawablePtr src,
 }
 
 static Bool
-glamor_copy_blit(DrawablePtr src, DrawablePtr dst, GCPtr gc,
-                 BoxPtr box, int nbox, int dx, int dy, Pixel bitplane)
+glamor_copy_fbo_fbo_blit(DrawablePtr src,
+                         DrawablePtr dst,
+                         GCPtr gc,
+                         BoxPtr box,
+                         int nbox,
+                         int dx,
+                         int dy,
+                         Bool reverse,
+                         Bool upsidedown,
+                         Pixel bitplane)
 {
     glamor_screen_private *glamor_priv = glamor_get_screen_private(dst->pScreen);
     PixmapPtr src_pixmap = glamor_get_drawable_pixmap(src);
     PixmapPtr dst_pixmap = glamor_get_drawable_pixmap(dst);
     glamor_pixmap_private *src_priv = glamor_get_pixmap_private(src_pixmap);
     glamor_pixmap_private *dst_priv = glamor_get_pixmap_private(dst_pixmap);
+    const struct glamor_format *src_fmt, *dst_fmt;
     int src_off_x, src_off_y, dst_off_x, dst_off_y;
 
     if (!glamor_priv->has_framebuffer_blit)
         return FALSE;
 
-    if (bitplane)
+    if (bitplane || reverse || upsidedown)
         return FALSE;
 
     if (gc && gc->alu != GXcopy)
@@ -728,13 +747,20 @@ glamor_copy_blit(DrawablePtr src, DrawablePtr dst, GCPtr gc,
         glamor_pixmap_priv_is_large(dst_priv))
         return FALSE;
 
-    if (src_priv->fbo->is_red != dst_priv->fbo->is_red ||
-        src_pixmap->drawable.depth != dst_pixmap->drawable.depth)
+    if (src_pixmap == dst_pixmap && glamor_priv->has_mesa_tile_raster_order)
+        return FALSE;
+
+    src_fmt = glamor_format_for_pixmap(src_pixmap);
+    dst_fmt = glamor_format_for_pixmap(dst_pixmap);
+    if (src_fmt->internalformat != dst_fmt->internalformat ||
+        src_fmt->format != dst_fmt->format ||
+        src_fmt->type != dst_fmt->type)
         return FALSE;
 
     glamor_get_drawable_deltas(src, src_pixmap, &src_off_x, &src_off_y);
     glamor_get_drawable_deltas(dst, dst_pixmap, &dst_off_x, &dst_off_y);
 
+    glDisable(GL_SCISSOR_TEST);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, src_priv->fbo->fb);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst_priv->fbo->fb);
 
@@ -746,6 +772,7 @@ glamor_copy_blit(DrawablePtr src, DrawablePtr dst, GCPtr gc,
                           GL_COLOR_BUFFER_BIT, GL_NEAREST);
     }
 
+    glBindFramebuffer(GL_FRAMEBUFFER, dst_priv->fbo->fb);
     return TRUE;
 }
 
