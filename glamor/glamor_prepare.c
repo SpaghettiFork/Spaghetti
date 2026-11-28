@@ -270,9 +270,12 @@ glamor_prepare_access_picture_box(PicturePtr picture, glamor_access_t access,
      *
      * A convolution filter reads around each pixel too, as far as half
      * the kernel; without this, the pixels it reads beyond the box were
-     * never downloaded from the GPU.
+     * never downloaded from the GPU. Only source and mask filters are
+     * used for sampling, so skip this for writable accesses.
      */
-    if (picture->transform || picture->filter == PictFilterConvolution) {
+    if (picture->transform ||
+        (access == GLAMOR_ACCESS_RO &&
+         picture->filter == PictFilterConvolution)) {
         return glamor_prepare_access_box(picture->pDrawable, access,
                                          0, 0,
                                          picture->pDrawable->width,
