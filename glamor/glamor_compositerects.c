@@ -93,6 +93,30 @@ _pixman_region_init_clipped_rectangles(pixman_region16_t * region,
     return ret;
 }
 
+static inline Bool
+glamor_can_clear_pixmap(PicturePtr dst, PixmapPtr pixmap,
+                        glamor_pixmap_private *priv, RegionPtr region)
+{
+    if (dst->pDrawable != &pixmap->drawable || RegionNumRects(region) != 1)
+        return FALSE;
+
+    if (!glamor_pixmap_priv_is_small(priv))
+        return FALSE;
+
+    if ((dst->format != PICT_a8r8g8b8 && dst->format != PICT_x8r8g8b8) ||
+         dst->format != glamor_format_for_pixmap(pixmap)->render_format)
+        return FALSE;
+
+    const BoxRec *box = RegionExtents(region);
+    const glamor_pixmap_fbo *fbo = priv->fbo;
+
+    return fbo->fb &&
+           box->x1 == 0 &&
+           box->y1 == 0 &&
+           box->x2 == fbo->width &&
+           box->y2 == fbo->height;
+}
+
 void
 glamor_composite_rectangles(CARD8 op,
                             PicturePtr dst,
@@ -232,7 +256,22 @@ glamor_composite_rectangles(CARD8 op,
             pixel = 0;
         else
             miRenderColorToPixel(dst->pFormat, color, &pixel);
-        glamor_solid_boxes(dst->pDrawable, boxes, num_boxes, pixel);
+
+        if (glamor_can_clear_pixmap(dst, pixmap, priv, &region)) {
+            glamor_screen_private *glamor_priv =
+                glamor_get_screen_private(pixmap->drawable.pScreen);
+            float red, green, blue, alpha;
+
+            glamor_make_current(glamor_priv);
+            glamor_get_rgba_from_pixel(pixel, &red, &green, &blue, &alpha, dst->format);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, priv->fbo->fb);
+            glDisable(GL_SCISSOR_TEST);
+            glClearColor(red, green, blue, alpha);
+            glClear(GL_COLOR_BUFFER_BIT);
+        } else {
+            glamor_solid_boxes(dst->pDrawable, boxes, num_boxes, pixel);
+        }
 
         goto done;
     }

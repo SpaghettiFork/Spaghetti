@@ -70,10 +70,7 @@ fbBlt(FbBits * srcLine,
         FbStride        dst_byte_stride = dstStride << (FB_SHIFT - 3);
         int             width_byte = (width >> 3);
 
-        /* Make sure there's no overlap; we can't use memcpy in that
-         * case as it's not well defined, so fall through to the
-         * general code
-         */
+        /* Use memcpy when the scanline ranges are disjoint. */
         if (src_byte + width_byte <= dst_byte ||
             dst_byte + width_byte <= src_byte)
         {
@@ -92,6 +89,24 @@ fbBlt(FbBits * srcLine,
 
             return;
         }
+
+#ifndef FB_ACCESS_WRAPPER
+        /* memmove handles overlap within a scanline. Keep the caller's
+         * scanline order for overlap between rows.
+         */
+        if (upsidedown) {
+            src_byte += (height - 1) * src_byte_stride;
+            dst_byte += (height - 1) * dst_byte_stride;
+            src_byte_stride = -src_byte_stride;
+            dst_byte_stride = -dst_byte_stride;
+        }
+
+        for (int i = 0; i < height; i++)
+            memmove(dst_byte + i * dst_byte_stride,
+                    src_byte + i * src_byte_stride, width_byte);
+
+        return;
+#endif
     }
 
     FbInitializeMergeRop(alu, pm);
